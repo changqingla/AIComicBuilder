@@ -2,13 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useParams } from "next/navigation";
-import {
-  useProjectStore,
-  getKeyframeVideoUrl,
-  getReferenceVideoUrl,
-  getSceneRefFrameUrl,
-  getFirstFrameUrl,
-} from "@/stores/project-store";
+import { useProjectStore,  } from "@/stores/project-store";
+import { getKeyframeVideoUrl, getReferenceVideoUrl, getSceneRefFrameUrl, getFirstFrameUrl } from "@/lib/shot-assets";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { uploadUrl } from "@/lib/utils/upload-url";

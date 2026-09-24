@@ -1,73 +1,193 @@
-import { z } from "zod";
-import { and, eq, inArray } from "drizzle-orm";
+import { createLanguageModel,extractJSON } from "@/lib/ai/ai-sdk";
+import { buildCharacterExtractPrompt } from "@/lib/ai/prompts/character-extract";
+import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
+import { resolvePrompt } from "@/lib/ai/prompts/resolver";
+import { resolveImageProvider } from "@/lib/ai/provider-factory";
+import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
-import { characters, characterRelations, episodeCharacters } from "@/lib/db/schema";
-import { id } from "@/lib/id";
+import { characters,episodeCharacters,episodes,projects,shots } from "@/lib/db/schema";
+import { characterExtractionSchema,saveExtractedCharacters } from "@/lib/generation/character-results";
+import { callAndValidateAgent,extractErrorMessage,findBoundAgent } from "@/lib/generation/common";
+import type { GenerationInput } from "@/lib/generation/request";
+import { loadShotAssetsBatch,patchAsset } from "@/lib/shot-asset-utils";
+import { selectReferences } from "@/lib/shot-assets";
+import { generateText } from "ai";
+import { eq,inArray } from "drizzle-orm";
 
-export const characterExtractionSchema = z.object({
-  characters: z.array(z.object({
-    name: z.string().trim().min(1),
-    description: z.string(),
-    visualHint: z.string().default(""),
-    scope: z.enum(["main", "guest"]).default("main"),
-    heightCm: z.number().nonnegative().default(0),
-    bodyType: z.string().default("average"),
-    performanceStyle: z.string().default(""),
-  })).min(1),
-  relationships: z.array(z.object({
-    characterA: z.string(), characterB: z.string(), relationType: z.string(),
-    description: z.string().default(""),
-  })).default([]),
-});
+export async function handleCharacterExtract(input: GenerationInput) {
+  const { projectId, userId, modelConfig, episodeId } = input;
+  let script: string | null = null;
 
-export function saveExtractedCharacters(
-  projectId: string,
-  episodeId: string | undefined,
-  result: z.infer<typeof characterExtractionSchema>,
-) {
-  db.transaction((tx) => {
-    const existing = tx.select().from(characters).where(eq(characters.projectId, projectId)).all();
-    const byName = new Map(existing.map((character) => [character.name.toLowerCase().trim(), character.id]));
-    const oldLinks = episodeId
-      ? tx.select().from(episodeCharacters).where(eq(episodeCharacters.episodeId, episodeId)).all()
-      : [];
-    const linkedIds = new Set<string>();
-    for (const character of result.characters) {
-      const key = character.name.toLowerCase();
-      const characterId = byName.get(key) ?? id();
-      tx.insert(characters).values({ ...character, id: characterId, projectId })
-        .onConflictDoUpdate({ target: characters.id, set: character }).run();
-      byName.set(key, characterId);
-      linkedIds.add(characterId);
+  if (episodeId) {
+    const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId));
+    script = episode?.script ?? null;
+  } else {
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    script = project?.script ?? null;
+  }
+
+  if (!script) {
+    throw new ApiError(404, "Project or script not found");
+  }
+
+  let aiText: string;
+  const boundAgent = await findBoundAgent(projectId, "character_extract");
+  if (boundAgent) {
+    const agentResult = await callAndValidateAgent(boundAgent, "character_extract", buildCharacterExtractPrompt(script));
+    aiText = agentResult.text;
+  } else {
+    if (!modelConfig?.text) {
+      throw new ApiError(400, "No text model configured");
+    }
+    const model = createLanguageModel(modelConfig.text);
+    const charExtractSystem = await resolvePrompt("character_extract", { userId, projectId });
+    console.log("[CharacterExtract] resolved system prompt:\n", charExtractSystem);
+    const { text } = await generateText({
+      model,
+      system: charExtractSystem,
+      prompt: buildCharacterExtractPrompt(script),
+    });
+    aiText = text;
+  }
+
+  const result = characterExtractionSchema.safeParse(JSON.parse(extractJSON(aiText)));
+  if (!result.success) {
+    throw new ApiError(422, "Invalid character extraction result");
+  }
+  saveExtractedCharacters(projectId, episodeId, result.data);
+  return { characters: result.data.characters };
+}
+
+export async function handleSingleCharacterImage(input: GenerationInput) {
+  const { payload, modelConfig } = input;
+  const characterId = payload?.characterId as string;
+  if (!characterId) {
+    throw new ApiError(400, "No characterId provided");
+  }
+
+  if (!modelConfig?.image) {
+    throw new ApiError(400, "No image model configured");
+  }
+
+  const [character] = await db
+    .select()
+    .from(characters)
+    .where(eq(characters.id, characterId));
+
+  if (!character) {
+    throw new ApiError(404, "Character not found");
+  }
+
+  const ai = resolveImageProvider(modelConfig);
+  const prompt = buildCharacterTurnaroundPrompt(character.description || character.name, character.name);
+
+  try {
+    const imagePath = await ai.generateImage(prompt, {
+      size: "2560x1440",
+      aspectRatio: "16:9",
+      quality: "hd",
+    });
+
+    // Append to history
+    let history: string[] = [];
+    try {
+      history = JSON.parse(character.referenceImageHistory || "[]");
+    } catch {}
+    if (character.referenceImage && !history.includes(character.referenceImage)) {
+      history.push(character.referenceImage);
+    }
+    if (!history.includes(imagePath)) {
+      history.push(imagePath);
     }
 
-    if (episodeId) {
-      tx.delete(episodeCharacters).where(eq(episodeCharacters.episodeId, episodeId)).run();
-      for (const characterId of linkedIds) {
-        tx.insert(episodeCharacters).values({ id: id(), episodeId, characterId }).run();
+    await db
+      .update(characters)
+      .set({ referenceImage: imagePath, referenceImageHistory: JSON.stringify(history) })
+      .where(eq(characters.id, characterId));
+
+    // Mark downstream ref images stale: any shot's referenceImages that include this character
+    // as a "characters" entry should have its generated items reset to pending so they're
+    // regenerated with the new character reference image.
+    const allShots = await db.select().from(shots).where(eq(shots.projectId, character.projectId));
+    const assetsByShot = await loadShotAssetsBatch(allShots.map((s) => s.id));
+    let staleCount = 0;
+    for (const shot of allShots) {
+      const view = assetsByShot.get(shot.id);
+      if (!view) continue;
+      const refItems = selectReferences(view);
+      let modified = false;
+      for (const item of refItems) {
+        if (item.characters?.includes(character.name) && item.status === "completed") {
+          await patchAsset(item.id, { status: "pending", fileUrl: null });
+          modified = true;
+        }
       }
-      const oldIds = oldLinks.map((link) => link.characterId);
-      if (oldIds.length) tx.delete(characterRelations).where(and(
-        eq(characterRelations.projectId, projectId),
-        inArray(characterRelations.characterAId, oldIds),
-        inArray(characterRelations.characterBId, oldIds),
-      )).run();
-    } else {
-      tx.delete(characterRelations).where(eq(characterRelations.projectId, projectId)).run();
+      if (modified) {
+        staleCount++;
+      }
     }
+    console.log(`[SingleCharacterImage] ${character.name} regenerated; marked ${staleCount} shots' ref images as stale`);
 
-    const relationPairs = new Set<string>();
-    for (const relation of result.relationships) {
-      const characterAId = byName.get(relation.characterA.toLowerCase().trim());
-      const characterBId = byName.get(relation.characterB.toLowerCase().trim());
-      if (!characterAId || !characterBId || characterAId === characterBId) continue;
-      const pair = [characterAId, characterBId].sort().join(":");
-      if (relationPairs.has(pair)) continue;
-      relationPairs.add(pair);
-      tx.insert(characterRelations).values({
-        id: id(), projectId, characterAId, characterBId,
-        relationType: relation.relationType, description: relation.description,
-      }).run();
-    }
-  });
+    return { characterId, imagePath, status: "ok", staleShots: staleCount };
+  } catch (err) {
+    console.error(`[SingleCharacterImage] Error for ${character.name}:`, err);
+    throw new ApiError(500, extractErrorMessage(err));
+  }
+}
+
+export async function handleBatchCharacterImage(input: GenerationInput) {
+  const { projectId, modelConfig, episodeId } = input;
+  if (!modelConfig?.image) {
+    throw new ApiError(400, "No image model configured");
+  }
+
+  let allCharacters: typeof characters.$inferSelect[];
+  if (episodeId) {
+    const linkedIds = await db
+      .select({ characterId: episodeCharacters.characterId })
+      .from(episodeCharacters)
+      .where(eq(episodeCharacters.episodeId, episodeId));
+    allCharacters = linkedIds.length > 0
+      ? await db.select().from(characters).where(inArray(characters.id, linkedIds.map((r) => r.characterId)))
+      : [];
+  } else {
+    allCharacters = await db.select().from(characters).where(eq(characters.projectId, projectId));
+  }
+
+  const needImages = allCharacters.filter((c) => !c.referenceImage);
+  if (needImages.length === 0) {
+    return { results: [], message: "All characters already have images" };
+  }
+
+  const ai = resolveImageProvider(modelConfig);
+
+  const results = await Promise.all(
+    needImages.map(async (character) => {
+      try {
+        const prompt = buildCharacterTurnaroundPrompt(character.description || character.name, character.name);
+        const imagePath = await ai.generateImage(prompt, {
+          size: "2560x1440",
+          aspectRatio: "16:9",
+          quality: "hd",
+        });
+
+        // Append to history
+        let history: string[] = [];
+        try { history = JSON.parse(character.referenceImageHistory || "[]"); } catch {}
+        if (character.referenceImage && !history.includes(character.referenceImage)) history.push(character.referenceImage);
+        if (!history.includes(imagePath)) history.push(imagePath);
+
+        await db
+          .update(characters)
+          .set({ referenceImage: imagePath, referenceImageHistory: JSON.stringify(history) })
+          .where(eq(characters.id, character.id));
+        return { characterId: character.id, name: character.name, imagePath, status: "ok" };
+      } catch (err) {
+        console.error(`[BatchCharacterImage] Error for ${character.name}:`, err);
+        return { characterId: character.id, name: character.name, status: "error", error: extractErrorMessage(err) };
+      }
+    })
+  );
+
+  return { results };
 }

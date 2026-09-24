@@ -1,7 +1,7 @@
-import { z } from "zod";
-import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { characters, episodes, shots, shotAssets, storyboardVersions } from "@/lib/db/schema";
+import { characters,episodes,shotAssets,shots,storyboardVersions } from "@/lib/db/schema";
+import { and,eq } from "drizzle-orm";
+import { z } from "zod";
 
 export const generationRequestSchema = z.object({
   action: z.enum([
@@ -36,6 +36,7 @@ function providerSchema() {
 }
 
 export type GenerationRequest = z.infer<typeof generationRequestSchema>;
+export type GenerationInput = GenerationRequest & { projectId: string; userId: string };
 
 export function hasGenerationAccess(projectId: string, request: GenerationRequest): boolean {
   const { episodeId, payload } = request;

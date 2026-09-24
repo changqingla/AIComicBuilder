@@ -6,19 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "next-intl";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore } from "@/stores/model-store";
-import {
-  useProjectStore,
-  type Shot,
-  getFirstFrameUrl,
-  getLastFrameUrl,
-  getSceneRefFrameUrl,
-  getKeyframeVideoUrl,
-  getReferenceVideoUrl,
-  getFirstFramePrompt,
-  getLastFramePrompt,
-  getReferenceAssets,
-  type ShotAsset,
-} from "@/stores/project-store";
+import { useProjectStore, type Shot,  } from "@/stores/project-store";
+import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl, getFirstFramePrompt, getLastFramePrompt, getReferenceAssets, type ShotAsset } from "@/lib/shot-assets";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
@@ -46,51 +35,6 @@ import {
 import { AiOptimizeButton } from "./ai-optimize-button";
 import { InlineModelPicker } from "./model-selector";
 import { id as genId } from "@/lib/id";
-
-// Local shape compatible with legacy rendering code, built from ShotAsset.
-interface RefImage {
-  id: string;
-  type: "first_frame" | "last_frame" | "reference" | "video" | "ref_video";
-  prompt: string;
-  imagePath?: string;
-  status: "pending" | "generated";
-  characters?: string[];
-  sceneName?: string;
-  model?: { providerId: string; modelId: string };
-  history?: string[];
-  /** Parallel array to history: shot_assets row IDs for each historical version */
-  historyIds?: string[];
-}
-
-function assetToRefImage(a: ShotAsset, allAssets: ShotAsset[] = []): RefImage {
-  const typeMap: Record<ShotAsset["type"], RefImage["type"]> = {
-    first_frame: "first_frame",
-    last_frame: "last_frame",
-    reference: "reference",
-    keyframe_video: "video",
-    reference_video: "ref_video",
-  };
-  // Build the version history from all sibling rows in the same slot,
-  // sorted oldest → newest by assetVersion. Each entry has fileUrl + asset id
-  // so the UI can call activate API by id.
-  const siblings = allAssets
-    .filter((x) => x.type === a.type && x.sequenceInType === a.sequenceInType)
-    .sort((x, y) => x.assetVersion - y.assetVersion);
-  const historyUrls = siblings.map((s) => s.fileUrl).filter((u): u is string => !!u);
-  const historyIds = siblings.filter((s) => !!s.fileUrl).map((s) => s.id);
-  return {
-    id: a.id,
-    type: typeMap[a.type],
-    prompt: a.prompt ?? "",
-    imagePath: a.fileUrl ?? undefined,
-    status: a.status === "completed" && a.fileUrl ? "generated" : "pending",
-    characters: a.characters ?? undefined,
-    sceneName: a.meta?.sceneName,
-    model: a.modelProvider && a.modelId ? { providerId: a.modelProvider, modelId: a.modelId } : undefined,
-    history: historyUrls,
-    historyIds,
-  };
-}
 
 interface ShotCardProps {
   shot: Shot;
@@ -250,16 +194,20 @@ export function ShotCard({
   const imageGuard = useModelGuard("image");
   const videoGuard = useModelGuard("video");
 
-  // Build legacy-shape RefImage[] from the unified shot.assets[] (null-safe)
-  // Build legacy-shape RefImage[] from the unified shot.assets[] (null-safe).
-  // Only ACTIVE rows become entries; siblings (older versions) are folded
-  // into history / historyIds for the version arrows.
-  const allRefItems = useMemo(() => {
-    const all = Array.isArray(shot.assets) ? shot.assets : [];
-    return all
-      .filter((a) => a.isActive === 1)
-      .map((a) => assetToRefImage(a, all));
-  }, [shot.assets]);
+  const allRefItems = useMemo(() => shot.assets.filter((asset) => asset.isActive === 1), [shot.assets]);
+  function assetHistory(asset: ShotAsset) {
+    return shot.assets.filter((row) => row.type === asset.type && row.sequenceInType === asset.sequenceInType && row.fileUrl)
+      .sort((a, b) => a.assetVersion - b.assetVersion);
+  }
+  function historyIds(asset: ShotAsset) { return assetHistory(asset).map((row) => row.id); }
+  function modelRef(asset?: ShotAsset) {
+    return asset?.modelProvider && asset.modelId ? { providerId: asset.modelProvider, modelId: asset.modelId } : null;
+  }
+  function newAsset(type: ShotAsset["type"], prompt = ""): ShotAsset {
+    return { id: genId(), shotId: id, type, prompt, characters: null, fileUrl: null,
+      assetVersion: 1, isActive: 1, status: "pending",
+      sequenceInType: type === "reference" ? Math.max(-1, ...shot.assets.filter((a) => a.type === type).map((a) => a.sequenceInType)) + 1 : 0 };
+  }
   const parsedRefImages = useMemo(() => allRefItems.filter((r) => r.type === "reference"), [allRefItems]);
   const firstFrameItem = useMemo(() => allRefItems.find((r) => r.type === "first_frame"), [allRefItems]);
   const lastFrameItem = useMemo(() => allRefItems.find((r) => r.type === "last_frame"), [allRefItems]);
@@ -270,7 +218,7 @@ export function ShotCard({
   const hasFramePair = !!(firstFrame && lastFrame);
   const hasVideoPrompt = !!videoPrompt;
   const hasVideo = !!videoUrl;
-  const hasRefImages = parsedRefImages.some((r) => r.status === "generated" && r.imagePath);
+  const hasRefImages = parsedRefImages.some((r) => r.status === "completed" && r.fileUrl);
   const isGenerating = status === "generating";
 
   // Step states
@@ -394,76 +342,24 @@ export function ShotCard({
     setRewritingText(false);
   }
 
-  // ─── shot_assets sync helpers (PUT /shots/:id/assets) ─────
-  // Convert legacy-shape RefImage[] back to ShotAsset patches and PUT them.
-  function refImageToAssetPatch(r: RefImage) {
-    const reverseTypeMap: Record<RefImage["type"], ShotAsset["type"] | null> = {
-      first_frame: "first_frame",
-      last_frame: "last_frame",
-      reference: "reference",
-      video: "keyframe_video",
-      ref_video: "reference_video",
-    };
-    const type = reverseTypeMap[r.type];
-    if (!type) return null;
-    return {
-      id: r.id,
-      type,
-      sequenceInType: 0, // default; reference items override below by index
-      prompt: r.prompt,
-      characters: r.characters ?? null,
-      fileUrl: r.imagePath ?? null,
-      status: r.status === "generated" ? "completed" : "pending",
-    };
-  }
-
-  async function syncAssetsToBackend(items: RefImage[]) {
-    // Group reference items so we can assign sequenceInType by array order
-    const patches = items
-      .map((r, idx) => {
-        const p = refImageToAssetPatch(r);
-        if (!p) return null;
-        // For reference type, use position in filtered ref list as sequenceInType
-        if (p.type === "reference") {
-          const refIdx = items.filter((x) => x.type === "reference").indexOf(r);
-          p.sequenceInType = refIdx >= 0 ? refIdx : idx;
-        }
-        return p;
-      })
-      .filter(Boolean);
-
+  async function saveAssets(type: ShotAsset["type"], items: ShotAsset[]) {
     try {
-      const resp = await apiFetch(`/api/projects/${projectId}/shots/${id}/assets`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: patches }),
+      await apiFetch(`/api/projects/${projectId}/shots/${id}/assets`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, items }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
       onUpdate();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save assets");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save assets");
     }
   }
 
-  async function handleClearFrame(field: "firstFrame" | "lastFrame" | "sceneRefFrame") {
-    const targetType: ShotAsset["type"] =
-      field === "firstFrame" ? "first_frame" : field === "lastFrame" ? "last_frame" : "reference";
-    // Remove the matching item from allRefItems
-    const updated = allRefItems.filter(
-      (r) => !(r.type === targetType && (targetType !== "reference" || r.id === allRefItems.find((x) => x.type === "reference")?.id))
-    );
-    await syncAssetsToBackend(updated);
+  async function handleClearFrame(type: "first_frame" | "last_frame" | "reference") {
+    await saveAssets(type, []);
   }
 
-  async function saveRefImages(updatedRefItems: RefImage[]) {
-    // Merge: keep first/last frame items as-is, replace reference items with the new list
-    const nonRef = allRefItems.filter((r) => r.type !== "reference");
-    const merged = [...nonRef, ...updatedRefItems.filter((r) => r.type === "reference")];
-    await syncAssetsToBackend(merged);
-  }
-
-  async function saveAllItems(updated: RefImage[]) {
-    await syncAssetsToBackend(updated);
+  async function saveRefImages(items: ShotAsset[]) {
+    await saveAssets("reference", items);
   }
 
   /**
@@ -488,32 +384,13 @@ export function ShotCard({
    * Save the prompt text for first_frame or last_frame.
    * If the asset row doesn't exist yet, create it via the sync endpoint.
    */
-  async function saveKeyframePrompt(slot: "first_frame" | "last_frame", prompt: string) {
-    const existing = allRefItems.find((r) => r.type === slot);
-    let updated: RefImage[];
-    if (existing) {
-      updated = allRefItems.map((r) =>
-        r.id === existing.id ? { ...r, prompt } : r
-      );
-    } else {
-      // Create a new pending entry for this slot
-      updated = [
-        ...allRefItems,
-        {
-          id: genId(),
-          type: slot,
-          prompt,
-          status: "pending" as const,
-        },
-      ];
-    }
-    await syncAssetsToBackend(updated);
+  async function saveKeyframePrompt(type: "first_frame" | "last_frame", prompt: string) {
+    const existing = allRefItems.find((asset) => asset.type === type);
+    await saveAssets(type, [existing ? { ...existing, prompt } : newAsset(type, prompt)]);
   }
 
-  // Add empty ref image card
   function handleAddRefImage() {
-    const updated = [...parsedRefImages, { id: genId(), type: "reference" as const, prompt: "", status: "pending" as const }];
-    saveRefImages(updated);
+    saveRefImages([...parsedRefImages, newAsset("reference")]);
   }
 
   // Remove a ref image
@@ -597,13 +474,13 @@ export function ShotCard({
   // by id, then re-fetches. Ref id is the *currently active* asset row id.
   async function handleSwitchRefImageVersion(refId: string, direction: "prev" | "next") {
     const ref = parsedRefImages.find((r) => r.id === refId);
-    if (!ref || !ref.historyIds || ref.historyIds.length < 2) return;
-    const currentIdx = ref.historyIds.indexOf(refId);
+    if (!ref || !historyIds(ref) || historyIds(ref).length < 2) return;
+    const currentIdx = historyIds(ref).indexOf(refId);
     if (currentIdx < 0) return;
     const nextIdx = direction === "next"
-      ? (currentIdx + 1) % ref.historyIds.length
-      : (currentIdx - 1 + ref.historyIds.length) % ref.historyIds.length;
-    const targetId = ref.historyIds[nextIdx];
+      ? (currentIdx + 1) % historyIds(ref).length
+      : (currentIdx - 1 + historyIds(ref).length) % historyIds(ref).length;
+    const targetId = historyIds(ref)[nextIdx];
     await activateAssetById(targetId);
   }
 
@@ -618,7 +495,7 @@ export function ShotCard({
   const [regeneratingRefIds, setRegeneratingRefIds] = useState<Set<string>>(new Set());
 
   // Resolve a model ref to a full provider config (for per-card model override)
-  function resolvePerCardImageRef(modelRef?: { providerId: string; modelId: string }) {
+  function resolvePerCardImageRef(modelRef?: { providerId: string; modelId: string } | null) {
     if (!modelRef) return null;
     const providers = useModelStore.getState().providers;
     const provider = providers.find((p) => p.id === modelRef.providerId);
@@ -643,7 +520,7 @@ export function ShotCard({
       // Get per-card model (if set) or fall back to global
       const ref = parsedRefImages.find((r) => r.id === refId);
       const baseConfig = getModelConfig();
-      const perCardImage = resolvePerCardImageRef(ref?.model);
+      const perCardImage = resolvePerCardImageRef(modelRef(ref));
       const modelConfig = perCardImage
         ? { ...baseConfig, image: perCardImage }
         : baseConfig;
@@ -692,7 +569,7 @@ export function ShotCard({
     setGeneratingSceneFrame(false);
   }
 
-  function handleUploadFrame(field: "firstFrame" | "lastFrame" | "sceneRefFrame") {
+  function handleUploadFrame(field: "first_frame" | "last_frame" | "reference") {
     uploadFieldRef.current = field;
     uploadInputRef.current?.click();
   }
@@ -706,7 +583,8 @@ export function ShotCard({
     try {
       const form = new FormData();
       form.append("file", file);
-      form.append("field", field);
+      form.append("type", field);
+      form.append("sequenceInType", "0");
       const res = await apiFetch(`/api/projects/${projectId}/shots/${id}/upload`, {
         method: "POST",
         body: form,
@@ -1015,12 +893,12 @@ export function ShotCard({
                   {parsedRefImages.map((ref, refIdx) => (
                     <div key={ref.id} className="rounded-lg border border-[--border-subtle] bg-white overflow-hidden">
                       {/* Image or placeholder */}
-                      <div className={`relative bg-[--surface] ${ref.imagePath ? "aspect-video" : "h-20"}`}>
-                        {ref.imagePath ? (
+                      <div className={`relative bg-[--surface] ${ref.fileUrl ? "aspect-video" : "h-20"}`}>
+                        {ref.fileUrl ? (
                           <img
-                            src={uploadUrl(ref.imagePath)}
+                            src={uploadUrl(ref.fileUrl)}
                             className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => setPreviewSrc(uploadUrl(ref.imagePath!))}
+                            onClick={() => setPreviewSrc(uploadUrl(ref.fileUrl!))}
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center">
@@ -1029,9 +907,9 @@ export function ShotCard({
                         )}
                         {/* History navigation arrows */}
                         {(() => {
-                          const history = ref.history || (ref.imagePath ? [ref.imagePath] : []);
+                          const history = assetHistory(ref).map((asset) => asset.fileUrl);
                           if (history.length < 2) return null;
-                          const currentIdx = ref.imagePath ? history.indexOf(ref.imagePath) : -1;
+                          const currentIdx = ref.fileUrl ? history.indexOf(ref.fileUrl) : -1;
                           return (
                             <>
                               <button
@@ -1062,7 +940,7 @@ export function ShotCard({
                       {/* Scene name badge — always rendered, falls back to "场景 N" */}
                       <div className="border-t border-[--border-subtle] px-2 py-1 bg-primary/5">
                         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                          {ref.sceneName || `${t("shot.scene")} ${refIdx + 1}`}
+                          {ref.meta?.sceneName || `${t("shot.scene")} ${refIdx + 1}`}
                         </span>
                       </div>
                       {/* Editable prompt with auto-save */}
@@ -1077,7 +955,7 @@ export function ShotCard({
                             }}
                             fieldLabel="refImagePrompt"
                             projectId={projectId}
-                            images={ref.imagePath ? [ref.imagePath] : undefined}
+                            images={ref.fileUrl ? [ref.fileUrl] : undefined}
                           />
                         </div>
                         <textarea
@@ -1122,10 +1000,10 @@ export function ShotCard({
                       <div className="flex items-center gap-1 border-t border-[--border-subtle] px-1.5 py-1">
                         <InlineModelPicker
                           capability="image"
-                          value={ref.model || null}
+                          value={modelRef(ref)}
                           onChange={(modelRef) => {
                             const updated = parsedRefImages.map((r) =>
-                              r.id === ref.id ? { ...r, model: modelRef } : r
+                              r.id === ref.id ? { ...r, modelProvider: modelRef?.providerId, modelId: modelRef?.modelId } : r
                             );
                             saveRefImages(updated);
                           }}
@@ -1185,7 +1063,7 @@ export function ShotCard({
               ) : (
               <div className="grid grid-cols-2 gap-2">
               {frameAssets.map((asset, i) => {
-                const fieldName = (i === 0 ? "firstFrame" : "lastFrame") as "firstFrame" | "lastFrame";
+                const fieldName = (i === 0 ? "first_frame" : "last_frame") as "first_frame" | "last_frame";
                 const isUploading = uploadingField === fieldName;
                 const isStart = i === 0;
                 const editValue = isStart ? editStartFrame : editEndFrame;
@@ -1194,8 +1072,8 @@ export function ShotCard({
                 const label = isStart ? t("shot.startFrame") : t("shot.endFrame");
 
                 const frameItem = isStart ? firstFrameItem : lastFrameItem;
-                const frameHistoryIds = frameItem?.historyIds || [];
-                const frameHistory = frameItem?.history || [];
+                const frameHistoryIds = frameItem ? historyIds(frameItem) : [];
+                const frameHistory = frameItem ? assetHistory(frameItem).map((asset) => asset.fileUrl) : [];
                 const frameCurrentIdx = frameItem ? frameHistoryIds.indexOf(frameItem.id) : -1;
                 return (
                   <div key={i} className="rounded-lg border border-[--border-subtle] bg-white overflow-hidden">
@@ -1290,7 +1168,7 @@ export function ShotCard({
                                   const updated = allRefItems.map((r) =>
                                     r.id === frameItem.id ? { ...r, characters: newChars } : r
                                   );
-                                  saveAllItems(updated);
+                                  saveAssets(frameItem.type, updated.filter((asset) => asset.type === frameItem.type));
                                 }}
                                 className={`rounded-full px-1.5 py-0.5 text-[9px] transition-colors ${
                                   isSelected
@@ -1396,9 +1274,9 @@ export function ShotCard({
           isNext={nextStep === "video"}
         >
           {hasVideo && (() => {
-            const videoTypeKey = generationMode === "reference" ? "ref_video" : "video";
+            const videoTypeKey = generationMode === "reference" ? "reference_video" : "keyframe_video";
             const videoItem = allRefItems.find((r) => r.type === videoTypeKey);
-            const videoHistoryIds = videoItem?.historyIds || [];
+            const videoHistoryIds = videoItem ? historyIds(videoItem) : [];
             const videoCurrentIdx = videoItem ? videoHistoryIds.indexOf(videoItem.id) : -1;
             return (
               <div

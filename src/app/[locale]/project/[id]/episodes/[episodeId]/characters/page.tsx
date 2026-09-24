@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
+
 import { useModelStore } from "@/stores/model-store";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";

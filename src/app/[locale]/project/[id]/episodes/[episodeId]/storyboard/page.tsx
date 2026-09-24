@@ -1,17 +1,7 @@
 "use client";
 
-import {
-  useProjectStore,
-  getFirstFrameUrl,
-  getLastFrameUrl,
-  getSceneRefFrameUrl,
-  getKeyframeVideoUrl,
-  getReferenceVideoUrl,
-  getReferenceAssets,
-  hasKeyframePair,
-  getFirstFramePrompt,
-  getLastFramePrompt,
-} from "@/stores/project-store";
+import { useProjectStore,  } from "@/stores/project-store";
+import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl, getReferenceAssets, hasKeyframePair, getFirstFramePrompt, getLastFramePrompt } from "@/lib/shot-assets";
 import { useEpisodeStore } from "@/stores/episode-store";
 import { useModelStore } from "@/stores/model-store";
 import { ShotCard } from "@/components/editor/shot-card";

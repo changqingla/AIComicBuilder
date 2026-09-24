@@ -20,16 +20,8 @@ import {
   RefreshCw,
   Clock,
 } from "lucide-react";
-import {
-  type Shot,
-  getFirstFrameUrl,
-  getLastFrameUrl,
-  getSceneRefFrameUrl,
-  getKeyframeVideoUrl,
-  getReferenceVideoUrl,
-  getFirstFramePrompt,
-  getLastFramePrompt,
-} from "@/stores/project-store";
+import { type Shot,  } from "@/stores/project-store";
+import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl, getFirstFramePrompt, getLastFramePrompt } from "@/lib/shot-assets";
 
 type DrawerShot = Shot;
 

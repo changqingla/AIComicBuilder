@@ -11,41 +11,13 @@
 
 import { db } from "@/lib/db";
 import { shotAssets } from "@/lib/db/schema";
-import { and, eq, desc } from "drizzle-orm";
 import { id as genId } from "@/lib/id";
+import { and,desc,eq,inArray } from "drizzle-orm";
 
-export type ShotAssetType =
-  | "first_frame"
-  | "last_frame"
-  | "reference"
-  | "keyframe_video"
-  | "reference_video";
+import type { ShotAsset,ShotAssetType } from "@/lib/shot-assets";
+type ShotAssetStatus = ShotAsset["status"];
 
-export type ShotAssetStatus =
-  | "pending"
-  | "generating"
-  | "completed"
-  | "failed";
-
-export interface ShotAssetRow {
-  id: string;
-  shotId: string;
-  type: ShotAssetType;
-  sequenceInType: number;
-  assetVersion: number;
-  isActive: number;
-  prompt: string;
-  fileUrl: string | null;
-  status: ShotAssetStatus;
-  characters: string[] | null;
-  modelProvider: string | null;
-  modelId: string | null;
-  meta: Record<string, unknown> | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAssetRow {
+function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAsset {
   return {
     id: row.id,
     shotId: row.shotId,
@@ -60,8 +32,6 @@ function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAssetRow {
     modelProvider: row.modelProvider,
     modelId: row.modelId,
     meta: row.meta ? JSON.parse(row.meta) : null,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
   };
 }
 
@@ -69,7 +39,7 @@ function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAssetRow {
 export async function getActiveAssets(
   shotId: string,
   type: ShotAssetType
-): Promise<ShotAssetRow[]> {
+): Promise<ShotAsset[]> {
   const rows = await db
     .select()
     .from(shotAssets)
@@ -89,7 +59,7 @@ export async function getActiveAsset(
   shotId: string,
   type: ShotAssetType,
   sequenceInType = 0
-): Promise<ShotAssetRow | null> {
+): Promise<ShotAsset | null> {
   const [row] = await db
     .select()
     .from(shotAssets)
@@ -110,7 +80,7 @@ export async function getAssetHistory(
   shotId: string,
   type: ShotAssetType,
   sequenceInType = 0
-): Promise<ShotAssetRow[]> {
+): Promise<ShotAsset[]> {
   const rows = await db
     .select()
     .from(shotAssets)
@@ -146,9 +116,9 @@ export interface UpsertAssetInput {
  *
  * Returns the inserted row.
  */
-export async function insertAssetVersion(
+export function insertAssetVersion(
   input: UpsertAssetInput
-): Promise<ShotAssetRow> {
+): ShotAsset {
   return db.transaction((tx) => {
     const sequenceInType = input.sequenceInType ?? 0;
     const slot = and(
@@ -238,119 +208,15 @@ export async function deleteAssetsByType(
     .where(and(eq(shotAssets.shotId, shotId), eq(shotAssets.type, type)));
 }
 
-/**
- * Legacy-shaped view of a single shot's currently-active assets. Used by code
- * that was previously reading the legacy columns on the shots table
- * (firstFrame, lastFrame, videoUrl, referenceVideoUrl, sceneRefFrame, etc.)
- * — return shape matches those column names so consumers can swap with
- * minimal diff.
- *
- * Single query loads all active assets for the shot.
- */
-export interface ShotLegacyView {
-  firstFrame: string | null;
-  lastFrame: string | null;
-  startFrameDesc: string | null;
-  endFrameDesc: string | null;
-  videoUrl: string | null;
-  referenceVideoUrl: string | null;
-  sceneRefFrame: string | null;
-  /** All active reference image assets, ordered by sequence_in_type */
-  referenceImages: ShotAssetRow[];
+export async function loadShotAssets(shotId: string): Promise<ShotAsset[]> {
+  const rows = await db.select().from(shotAssets).where(eq(shotAssets.shotId, shotId));
+  return rows.map(rowToAsset);
 }
 
-export async function loadShotLegacyView(shotId: string): Promise<ShotLegacyView> {
-  const rows = await db
-    .select()
-    .from(shotAssets)
-    .where(
-      and(eq(shotAssets.shotId, shotId), eq(shotAssets.isActive, 1))
-    )
-    .orderBy(shotAssets.type, shotAssets.sequenceInType);
-  const all = rows.map(rowToAsset);
-
-  const firstFrameAsset = all.find(
-    (a) => a.type === "first_frame" && a.sequenceInType === 0
-  );
-  const lastFrameAsset = all.find(
-    (a) => a.type === "last_frame" && a.sequenceInType === 0
-  );
-  const keyframeVideoAsset = all.find(
-    (a) => a.type === "keyframe_video" && a.sequenceInType === 0
-  );
-  const referenceVideoAsset = all.find(
-    (a) => a.type === "reference_video" && a.sequenceInType === 0
-  );
-  const referenceImages = all
-    .filter((a) => a.type === "reference")
-    .sort((a, b) => a.sequenceInType - b.sequenceInType);
-
-  // The "scene ref frame" was historically a single image used as the primary
-  // reference anchor — map it to the first reference asset (sequence_in_type=0).
-  const sceneRefAsset = referenceImages[0];
-
-  return {
-    firstFrame: firstFrameAsset?.fileUrl ?? null,
-    lastFrame: lastFrameAsset?.fileUrl ?? null,
-    startFrameDesc: firstFrameAsset?.prompt ?? null,
-    endFrameDesc: lastFrameAsset?.prompt ?? null,
-    videoUrl: keyframeVideoAsset?.fileUrl ?? null,
-    referenceVideoUrl: referenceVideoAsset?.fileUrl ?? null,
-    sceneRefFrame: sceneRefAsset?.fileUrl ?? null,
-    referenceImages,
-  };
-}
-
-/**
- * Batch version: load legacy views for many shots in a single query, returns
- * a Map keyed by shot id.
- */
-export async function loadShotLegacyViewsBatch(
-  shotIds: string[]
-): Promise<Map<string, ShotLegacyView>> {
+export async function loadShotAssetsBatch(shotIds: string[]): Promise<Map<string, ShotAsset[]>> {
   if (shotIds.length === 0) return new Map();
-  const { inArray } = await import("drizzle-orm");
-  const rows = await db
-    .select()
-    .from(shotAssets)
-    .where(
-      and(inArray(shotAssets.shotId, shotIds), eq(shotAssets.isActive, 1))
-    );
-  const byShot = new Map<string, ShotAssetRow[]>();
-  for (const row of rows) {
-    const a = rowToAsset(row);
-    if (!byShot.has(a.shotId)) byShot.set(a.shotId, []);
-    byShot.get(a.shotId)!.push(a);
-  }
-  const result = new Map<string, ShotLegacyView>();
-  for (const shotId of shotIds) {
-    const all = byShot.get(shotId) ?? [];
-    const firstFrameAsset = all.find(
-      (a) => a.type === "first_frame" && a.sequenceInType === 0
-    );
-    const lastFrameAsset = all.find(
-      (a) => a.type === "last_frame" && a.sequenceInType === 0
-    );
-    const keyframeVideoAsset = all.find(
-      (a) => a.type === "keyframe_video" && a.sequenceInType === 0
-    );
-    const referenceVideoAsset = all.find(
-      (a) => a.type === "reference_video" && a.sequenceInType === 0
-    );
-    const referenceImages = all
-      .filter((a) => a.type === "reference")
-      .sort((a, b) => a.sequenceInType - b.sequenceInType);
-    const sceneRefAsset = referenceImages[0];
-    result.set(shotId, {
-      firstFrame: firstFrameAsset?.fileUrl ?? null,
-      lastFrame: lastFrameAsset?.fileUrl ?? null,
-      startFrameDesc: firstFrameAsset?.prompt ?? null,
-      endFrameDesc: lastFrameAsset?.prompt ?? null,
-      videoUrl: keyframeVideoAsset?.fileUrl ?? null,
-      referenceVideoUrl: referenceVideoAsset?.fileUrl ?? null,
-      sceneRefFrame: sceneRefAsset?.fileUrl ?? null,
-      referenceImages,
-    });
-  }
-  return result;
+  const rows = await db.select().from(shotAssets).where(inArray(shotAssets.shotId, shotIds));
+  const byShot = new Map<string, ShotAsset[]>(shotIds.map((id) => [id, []]));
+  for (const row of rows) byShot.get(row.shotId)!.push(rowToAsset(row));
+  return byShot;
 }

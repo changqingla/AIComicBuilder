@@ -8,7 +8,7 @@ import { projects, episodes, characters, episodeCharacters, storyboardVersions, 
 import { POST as generate } from "@/app/api/projects/[id]/generate/route";
 import { GET as getBindings, PUT as putBinding } from "@/app/api/projects/[id]/agent-bindings/route";
 import { GET as getUpload } from "@/app/api/uploads/[...path]/route";
-import { characterExtractionSchema, saveExtractedCharacters } from "@/lib/generation/characters";
+import { characterExtractionSchema, saveExtractedCharacters } from "@/lib/generation/character-results";
 
 vi.mock("ai", () => ({ generateText: vi.fn(), streamText: vi.fn() }));
 
@@ -46,7 +46,7 @@ test.each([
 
 test("unknown generation actions are rejected instead of enqueued", async () => {
   expect((await generate(request({ action: "unknown" }), routeParams)).status).toBe(400);
-  expect(db.$client.prepare("SELECT count(*) AS n FROM tasks").get()).toEqual({ n: 0 });
+  expect(db.$client.prepare("SELECT name FROM sqlite_master WHERE name = 'tasks'").get()).toBeUndefined();
 });
 
 test("binding reads and writes require ownership of the project and agent", async () => {

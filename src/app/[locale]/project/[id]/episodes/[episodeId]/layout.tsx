@@ -2,6 +2,7 @@
 
 import { useEffect, use } from "react";
 import { useProjectStore } from "@/stores/project-store";
+
 import { ProjectNav } from "@/components/editor/project-nav";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";

@@ -1,11 +1,5 @@
 import { getUserId } from "./fingerprint";
-
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+import { ApiError } from "./api-error";
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const userId = getUserId();

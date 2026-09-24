@@ -1,10 +1,11 @@
+import { selectAsset } from "@/lib/shot-assets";
 import { db } from "@/lib/db";
 import { shots } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { checkContinuity } from "@/lib/pipeline/continuity-check";
+import { checkContinuity } from "@/lib/video/continuity";
 import { resolveAIProvider } from "@/lib/ai/provider-factory";
-import { loadShotLegacyViewsBatch } from "@/lib/shot-asset-utils";
+import { loadShotAssetsBatch } from "@/lib/shot-asset-utils";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 export async function POST(
@@ -23,13 +24,13 @@ export async function POST(
     .where(eq(shots.projectId, id))
     .orderBy(asc(shots.sequence));
 
-  const legacy = await loadShotLegacyViewsBatch(allShots.map((s) => s.id));
+  const assetsByShot = await loadShotAssetsBatch(allShots.map((s) => s.id));
 
   const shotsWithFrames = allShots
     .map((s) => ({
       sequence: s.sequence,
-      firstFrame: legacy.get(s.id)?.firstFrame ?? null,
-      lastFrame: legacy.get(s.id)?.lastFrame ?? null,
+      firstFrame: (selectAsset(assetsByShot.get(s.id), "first_frame")?.fileUrl ?? null) ?? null,
+      lastFrame: (selectAsset(assetsByShot.get(s.id), "last_frame")?.fileUrl ?? null) ?? null,
     }))
     .filter((s) => s.lastFrame && s.firstFrame);
 

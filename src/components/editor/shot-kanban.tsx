@@ -4,14 +4,8 @@ import { useTranslations } from "next-intl";
 import { Loader2, ImageIcon, VideoIcon, Sparkles, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import {
-  type Shot,
-  getFirstFrameUrl,
-  getLastFrameUrl,
-  getSceneRefFrameUrl,
-  getKeyframeVideoUrl,
-  getReferenceVideoUrl,
-} from "@/stores/project-store";
+import { type Shot,  } from "@/stores/project-store";
+import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl } from "@/lib/shot-assets";
 
 type KanbanShot = Shot;
 
