@@ -786,7 +786,7 @@ export function ShotCard({
   return (
     <div className="overflow-hidden rounded-2xl border border-[--border-subtle] bg-white transition-colors hover:border-[--border-hover]">
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         {/* Sequence */}
         <div
           className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/8 font-mono text-sm font-bold text-primary cursor-pointer hover:bg-primary/15 transition-colors"
@@ -829,7 +829,7 @@ export function ShotCard({
         </div>
 
         {/* Scene summary + meta */}
-        <div className="min-w-0 flex-1">
+        <div className="order-last min-w-0 basis-full md:order-none md:flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm text-[--text-primary]">{prompt}</p>
             {isStale ? (
@@ -838,7 +838,7 @@ export function ShotCard({
               </span>
             ) : null}
           </div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             {/* Duration */}
             <span className="flex items-center gap-1 text-xs text-[--text-muted]">
               <Clock className="h-3 w-3" />
@@ -871,7 +871,7 @@ export function ShotCard({
             </div>
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="text-[--text-muted] shrink-0">{t("shot.transition")}:</span>
               <select
                 value={transitionIn || "cut"}
@@ -920,7 +920,7 @@ export function ShotCard({
         </div>
 
         {/* Right actions */}
-        <div className="flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={handleCopyPrompt}
             title={t("shot.copyPrompt")}

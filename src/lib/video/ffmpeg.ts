@@ -133,14 +133,29 @@ function mapTransitionName(t: TransitionType): string {
   return t;
 }
 
+function probeClip(videoPath: string): Promise<{ duration: number; hasAudio: boolean }> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(path.resolve(videoPath), (err, metadata) => {
+      if (err) return reject(err);
+      const video = metadata.streams.find((stream) => stream.codec_type === "video");
+      const duration = Number(video?.duration ?? metadata.format.duration);
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return reject(new Error(`Cannot determine video duration: ${videoPath}`));
+      }
+      resolve({
+        duration,
+        hasAudio: metadata.streams.some((stream) => stream.codec_type === "audio"),
+      });
+    });
+  });
+}
+
 /**
  * Concatenate videos with optional xfade transitions.
- * Returns the path to the concatenated output file.
  */
 async function concatWithTransitions(
   videoPaths: string[],
   transitions: TransitionType[],
-  shotDurations: number[],
   outputPath: string,
   projectId: string,
   outputDir: string,
@@ -178,37 +193,55 @@ async function concatWithTransitions(
     return;
   }
 
-  // Mixed transitions: use xfade filter chain
+  const clips = await Promise.all(videoPaths.map(probeClip));
+  const hasAudio = clips.some((clip) => clip.hasAudio);
   const cmd = ffmpeg();
   for (const vp of videoPaths) {
     cmd.input(path.resolve(vp));
   }
 
-  // Build xfade filter chain
   const filterParts: string[] = [];
-  let prevLabel = "0:v";
+  clips.forEach((_, i) => {
+    filterParts.push(`[${i}:v]settb=AVTB,setpts=PTS-STARTPTS[video${i}]`);
+  });
+
+  // Give each clip an audio track of the same duration as its video.
+  // Silent clips still occupy their place in the soundtrack.
+  if (hasAudio) {
+    clips.forEach((clip, i) => {
+      const source = clip.hasAudio
+        ? `[${i}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS,apad`
+        : "anullsrc=r=48000:cl=stereo";
+      filterParts.push(`${source},atrim=duration=${clip.duration}[audio${i}]`);
+    });
+  }
+
+  let prevLabel = "video0";
+  let prevAudioLabel = "audio0";
   let cumulativeOffset = 0;
 
   for (let i = 0; i < transitions.length; i++) {
     const t = transitions[i];
-    const duration = shotDurations[i];
+    const transitionDuration = t === "cut" ? 0 : DEFAULT_XFADE_DURATION;
+    cumulativeOffset += clips[i].duration - transitionDuration;
     const outLabel = i < transitions.length - 1 ? `v${i}` : "vout";
+    const videoTransition = t === "cut"
+      ? "concat=n=2:v=1:a=0"
+      : `xfade=transition=${mapTransitionName(t)}:duration=${transitionDuration}:offset=${cumulativeOffset.toFixed(3)}`;
 
-    if (t === "cut") {
-      // For cut: use xfade with duration=0 to simulate hard cut
-      const offset = cumulativeOffset + duration;
+    filterParts.push(
+      `[${prevLabel}][video${i + 1}]${videoTransition}[${outLabel}]`
+    );
+
+    if (hasAudio) {
+      const outAudioLabel = i < transitions.length - 1 ? `a${i}` : "aout";
+      const audioTransition = t === "cut"
+        ? "concat=n=2:v=0:a=1"
+        : `acrossfade=d=${transitionDuration}:c1=tri:c2=tri`;
       filterParts.push(
-        `[${prevLabel}][${i + 1}:v]xfade=transition=fade:duration=0:offset=${offset.toFixed(3)}[${outLabel}]`
+        `[${prevAudioLabel}][audio${i + 1}]${audioTransition}[${outAudioLabel}]`
       );
-      cumulativeOffset = offset;
-    } else {
-      const xfadeDur = DEFAULT_XFADE_DURATION;
-      const offset = cumulativeOffset + duration - xfadeDur;
-      const xfadeName = mapTransitionName(t);
-      filterParts.push(
-        `[${prevLabel}][${i + 1}:v]xfade=transition=${xfadeName}:duration=${xfadeDur}:offset=${offset.toFixed(3)}[${outLabel}]`
-      );
-      cumulativeOffset = offset;
+      prevAudioLabel = outAudioLabel;
     }
 
     prevLabel = outLabel;
@@ -218,12 +251,12 @@ async function concatWithTransitions(
 
   await new Promise<void>((resolve, reject) => {
     cmd
-      .complexFilter(complexFilter, "vout")
+      .complexFilter(complexFilter, hasAudio ? ["vout", "aout"] : "vout")
       .outputOptions([
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "23",
-        "-an",
+        ...(hasAudio ? ["-c:a", "aac", "-shortest"] : ["-an"]),
       ])
       .output(outputPath)
       .on("end", () => resolve())
@@ -271,7 +304,7 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
   const outputPath = path.resolve(outputDir, `${projectId}-final-${genId()}.mp4`);
 
   // Step 1: Concatenate video clips (with transitions)
-  await concatWithTransitions(allPaths, transitions, allDurations, concatOutputPath, projectId, outputDir);
+  await concatWithTransitions(allPaths, transitions, concatOutputPath, projectId, outputDir);
 
   // Step 2: Burn in subtitles if any
   let srtPath: string | undefined;
