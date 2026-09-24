@@ -1,6 +1,6 @@
 **AIComicBuilder 软件工程审查与整改，2026-09-24**
 
-项目需要优化内部职责和数据一致性，现有 Next.js 单体、SQLite、Drizzle 和 Zustand 可以继续使用。本次已落实审查建议：统一生成逻辑与素材模型，分开项目和分集状态，移除重复实现和旧接口，补上数据迁移、失败回滚、服务商适配和视频合成的验证。没有引入微服务、Redis 或额外的工作流平台。
+项目需要优化内部职责和数据一致性，现有 Next.js 单体、SQLite、Drizzle 和 Zustand 可以继续使用。本次已落实审查建议：统一生成逻辑与素材模型，分开项目和分集状态，统一卡片与抽屉的镜头编辑组件，移除重复实现和旧接口，补上数据迁移、失败回滚、服务商适配和视频合成的验证。没有引入微服务、Redis 或额外的工作流平台。
 
 审查起点为 `e01e7dd`，覆盖 API、数据库迁移、前端状态、生成流程、模型与 Agent 适配、媒体处理、依赖和构建。最初四项修复位于 `fix/review-findings`；后续整改位于 `refactor/project-architecture`，以该修复分支为基础。本文记录最终实现；历史问题的描述不代表整改后的行为。
 
@@ -34,7 +34,11 @@
 | 预览页丢失分集上下文 | 从路由传入分集 ID 和选择的版本；合成也传入实际预览的生成模式 |
 | 切换分集后旧请求覆盖新页面 | 项目和分集存储分离；响应只更新对应编辑范围，旧响应不能覆盖新的分集 |
 | 自动保存使用变化后的“当前分集” | 防抖保存携带编辑发生时的分集快照，离开页面时刷新待保存内容 |
-| 两个提示词保存相互覆盖 | 元数据编辑 PATCH 对应素材，只发送变化字段；增删使用明确的类型替换接口 |
+| 抽屉编辑首尾帧仍提交已移除的镜头字段 | 抽屉复用卡片的同一个镜头编辑器，提示词统一 PATCH 对应素材，不保留旧字段保存逻辑 |
+| 多张参考图共用一个防抖保存任务 | 每个素材编辑组件各自使用 `use-debounce`；失焦、切换镜头或离开页面时提交待保存内容 |
+| 增删参考图时旧列表覆盖新保存的提示词 | PATCH 只修改对应素材元数据；PUT 只维护活动列表和创建新素材，不再次写入已有素材的元数据 |
+| 保存完成后的刷新把当前分镜版本切回旧版本 | 刷新前检查编辑发生时的版本是否仍被选中，旧保存正常完成但不刷新其他版本 |
+| 当前入口仍经过旧项目页面重定向 | 创建项目直接进入分集列表，删除旧 script / storyboard / preview 页面和旧单场景帧动作 |
 | 仅配置 Agent 时前端仍要求文本模型 | 能力检查读取项目的 Agent 绑定，允许直接使用已绑定 Agent |
 | Dify 流式文本重复输出 | 使用 `eventsource-parser` 处理 SSE；输出文本增量，未收到增量时才使用工作流最终结果，不输出中间节点结果 |
 | Gemini 自定义地址未生效 | SDK 接收配置中的 `baseURL`，验证请求确实发往配置地址 |
@@ -42,6 +46,7 @@
 | 剧本流式保存失败只打印日志 | Agent 和普通模型共用流式保存流程；流中断不覆盖已保存文本，写入失败传给响应消费者 |
 | 一键生成继续操作旧版本，失败后仍调用后续步骤 | 新建分镜返回 `versionId`，后续请求固定使用该版本；某一步失败即停止 |
 | 版本对比两侧显示同一份占位数据 | 两侧分别读取所选版本，使用 SWR 缓存，不修改编辑器当前版本 |
+| 构建工具把动态数据库、上传路径当成静态依赖 | 对运行时数据路径使用 Turbopack 支持的排除标记；消除整项目文件追踪警告，独立产物验证运行时数据库、媒体和 ZIP 访问 |
 | 生产模式重复打开数据库连接 | 每个进程复用一个连接，启用 WAL 和外键约束；初始化与迁移职责分开 |
 | 未接入界面的任务队列时间单位错误、运行状态无法恢复 | 删除未使用的队列、任务 API、任务表与重复 pipeline；未知动作直接报错 |
 | 依赖包含已知漏洞和未使用的运行包 | 更新依赖锁文件，删除运行时 `shadcn` CLI 和未使用的 `pdfjs-dist`；PDF 只使用 `unpdf`；约束 Drizzle Kit 间接引入的 esbuild 到已修复版本，并验证迁移生成命令 |
@@ -67,21 +72,25 @@ flowchart LR
 | 剧本、角色、分镜、图片、视频和成片 | [generation/](../src/lib/generation/) | 外部调用在事务外；AI 结果通过 Zod 校验后保存 |
 | 素材类型与读写 | [shot-assets.ts](../src/lib/shot-assets.ts)、[shot-asset-utils.ts](../src/lib/shot-asset-utils.ts) | 只有 `shot_assets` 一种表示，不返回旧字段视图 |
 | 项目与分集状态 | [project-store.ts](../src/stores/project-store.ts)、[episode-editor-store.ts](../src/stores/episode-editor-store.ts) | 编辑请求显式携带范围，不在异步完成时重新寻找“当前分集” |
-| 批量生成、镜头编辑与展示 | [use-batch-generation.ts](../src/hooks/use-batch-generation.ts)、[use-shot-editor.ts](../src/hooks/use-shot-editor.ts)、[shot-card.tsx](../src/components/editor/shot-card.tsx) | 批量执行、保存与界面展示各自集中；条件返回不改变 Hook 调用顺序 |
+| 分镜页面与批量生成 | [storyboard/](../src/components/editor/storyboard/)、[use-storyboard-generation.ts](../src/hooks/use-storyboard-generation.ts)、[use-batch-generation.ts](../src/hooks/use-batch-generation.ts) | 页面负责选择与组合，流程函数负责生成顺序，批量执行负责进度和重试 |
+| 镜头编辑与展示 | [shot-card.tsx](../src/components/editor/shot-card.tsx)、[shot-editor/](../src/components/editor/shot-editor/)、[use-shot-generation.ts](../src/hooks/use-shot-generation.ts)、[use-shot-mutations.ts](../src/hooks/use-shot-mutations.ts) | 卡片与抽屉共用编辑组件；文本、图像素材、历史与预览各自管理自己的界面状态 |
 | 提示词定义 | [prompts/registry.ts](../src/lib/ai/prompts/registry.ts)、[prompts/definitions/](../src/lib/ai/prompts/definitions/) | 注册入口只汇总；内容按剧本、角色、分镜、图片、视频分类 |
 | 合成时间和音视频处理 | [video/timeline.ts](../src/lib/video/timeline.ts)、[video/ffmpeg.ts](../src/lib/video/ffmpeg.ts) | 使用实际片段时长，画面转场、音轨和字幕共享同一时间计算 |
 
-直接复用已有工具：Zod 负责数据校验，Drizzle 负责迁移和事务，`p-map` 控制并发，SWR 处理请求缓存，`use-debounce` 处理延迟保存，`eventsource-parser` 解析 SSE，AI SDK 和服务商 SDK 处理协议，FFmpeg / FFprobe 处理媒体。没有再实现一套验证器、请求缓存或任务调度器。
+前端整理后，分镜页从 1,071 行减少到 159 行，镜头卡片从 1,212 行减少到 170 行，抽屉从 610 行减少到 73 行。原先 742 行、返回大量状态与操作的 `useShotEditor` 已删除。变化的重点是消除两套保存与生成逻辑：抽屉只负责打开、关闭和切换镜头，卡片组合共用的描述、素材与视频编辑组件；每个素材自行管理草稿和保存任务。
+
+直接复用已有工具：Zod 负责数据校验，Drizzle 负责迁移和事务，`p-map` 控制并发，SWR 处理请求缓存，`use-debounce` 处理延迟保存，`eventsource-parser` 解析 SSE，AI SDK 和服务商 SDK 处理协议，FFmpeg / FFprobe 处理媒体。抽屉和素材预览复用现有 Base UI Dialog，焦点约束、弹层挂载与 Escape 行为交给组件库。没有再实现一套验证器、请求缓存或任务调度器。
 
 **验证与开发要求**
 
-本次交付检查：41 项自动测试通过；`pnpm lint --max-warnings 0` 和类型检查通过；生产构建通过；全量依赖审计（含开发依赖）为零报告。浏览器检查通过以下列出的布局和编辑流程，包含一键生成的新版本传递与失败后停止。依赖审计反映检查时的公开公告，不代表未来不会出现新的公告。
+本次交付检查：42 项自动测试通过；`pnpm lint --max-warnings 0` 和类型检查通过；生产构建无警告通过，独立构建产物启动、数据库读取、素材访问、ZIP 下载及弹层浏览器检查通过；全量依赖审计（含开发依赖）为零报告。浏览器检查通过以下列出的布局和编辑流程，包含一键生成的新版本传递与失败后停止。依赖审计反映检查时的公开公告，不代表未来不会出现新的公告。
 
 - Node 24.15 和 pnpm 10.11 已在 `.nvmrc`、`package.json`、Dockerfile 和 CI 中固定。依赖由锁文件确定，部署使用 `pnpm install --frozen-lockfile`。
 - CI 执行 ESLint（零警告）、TypeScript、Vitest 和生产构建。编辑器原始素材预览明确使用原生图片标签，这一范围关闭 Next 图片优化建议；其他 lint 和可访问性检查保持启用。
 - 自动测试使用独立临时 SQLite，覆盖新建与升级、归属检查、路径边界、素材版本约束、清空和上传、AI 部分失败、事务回滚、流中断、分集请求竞争、服务商响应、PDF 导入以及真实 FFmpeg 合成。
 - 视频测试生成短片段并执行 FFmpeg / FFprobe，检查全部七种转场类型、字幕起点、时长、音轨及混音中的音频频率，不只检查命令字符串。
 - 浏览器检查使用临时项目和素材，覆盖四种语言、320 / 390 / 768 / 1440 像素、列表、看板、抽屉、下载、上传、清空、编辑、版本对比、预览上下文和 Agent 配置。
+- 前端补充验证：抽屉首尾帧保存、编辑后立即切换镜头、上传后切换历史版本、清空后重新编辑、两张参考图同时存在待保存修改、延迟保存期间切换分镜版本、卡片和抽屉共用生成动作、嵌套预览关闭、键盘焦点、当前路由与新建项目失败后重试；全部通过。素材增删不覆盖较新的元数据另有自动回归测试。
 - 外部 AI 使用固定响应验证，没有调用真实付费账户。账户权限、配额和服务商线上行为不在这些结果的保证范围内。
 
 迁移前需要保留数据库和上传目录的备份。尚未执行旧 0051 的数据库能够在升级时搬迁素材；已经被旧版 0051 删除的字段无法从现有数据库还原，必须从备份找回。这里的备份要求针对已确认的数据丢失问题。

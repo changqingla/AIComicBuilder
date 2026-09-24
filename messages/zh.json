@@ -1,5 +1,6 @@
 {
   "common": {
+    "saveFailed": "保存失败，请重试",
     "appName": "AI 漫剧生成器",
     "create": "创建",
     "save": "保存",
@@ -189,6 +190,7 @@
     "shot": "镜头"
   },
   "storyboard": {
+    "generateKeyframePrompts": "生成首尾帧提示词",
     "stale": "需要更新",
     "regenerateStale": "重新生成过期镜头",
     "batchRefImages": "批量生成参考图",

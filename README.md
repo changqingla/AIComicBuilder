@@ -199,7 +199,7 @@ pnpm build
 
 测试需要 FFmpeg / FFprobe，并自动创建、清理临时数据库。真实 AI 服务在测试中使用固定响应，不消耗账户额度。日常修改按影响执行相关检查，涉及依赖或整体架构时运行完整检查。代码格式使用 Prettier，可执行 `pnpm exec prettier --write <文件>`。
 
-生成业务集中在 `src/lib/generation/`，单项和批量入口共用实现。项目元数据与分集编辑状态分开；素材只读写 `shot_assets`。当前生成通过请求执行，不提供持久后台队列或重启恢复。详细说明见 [架构审查与整改记录](docs/architecture-review-2026-09-24.md)。
+生成业务集中在 `src/lib/generation/`，单项和批量入口共用实现。项目元数据与分集编辑状态分开；素材只读写 `shot_assets`。分镜页只组合视图与选择状态，生成流程位于 `src/hooks/use-storyboard-generation.ts`；卡片与抽屉共用 `src/components/editor/shot-editor/` 中的编辑组件。当前生成通过请求执行，不提供持久后台队列或重启恢复。详细说明见 [架构审查与整改记录](docs/architecture-review-2026-09-24.md)。
 
 ## 界面截图
 

@@ -16,7 +16,9 @@ function getDatabase(): DrizzleDB {
   // Open the native connection lazily, after Next.js has loaded runtime settings.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require("better-sqlite3") as typeof import("better-sqlite3");
+  // The SQLite file is supplied at runtime.
   const filename = path.resolve(
+    /* turbopackIgnore: true */
     process.env.DATABASE_URL?.replace(/^file:/, "") || "./data/aicomic.db",
   );
   fs.mkdirSync(path.dirname(filename), { recursive: true });

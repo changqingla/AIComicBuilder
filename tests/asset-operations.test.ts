@@ -5,6 +5,7 @@ import {
   getActiveAsset,
   getAssetHistory,
   insertAssetVersion,
+  patchAsset,
 } from "@/lib/shot-asset-utils";
 import { POST as upload } from "@/app/api/projects/[id]/shots/[shotId]/upload/route";
 import { PUT as replace } from "@/app/api/projects/[id]/shots/[shotId]/assets/route";
@@ -112,5 +113,32 @@ test("single and batch generation append history; failure preserves existing fra
   );
   expect((await getActiveAsset("s", "last_frame"))?.fileUrl).toBe(
     "last-batch.png",
+  );
+});
+
+test("adding a reference image cannot overwrite a prompt edited after the list was loaded", async () => {
+  const existing = insertAssetVersion({
+    shotId: "s",
+    type: "reference",
+    prompt: "Original prompt",
+  });
+  await patchAsset(existing.id, { prompt: "Latest saved prompt" });
+  const response = await replace(
+    new Request("http://localhost", {
+      method: "PUT",
+      headers: { "x-user-id": "owner", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "reference",
+        items: [existing, { sequenceInType: 1, prompt: "Another image" }],
+      }),
+    }),
+    { params },
+  );
+  expect(response.status).toBe(200);
+  expect((await getActiveAsset("s", "reference", 0))?.prompt).toBe(
+    "Latest saved prompt",
+  );
+  expect((await getActiveAsset("s", "reference", 1))?.prompt).toBe(
+    "Another image",
   );
 });

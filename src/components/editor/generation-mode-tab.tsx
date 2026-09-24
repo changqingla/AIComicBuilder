@@ -10,7 +10,11 @@ import { toast } from "sonner";
 
 type GenerationMode = "keyframe" | "reference";
 
-export function GenerationModeTab() {
+export function GenerationModeTab({
+  disabled = false,
+}: {
+  disabled?: boolean;
+}) {
   const { episodeId } = useParams<{ episodeId: string }>();
   const t = useTranslations("project");
   const { episode, updateDraft } = useEpisodeEditorStore();
@@ -41,6 +45,7 @@ export function GenerationModeTab() {
   return (
     <div className="inline-flex gap-1.5 rounded-xl border border-[--border-subtle] bg-[--surface] p-1.5">
       <button
+        disabled={disabled}
         onClick={() => switchMode("keyframe")}
         className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
           mode === "keyframe"
@@ -54,6 +59,7 @@ export function GenerationModeTab() {
         {t("generationModeKeyframe")}
       </button>
       <button
+        disabled={disabled}
         onClick={() => switchMode("reference")}
         className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
           mode === "reference"

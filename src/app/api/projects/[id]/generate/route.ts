@@ -33,7 +33,6 @@ import {
   handleBatchReferenceVideo,
 } from "@/lib/generation/reference-videos";
 import {
-  handleSingleSceneFrame,
   handleBatchSceneFrame,
   handleSingleRefImageGenerate,
   handleSingleShotRefImageGenerateAll,
@@ -61,7 +60,6 @@ const handlers = {
   single_frame_generate: handleSingleFrameGenerate,
   single_video_generate: handleSingleVideoGenerate,
   batch_video_generate: handleBatchVideoGenerate,
-  single_scene_frame: handleSingleSceneFrame,
   batch_scene_frame: handleBatchSceneFrame,
   single_reference_video: handleSingleReferenceVideo,
   batch_reference_video: handleBatchReferenceVideo,

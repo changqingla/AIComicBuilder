@@ -24,7 +24,6 @@ export const generationRequestSchema = z.object({
     "single_frame_generate",
     "single_video_generate",
     "batch_video_generate",
-    "single_scene_frame",
     "batch_scene_frame",
     "single_reference_video",
     "batch_reference_video",

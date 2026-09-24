@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadUrl } from "@/lib/utils/upload-url";
+import type { StoryboardGeneration } from "@/hooks/use-storyboard-generation";
 import { type Shot } from "@/lib/editor-types";
 import {
   getFirstFrameUrl,
@@ -24,17 +25,8 @@ type KanbanShot = Shot;
 interface ShotKanbanProps {
   shots: KanbanShot[];
   generationMode: "keyframe" | "reference";
-  anyGenerating: boolean;
+  workflow: StoryboardGeneration;
   onOpenDrawer: (id: string) => void;
-  onBatchFrames: () => void;
-  onBatchSceneFrames: () => void;
-  onBatchVideoPrompts: () => void;
-  onBatchVideos: () => void;
-  onBatchReferenceVideos: () => void;
-  generatingFrames: boolean;
-  generatingSceneFrames: boolean;
-  generatingVideoPrompts: boolean;
-  generatingVideos: boolean;
 }
 
 interface KanbanColumn {
@@ -67,17 +59,8 @@ function classifyShot(shot: KanbanShot, mode: "keyframe" | "reference") {
 export function ShotKanban({
   shots,
   generationMode,
-  anyGenerating,
+  workflow,
   onOpenDrawer,
-  onBatchFrames,
-  onBatchSceneFrames,
-  onBatchVideoPrompts,
-  onBatchVideos,
-  onBatchReferenceVideos,
-  generatingFrames,
-  generatingSceneFrames,
-  generatingVideoPrompts,
-  generatingVideos,
 }: ShotKanbanProps) {
   const t = useTranslations("project");
   const tCommon = useTranslations("common");
@@ -95,12 +78,12 @@ export function ShotKanban({
     (s) => classifyShot(s, generationMode) === "done",
   );
 
-  const framesGenerating =
-    generationMode === "reference" ? generatingSceneFrames : generatingFrames;
-  const framesAction =
-    generationMode === "reference" ? onBatchSceneFrames : onBatchFrames;
-  const videosAction =
-    generationMode === "reference" ? onBatchReferenceVideos : onBatchVideos;
+  const anyGenerating = workflow.busy;
+  const {
+    frames: framesGenerating,
+    videoPrompts: generatingVideoPrompts,
+    videos: generatingVideos,
+  } = workflow.generating;
 
   const columns: KanbanColumn[] = [
     {
@@ -109,7 +92,7 @@ export function ShotKanban({
       color: "text-amber-700",
       headerBg: "bg-amber-50 border-amber-200",
       shots: frameShots,
-      batchAction: framesAction,
+      batchAction: () => workflow.generateFrames(),
       isGenerating: framesGenerating,
       icon: <ImageIcon className="h-3.5 w-3.5" />,
     },
@@ -119,7 +102,7 @@ export function ShotKanban({
       color: "text-violet-700",
       headerBg: "bg-violet-50 border-violet-200",
       shots: promptShots,
-      batchAction: onBatchVideoPrompts,
+      batchAction: () => workflow.generateVideoPrompts(),
       isGenerating: generatingVideoPrompts,
       icon: <Sparkles className="h-3.5 w-3.5" />,
     },
@@ -129,7 +112,7 @@ export function ShotKanban({
       color: "text-pink-700",
       headerBg: "bg-pink-50 border-pink-200",
       shots: videoShots,
-      batchAction: videosAction,
+      batchAction: () => workflow.generateVideos(),
       isGenerating: generatingVideos,
       icon: <VideoIcon className="h-3.5 w-3.5" />,
     },

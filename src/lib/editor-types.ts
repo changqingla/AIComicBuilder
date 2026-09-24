@@ -41,7 +41,7 @@ export interface Shot {
   isStale?: boolean;
   status: string;
   dialogues: Dialogue[];
-  /** Active shot_assets rows for this shot, all types mixed. */
+  /** All shot_assets rows, including inactive versions used by the history picker. */
   assets: ShotAsset[];
 }
 

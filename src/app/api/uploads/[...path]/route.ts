@@ -16,10 +16,14 @@ const MIME_TYPES: Record<string, string> = {
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path: segments } = await params;
-  const filePath = path.join(uploadDir, ...segments);
+  // Uploaded files are supplied in the runtime upload directory.
+  const filePath = path.join(
+    /* turbopackIgnore: true */ uploadDir,
+    ...segments,
+  );
 
   const resolved = resolveUploadFile(filePath);
   if (!resolved) {

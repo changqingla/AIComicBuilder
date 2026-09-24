@@ -1,14 +1,8 @@
-import { resolveSlotContents } from "@/lib/ai/prompts/resolver";
-import { buildSceneFramePrompt } from "@/lib/ai/prompts/scene-frame-generate";
 import { resolveImageProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
 import { shots } from "@/lib/db/schema";
-import {
-  getActiveAsset,
-  insertAssetVersion,
-  loadShotAssets,
-} from "@/lib/shot-asset-utils";
+import { insertAssetVersion, loadShotAssets } from "@/lib/shot-asset-utils";
 import { selectReferences } from "@/lib/shot-assets";
 import { eq } from "drizzle-orm";
 import { runShotBatch } from "./batch";
@@ -74,44 +68,6 @@ export async function handleSingleRefImageGenerate(input: GenerationInput) {
   } catch (err) {
     throw new ApiError(500, `Generation failed: ${err}`);
   }
-}
-
-export async function handleSingleSceneFrame(input: GenerationInput) {
-  if (!input.modelConfig?.image)
-    throw new ApiError(400, "No image model configured");
-  const shotId = input.payload?.shotId;
-  if (!shotId) throw new ApiError(400, "No shotId provided");
-  const shot = await db.select().from(shots).where(eq(shots.id, shotId)).get();
-  if (!shot) throw new ApiError(404, "Shot not found");
-  const existing = await getActiveAsset(shotId, "reference", 0);
-  if (!existing?.prompt) {
-    const slotContents = await resolveSlotContents(
-      "scene_frame_generate",
-      input,
-    );
-    const prompt = buildSceneFramePrompt({
-      sceneDescription: shot.prompt ?? "",
-      cameraDirection: shot.cameraDirection,
-      charRefMapping: "",
-      characterDescriptions: "",
-      motionScript: shot.motionScript,
-      slotContents,
-    });
-    const asset = await insertAssetVersion({
-      shotId,
-      type: "reference",
-      sequenceInType: 0,
-      prompt,
-    });
-    return handleSingleRefImageGenerate({
-      ...input,
-      payload: { ...input.payload, refImageId: asset.id },
-    });
-  }
-  return handleSingleRefImageGenerate({
-    ...input,
-    payload: { ...input.payload, refImageId: existing.id },
-  });
 }
 
 export async function handleSingleShotRefImageGenerateAll(

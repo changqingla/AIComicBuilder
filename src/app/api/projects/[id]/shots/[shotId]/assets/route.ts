@@ -38,8 +38,9 @@ export async function PUT(
       ? db.select().from(shotAssets).where(eq(shotAssets.id, item.id)).get()
       : undefined;
     if (
-      row &&
-      (row.shotId !== shotId ||
+      item.id &&
+      (!row ||
+        row.shotId !== shotId ||
         row.type !== type ||
         row.sequenceInType !== item.sequenceInType ||
         !row.isActive)
@@ -62,23 +63,8 @@ export async function PUT(
     }
     for (const item of items) {
       const row = existing.find((row) => row.id === item.id);
-      if (row) {
-        tx.update(shotAssets)
-          .set({
-            prompt: item.prompt,
-            characters:
-              item.characters === undefined
-                ? row.characters
-                : JSON.stringify(item.characters),
-            modelProvider: item.modelProvider,
-            modelId: item.modelId,
-            updatedAt: new Date(),
-          })
-          .where(eq(shotAssets.id, row.id))
-          .run();
-      } else {
-        insertAssetVersion({ shotId, type, ...item });
-      }
+      // Existing items only retain their position in the list. Metadata edits use PATCH.
+      if (!row) insertAssetVersion({ shotId, type, ...item });
     }
   });
   return NextResponse.json({ ok: true });
