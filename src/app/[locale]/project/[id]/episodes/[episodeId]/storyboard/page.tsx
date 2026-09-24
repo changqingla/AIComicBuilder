@@ -78,6 +78,7 @@ export default function EpisodeStoryboardPage() {
   const [lastBatchAction, setLastBatchAction] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [generatingRefPrompts, setGeneratingRefPrompts] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const currentEpisodeId = useProjectStore((s) => s.currentEpisodeId);
   const episodeStoreEpisodes = useEpisodeStore((s) => s.episodes);
@@ -192,6 +193,28 @@ export default function EpisodeStoryboardPage() {
   const anyGenerating = generating || generatingFrames || generatingVideos || generatingSceneFrames || generatingRefImages || generatingVideoPrompts || generatingRefPrompts;
 
   const drawerShots = project.shots;
+
+  async function handleDownload() {
+    if (!project || !currentEpisodeId) return;
+    setDownloading(true);
+    try {
+      const query = new URLSearchParams({ episodeId: currentEpisodeId });
+      if (selectedVersionId) query.set("versionId", selectedVersionId);
+      const response = await apiFetch(`/api/projects/${project.id}/download?${query}`);
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${project.title}-storyboard.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.downloadFailed"));
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function handleGenerateShots() {
     if (!project) return;
@@ -640,7 +663,7 @@ export default function EpisodeStoryboardPage() {
   return (
     <div className="animate-page-in space-y-4">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
             <Film className="h-4 w-4 text-primary" />
@@ -654,7 +677,7 @@ export default function EpisodeStoryboardPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <PromptEditButton
             // Full set of storyboard-related prompts — matches the
             // settings/prompts page "分镜" tab exactly (9 prompts across
@@ -726,14 +749,10 @@ export default function EpisodeStoryboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const a = document.createElement("a");
-                a.href = `/api/projects/${project!.id}/download?episodeId=${useProjectStore.getState().currentEpisodeId}`;
-                a.download = "";
-                a.click();
-              }}
+              onClick={handleDownload}
+              disabled={downloading}
             >
-              <Download className="h-3.5 w-3.5" />
+              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               {t("project.downloadAll")}
             </Button>
           )}
@@ -748,7 +767,7 @@ export default function EpisodeStoryboardPage() {
 
           {/* Version tabs */}
           {versions.length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
               {/* Show 2 newest versions */}
               {versions.slice(0, 2).map((v) => (
                 <button
