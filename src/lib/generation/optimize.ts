@@ -17,8 +17,9 @@ export async function handleAiOptimizeText(input: GenerationInput) {
     throw new ApiError(400, "No text model configured");
   }
 
-  const systemPrompt = images.length > 0
-    ? `你是一位专业的AI动画内容优化专家。用户会给你一段原始文本、当前生成的图片以及优化指令。请仔细观察图片中的不合理之处（如比例失调、角色错位、风格不一致、细节缺失等），结合优化指令重写原始文本。
+  const systemPrompt =
+    images.length > 0
+      ? `你是一位专业的AI动画内容优化专家。用户会给你一段原始文本、当前生成的图片以及优化指令。请仔细观察图片中的不合理之处（如比例失调、角色错位、风格不一致、细节缺失等），结合优化指令重写原始文本。
 规则：
 - 只输出优化后的文本，不要添加任何解释、前言或标记
 - 保持原文的语言（中文输入→中文输出）
@@ -26,7 +27,7 @@ export async function handleAiOptimizeText(input: GenerationInput) {
 - 必须分析图片中存在的问题，并在优化后的文本中明确修复这些问题
 - 例如：如果图片中儿童被画得跟成人一样大，优化文本要强调"儿童身高约110cm，明显矮于成人"
 - 例如：如果角色服装与原文不符，优化文本要更明确地描述服装细节`
-    : `你是一位专业的AI动画内容优化专家。用户会给你一段原始文本和优化指令，请根据指令优化原始文本。
+      : `你是一位专业的AI动画内容优化专家。用户会给你一段原始文本和优化指令，请根据指令优化原始文本。
 规则：
 - 只输出优化后的文本，不要添加任何解释、前言或标记
 - 保持原文的语言（中文输入→中文输出）
@@ -42,7 +43,7 @@ export async function handleAiOptimizeText(input: GenerationInput) {
         systemPrompt,
         images,
         temperature: 0.7,
-      }
+      },
     );
     return { optimizedText: result.trim() };
   }

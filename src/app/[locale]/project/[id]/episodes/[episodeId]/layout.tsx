@@ -16,11 +16,24 @@ export default function EpisodeLayout({
 }) {
   const { id, episodeId } = use(params);
   const t = useTranslations("common");
-  const { episode, loading, openEpisode } = useEpisodeEditorStore();
+  const { episode, loading, error, openEpisode } = useEpisodeEditorStore();
 
   useEffect(() => {
     openEpisode(id, episodeId);
   }, [id, episodeId, openEpisode]);
+
+  if (error)
+    return (
+      <div role="alert" className="space-y-3 p-6">
+        <p>{error}</p>
+        <button
+          onClick={() => openEpisode(id, episodeId)}
+          className="text-primary underline"
+        >
+          {t("retry")}
+        </button>
+      </div>
+    );
 
   if (loading || !episode || episode.id !== episodeId) {
     return (
@@ -35,7 +48,9 @@ export default function EpisodeLayout({
     <div className="flex flex-1">
       <ProjectNav projectId={id} episodeId={episodeId} />
       <main className="flex-1 bg-[--surface] p-6 pb-24 lg:pb-6 min-w-0">
-        <div key={episodeId} className="min-w-0">{children}</div>
+        <div key={episodeId} className="min-w-0">
+          {children}
+        </div>
       </main>
     </div>
   );

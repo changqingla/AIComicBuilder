@@ -1,15 +1,19 @@
 // src/lib/ai/providers/veo.ts
+import { id as genId } from "@/lib/id";
 import { GoogleGenAI } from "@google/genai";
-import type { VideoProvider, VideoGenerateParams, VideoGenerateResult } from "../types";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type {
+  VideoGenerateParams,
+  VideoGenerateResult,
+  VideoProvider,
+} from "../types";
 
 const VALID_DURATIONS = [4, 6, 8] as const;
 
 function clampDuration(duration: number): number {
   return VALID_DURATIONS.reduce((prev, curr) =>
-    Math.abs(curr - duration) < Math.abs(prev - duration) ? curr : prev
+    Math.abs(curr - duration) < Math.abs(prev - duration) ? curr : prev,
   );
 }
 
@@ -18,12 +22,17 @@ function toAspectRatio(ratio?: string): "16:9" | "9:16" {
   return "16:9";
 }
 
-function readImageData(filePath: string): { imageBytes: string; mimeType: string } {
+function readImageData(filePath: string): {
+  imageBytes: string;
+  mimeType: string;
+} {
   const ext = path.extname(filePath).toLowerCase();
   const mimeType =
-    ext === ".png" ? "image/png" :
-    ext === ".webp" ? "image/webp" :
-    "image/jpeg";
+    ext === ".png"
+      ? "image/png"
+      : ext === ".webp"
+        ? "image/webp"
+        : "image/jpeg";
   const imageBytes = fs.readFileSync(filePath, { encoding: "base64" });
   return { imageBytes, mimeType };
 }
@@ -33,12 +42,19 @@ export class VeoProvider implements VideoProvider {
   private model: string;
   private uploadDir: string;
 
-  constructor(params?: { apiKey?: string; baseUrl?: string; model?: string; uploadDir?: string }) {
+  constructor(params?: {
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+    uploadDir?: string;
+  }) {
     const options: ConstructorParameters<typeof GoogleGenAI>[0] = {
       apiKey: params?.apiKey || process.env.GEMINI_API_KEY || "",
     };
     if (params?.baseUrl) {
-      const baseUrl = params.baseUrl.replace(/\/+$/, "").replace(/\/v\d[^/]*$/, "");
+      const baseUrl = params.baseUrl
+        .replace(/\/+$/, "")
+        .replace(/\/v\d[^/]*$/, "");
       options.httpOptions = { baseUrl };
     }
     this.client = new GoogleGenAI(options);
@@ -50,28 +66,39 @@ export class VeoProvider implements VideoProvider {
     return this.model.includes("3.1") || this.model.includes("3-1");
   }
 
-  async generateVideo(params: VideoGenerateParams): Promise<VideoGenerateResult> {
+  async generateVideo(
+    params: VideoGenerateParams,
+  ): Promise<VideoGenerateResult> {
     const durationSeconds = clampDuration(params.duration);
     const aspectRatio = toAspectRatio(params.ratio);
 
     const isKeyframe = "firstFrame" in params && !!params.firstFrame;
     const isReference = "initialImage" in params && !!params.initialImage;
-    const hasCharRefImages = params.referenceImages && params.referenceImages.length > 0;
+    const hasCharRefImages =
+      params.referenceImages && params.referenceImages.length > 0;
     const canUseReferenceImages = this.isVeo31() && hasCharRefImages;
 
     // Reference mode + Veo 3.1: use referenceImages API (no image/firstFrame)
     // Reference mode + non-3.1: fall back to image-to-video (initialImage as firstFrame)
     // Keyframe mode: always use image + optional lastFrame
     if (isReference && canUseReferenceImages) {
-      return this.generateWithReferenceImages(params, durationSeconds, aspectRatio);
+      return this.generateWithReferenceImages(
+        params,
+        durationSeconds,
+        aspectRatio,
+      );
     }
 
     // image-to-video mode
     if (!isKeyframe && !isReference) {
-      throw new Error("Veo requires an image input (firstFrame or initialImage)");
+      throw new Error(
+        "Veo requires an image input (firstFrame or initialImage)",
+      );
     }
 
-    const imageSource = isKeyframe ? params.firstFrame! : (params as { initialImage: string }).initialImage;
+    const imageSource = isKeyframe
+      ? params.firstFrame!
+      : (params as { initialImage: string }).initialImage;
     const imageData = readImageData(imageSource);
 
     const config: Record<string, unknown> = {
@@ -86,7 +113,9 @@ export class VeoProvider implements VideoProvider {
     }
 
     const modeLabel = isKeyframe ? "keyframe" : "image2video";
-    console.log(`[Veo] mode=${modeLabel}, model=${this.model}, duration=${durationSeconds}s, ratio=${aspectRatio}`);
+    console.log(
+      `[Veo] mode=${modeLabel}, model=${this.model}, duration=${durationSeconds}s, ratio=${aspectRatio}`,
+    );
 
     const operation = await this.client.models.generateVideos({
       model: this.model,
@@ -108,12 +137,15 @@ export class VeoProvider implements VideoProvider {
   private async generateWithReferenceImages(
     params: VideoGenerateParams,
     durationSeconds: number,
-    aspectRatio: "16:9" | "9:16"
+    aspectRatio: "16:9" | "9:16",
   ): Promise<VideoGenerateResult> {
     const initialImage = (params as { initialImage: string }).initialImage;
 
     // Build reference images: scene frame + character refs (max 3 total)
-    const allRefPaths = [initialImage, ...(params.referenceImages ?? [])].slice(0, 3);
+    const allRefPaths = [initialImage, ...(params.referenceImages ?? [])].slice(
+      0,
+      3,
+    );
     const referenceImages = allRefPaths.map((imgPath) => ({
       image: readImageData(imgPath),
       referenceType: "asset" as const,
@@ -126,7 +158,9 @@ export class VeoProvider implements VideoProvider {
       referenceImages,
     };
 
-    console.log(`[Veo] mode=referenceImages, model=${this.model}, refCount=${referenceImages.length}, ratio=${aspectRatio}`);
+    console.log(
+      `[Veo] mode=referenceImages, model=${this.model}, refCount=${referenceImages.length}, ratio=${aspectRatio}`,
+    );
 
     const operation = await this.client.models.generateVideos({
       model: this.model,
@@ -138,7 +172,7 @@ export class VeoProvider implements VideoProvider {
   }
 
   private async finishGeneration(
-    operation: Awaited<ReturnType<GoogleGenAI["models"]["generateVideos"]>>
+    operation: Awaited<ReturnType<GoogleGenAI["models"]["generateVideos"]>>,
   ): Promise<VideoGenerateResult> {
     operation = await this.pollForResult(operation);
 
@@ -146,7 +180,7 @@ export class VeoProvider implements VideoProvider {
 
     if ((response?.raiMediaFilteredCount ?? 0) > 0) {
       throw new Error(
-        `Veo generation blocked by safety filter: ${JSON.stringify(response?.raiMediaFilteredReasons)}`
+        `Veo generation blocked by safety filter: ${JSON.stringify(response?.raiMediaFilteredReasons)}`,
       );
     }
 
@@ -169,7 +203,7 @@ export class VeoProvider implements VideoProvider {
   }
 
   private async pollForResult(
-    initial: Awaited<ReturnType<GoogleGenAI["models"]["generateVideos"]>>
+    initial: Awaited<ReturnType<GoogleGenAI["models"]["generateVideos"]>>,
   ): Promise<typeof initial> {
     const maxAttempts = 60;
     let operation = initial;
@@ -179,13 +213,17 @@ export class VeoProvider implements VideoProvider {
 
       if (operation.done) {
         if (operation.error) {
-          throw new Error(`Veo generation failed: ${JSON.stringify(operation.error)}`);
+          throw new Error(
+            `Veo generation failed: ${JSON.stringify(operation.error)}`,
+          );
         }
         return operation;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 10_000));
-      operation = await this.client.operations.getVideosOperation({ operation });
+      operation = await this.client.operations.getVideosOperation({
+        operation,
+      });
     }
 
     throw new Error("Veo generation timed out after 10 minutes");

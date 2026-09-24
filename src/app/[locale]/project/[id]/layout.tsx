@@ -3,7 +3,6 @@
 import { useEffect, use } from "react";
 import { useProjectStore } from "@/stores/project-store";
 
-
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useLocale } from "next-intl";
@@ -21,11 +20,24 @@ export default function ProjectLayout({
   const { id } = use(params);
   const t = useTranslations("common");
   const locale = useLocale();
-  const { project, loading, fetchProject } = useProjectStore();
+  const { project, loading, error, fetchProject } = useProjectStore();
 
   useEffect(() => {
     fetchProject(id);
   }, [id, fetchProject]);
+
+  if (error)
+    return (
+      <div role="alert" className="space-y-3 p-6">
+        <p>{error}</p>
+        <button
+          onClick={() => fetchProject(id)}
+          className="text-primary underline"
+        >
+          {t("retry")}
+        </button>
+      </div>
+    );
 
   if (loading || !project) {
     return (

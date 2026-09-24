@@ -2,7 +2,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { id as genId } from "@/lib/id";
 
-export type Protocol = "openai" | "gemini" | "seedance" | "ucloud-seedance" | "kling" | "wan" | "dashscope";
+export type Protocol =
+  | "openai"
+  | "gemini"
+  | "seedance"
+  | "ucloud-seedance"
+  | "kling"
+  | "wan"
+  | "dashscope";
 export type Capability = "text" | "image" | "video";
 
 export interface Model {
@@ -28,9 +35,27 @@ export interface ModelRef {
 }
 
 export interface ModelConfig {
-  text: { protocol: Protocol; baseUrl: string; apiKey: string; secretKey?: string; modelId: string } | null;
-  image: { protocol: Protocol; baseUrl: string; apiKey: string; secretKey?: string; modelId: string } | null;
-  video: { protocol: Protocol; baseUrl: string; apiKey: string; secretKey?: string; modelId: string } | null;
+  text: {
+    protocol: Protocol;
+    baseUrl: string;
+    apiKey: string;
+    secretKey?: string;
+    modelId: string;
+  } | null;
+  image: {
+    protocol: Protocol;
+    baseUrl: string;
+    apiKey: string;
+    secretKey?: string;
+    modelId: string;
+  } | null;
+  video: {
+    protocol: Protocol;
+    baseUrl: string;
+    apiKey: string;
+    secretKey?: string;
+    modelId: string;
+  } | null;
 }
 
 interface ModelStore {
@@ -71,7 +96,7 @@ export const useModelStore = create<ModelStore>()(
       updateProvider: (id, updates) => {
         set((state) => ({
           providers: state.providers.map((p) =>
-            p.id === id ? { ...p, ...updates } : p
+            p.id === id ? { ...p, ...updates } : p,
           ),
         }));
       },
@@ -80,18 +105,24 @@ export const useModelStore = create<ModelStore>()(
         set((state) => ({
           providers: state.providers.filter((p) => p.id !== id),
           defaultTextModel:
-            state.defaultTextModel?.providerId === id ? null : state.defaultTextModel,
+            state.defaultTextModel?.providerId === id
+              ? null
+              : state.defaultTextModel,
           defaultImageModel:
-            state.defaultImageModel?.providerId === id ? null : state.defaultImageModel,
+            state.defaultImageModel?.providerId === id
+              ? null
+              : state.defaultImageModel,
           defaultVideoModel:
-            state.defaultVideoModel?.providerId === id ? null : state.defaultVideoModel,
+            state.defaultVideoModel?.providerId === id
+              ? null
+              : state.defaultVideoModel,
         }));
       },
 
       setModels: (providerId, models) => {
         set((state) => ({
           providers: state.providers.map((p) =>
-            p.id === providerId ? { ...p, models } : p
+            p.id === providerId ? { ...p, models } : p,
           ),
         }));
       },
@@ -103,10 +134,10 @@ export const useModelStore = create<ModelStore>()(
               ? {
                   ...p,
                   models: p.models.map((m) =>
-                    m.id === modelId ? { ...m, checked: !m.checked } : m
+                    m.id === modelId ? { ...m, checked: !m.checked } : m,
                   ),
                 }
-              : p
+              : p,
           ),
         }));
       },
@@ -122,7 +153,7 @@ export const useModelStore = create<ModelStore>()(
                     { id: modelId, name: modelId, checked: true },
                   ],
                 }
-              : p
+              : p,
           ),
         }));
       },
@@ -132,7 +163,7 @@ export const useModelStore = create<ModelStore>()(
           providers: state.providers.map((p) =>
             p.id === providerId
               ? { ...p, models: p.models.filter((m) => m.id !== modelId) }
-              : p
+              : p,
           ),
         }));
       },
@@ -165,33 +196,6 @@ export const useModelStore = create<ModelStore>()(
     {
       name: "model-store",
       version: 2,
-      migrate: (persistedState: unknown, fromVersion: number) => {
-        // Called only when stored data has an explicit version number that differs from 2.
-        // For data with no version field (legacy), the merge function below handles migration.
-        if (fromVersion < 2) {
-          const state = persistedState as Record<string, unknown>;
-          const providers = (state.providers as Array<Record<string, unknown>>) ?? [];
-          return {
-            ...state,
-            providers: providers.map((p) => {
-              const caps = (p.capabilities as string[]) ?? [];
-              return { ...p, capability: caps[0] ?? "text" };
-            }),
-          };
-        }
-        return persistedState;
-      },
-      merge: (persistedState: unknown, currentState) => {
-        // Handles legacy stored data that has no version field (Zustand skips migrate in that case).
-        const ps = persistedState as Record<string, unknown>;
-        const providers = (ps?.providers as Array<Record<string, unknown>>) ?? [];
-        const migrated = providers.map((p) => {
-          if (typeof p.capability === "string") return p; // already migrated
-          const caps = (p.capabilities as string[]) ?? [];
-          return { ...p, capability: caps[0] ?? "text" };
-        });
-        return { ...currentState, ...ps, providers: migrated as unknown as Provider[] };
-      },
-    }
-  )
+    },
+  ),
 );

@@ -22,9 +22,11 @@ const CONTINUITY_PROMPT = `比较这两帧来自动画影片的连续画面。
 如果没有显著的连续性断裂则通过。不同机位角度带来的轻微透视变化是正常的、预期的。`;
 
 export async function checkContinuity(
-  provider: { generateText: (prompt: string, options?: TextOptions) => Promise<string> },
+  provider: {
+    generateText: (prompt: string, options?: TextOptions) => Promise<string>;
+  },
   lastFrameUrl: string,
-  nextFirstFrameUrl: string
+  nextFirstFrameUrl: string,
 ): Promise<ContinuityResult> {
   try {
     const result = await provider.generateText(CONTINUITY_PROMPT, {

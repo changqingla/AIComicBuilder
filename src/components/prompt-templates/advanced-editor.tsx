@@ -4,9 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePromptTemplateStore } from "@/stores/prompt-template-store";
-import { RotateCcw,Save } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface AdvancedEditorProps {
@@ -14,7 +14,10 @@ interface AdvancedEditorProps {
   projectId?: string;
 }
 
-export function AdvancedEditor({ scope = "global", projectId }: AdvancedEditorProps) {
+export function AdvancedEditor({
+  scope = "global",
+  projectId,
+}: AdvancedEditorProps) {
   const isProject = scope === "project" && !!projectId;
   const templatesBasePath = isProject
     ? `/api/projects/${projectId}/prompt-templates`

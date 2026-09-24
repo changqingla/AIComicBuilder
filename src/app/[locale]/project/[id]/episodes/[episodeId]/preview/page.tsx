@@ -1,24 +1,30 @@
 "use client";
+import useSWR from "swr";
 import { useDraft } from "@/hooks/use-draft";
 
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
-import { getFirstFrameUrl,getKeyframeVideoUrl,getReferenceVideoUrl,getSceneRefFrameUrl } from "@/lib/shot-assets";
+import {
+  getFirstFrameUrl,
+  getKeyframeVideoUrl,
+  getReferenceVideoUrl,
+  getSceneRefFrameUrl,
+} from "@/lib/shot-assets";
 import { cn } from "@/lib/utils";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { useEpisodeEditorStore,} from "@/stores/episode-editor-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 import {
-ChevronLeft,
-ChevronRight,
-Download,
-Loader2,
-Monitor,
-Play,
-Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Monitor,
+  Play,
+  Sparkles,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useParams,useSearchParams } from "next/navigation";
-import { useEffect,useRef,useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function EpisodePreviewPage() {
@@ -37,39 +43,39 @@ export default function EpisodePreviewPage() {
 
   const [assembling, setAssembling] = useState(false);
   const [selectedShot, setSelectedShot] = useState(0);
-  const [videoValid, setVideoValid] = useState<boolean | null>(null);
-  const checkedUrl = useRef<string | null>(null);
 
   const finalVideoUrl = episode?.finalVideoUrl ?? null;
   const generationMode = episode?.generationMode ?? "keyframe";
 
   // Which mode's videos to preview — default to the project's generationMode
-  const hasKeyframeVideos = episode?.shots.some((s) => getKeyframeVideoUrl(s)) ?? false;
-  const hasReferenceVideos = episode?.shots.some((s) => getReferenceVideoUrl(s)) ?? false;
+  const hasKeyframeVideos =
+    episode?.shots.some((s) => getKeyframeVideoUrl(s)) ?? false;
+  const hasReferenceVideos =
+    episode?.shots.some((s) => getReferenceVideoUrl(s)) ?? false;
   const hasBothModes = hasKeyframeVideos && hasReferenceVideos;
 
-  const [previewMode, setPreviewMode] = useDraft<"keyframe" | "reference">(generationMode);
+  const [previewMode, setPreviewMode] = useDraft<"keyframe" | "reference">(
+    generationMode,
+  );
 
-  // Check if final video file actually exists
-  useEffect(() => {
-    if (!finalVideoUrl) return;
-    if (checkedUrl.current === finalVideoUrl) return;
-    checkedUrl.current = finalVideoUrl;
-    fetch(uploadUrl(finalVideoUrl), { method: "HEAD" })
-      .then((res) => setVideoValid(res.ok))
-      .catch(() => setVideoValid(false));
-  }, [finalVideoUrl]);
+  const { data: videoValid } = useSWR(
+    finalVideoUrl ? uploadUrl(finalVideoUrl) : null,
+    async (url: string) => (await fetch(url, { method: "HEAD" })).ok,
+  );
 
   if (!episode) return null;
 
-  const getVideoUrl = (shot: typeof episode.shots[0]) =>
-    previewMode === "reference" ? getReferenceVideoUrl(shot) : getKeyframeVideoUrl(shot);
+  const getVideoUrl = (shot: (typeof episode.shots)[0]) =>
+    previewMode === "reference"
+      ? getReferenceVideoUrl(shot)
+      : getKeyframeVideoUrl(shot);
 
-  const getThumbnail = (shot: typeof episode.shots[0]) =>
-    previewMode === "reference" ? getSceneRefFrameUrl(shot) : getFirstFrameUrl(shot);
+  const getThumbnail = (shot: (typeof episode.shots)[0]) =>
+    previewMode === "reference"
+      ? getSceneRefFrameUrl(shot)
+      : getFirstFrameUrl(shot);
 
   const shotsWithVideo = episode.shots.filter((s) => getVideoUrl(s));
-  const allShotsHaveVideo = episode.shots.length > 0 && episode.shots.every((s) => getVideoUrl(s));
   const completedVideos = shotsWithVideo.length;
   const currentShot = shotsWithVideo[selectedShot];
   const hasValidVideo = finalVideoUrl && videoValid === true;
@@ -77,13 +83,22 @@ export default function EpisodePreviewPage() {
   async function handleAssemble() {
     if (!episode) return;
     setAssembling(true);
-    checkedUrl.current = null;
     try {
-      const res = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "video_assemble", payload: versionId ? { versionId } : undefined, episodeId: episodeId }),
-      });
+      const res = await apiFetch(
+        `/api/projects/${episode.projectId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "video_assemble",
+            payload: {
+              versionId: versionId ?? undefined,
+              generationMode: previewMode,
+            },
+            episodeId: episodeId,
+          }),
+        },
+      );
       await res.json();
     } catch (err) {
       console.error("Video assemble error:", err);
@@ -109,7 +124,7 @@ export default function EpisodePreviewPage() {
   return (
     <div className="animate-page-in space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
             <Monitor className="h-4 w-4 text-primary" />
@@ -128,16 +143,17 @@ export default function EpisodePreviewPage() {
         </div>
         <div className="flex items-center gap-2">
           {hasValidVideo && (
-            <Button onClick={handleDownload} size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+            <Button
+              onClick={handleDownload}
+              size="sm"
+              variant="outline"
+              className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+            >
               <Download className="h-3.5 w-3.5" />
               {t("project.downloadVideo")}
             </Button>
           )}
-          <Button
-            onClick={handleAssemble}
-            disabled={assembling}
-            size="sm"
-          >
+          <Button onClick={handleAssemble} disabled={assembling} size="sm">
             {assembling ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -157,7 +173,7 @@ export default function EpisodePreviewPage() {
               "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
               previewMode === "keyframe"
                 ? "bg-white text-primary shadow ring-1 ring-primary/20"
-                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
+                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]",
             )}
           >
             {t("project.generationModeKeyframe")}
@@ -168,7 +184,7 @@ export default function EpisodePreviewPage() {
               "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
               previewMode === "reference"
                 ? "bg-white text-primary shadow ring-1 ring-primary/20"
-                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
+                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]",
             )}
           >
             {t("project.generationModeReference")}
@@ -189,8 +205,12 @@ export default function EpisodePreviewPage() {
             />
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
-            <span className="text-sm font-medium text-emerald-700">{t("project.finalVideo")}</span>
-            <span className="text-xs text-emerald-600/70">{t("project.finalVideoHint")}</span>
+            <span className="text-sm font-medium text-emerald-700">
+              {t("project.finalVideo")}
+            </span>
+            <span className="text-xs text-emerald-600/70">
+              {t("project.finalVideoHint")}
+            </span>
           </div>
         </div>
       )}
@@ -222,7 +242,9 @@ export default function EpisodePreviewPage() {
             </span>
             <button
               onClick={() =>
-                setSelectedShot(Math.min(shotsWithVideo.length - 1, selectedShot + 1))
+                setSelectedShot(
+                  Math.min(shotsWithVideo.length - 1, selectedShot + 1),
+                )
               }
               disabled={selectedShot === shotsWithVideo.length - 1}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-[--text-muted] transition-all hover:bg-[--surface-hover] hover:text-[--text-primary] disabled:opacity-30"
@@ -243,7 +265,7 @@ export default function EpisodePreviewPage() {
                     "flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200",
                     i === selectedShot
                       ? "border-primary shadow-lg shadow-primary/20 scale-[1.03]"
-                      : "border-[--border-subtle] hover:border-[--border-hover] opacity-70 hover:opacity-100"
+                      : "border-[--border-subtle] hover:border-[--border-hover] opacity-70 hover:opacity-100",
                   )}
                 >
                   <div className="relative h-14 w-22">

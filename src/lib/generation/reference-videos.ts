@@ -1,17 +1,20 @@
 import { getModelMaxDuration } from "@/lib/ai/model-limits";
-import { buildRefVideoPromptRequest } from "@/lib/ai/prompts/ref-video-prompt-generate";
-import { resolvePrompt,resolveSlotContents } from "@/lib/ai/prompts/resolver";
+import { resolveSlotContents } from "@/lib/ai/prompts/resolver";
 import { buildReferenceVideoPrompt } from "@/lib/ai/prompts/video-generate";
-import { resolveAIProvider,resolveVideoProvider } from "@/lib/ai/provider-factory";
+import { resolveVideoProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
-import { characters,dialogues,shots } from "@/lib/db/schema";
+import { characters, dialogues, shots } from "@/lib/db/schema";
 import { runShotBatch } from "@/lib/generation/batch";
-import { extractErrorMessage,getVersionedUploadDir,isCharacterOnScreen } from "@/lib/generation/common";
+import {
+  extractErrorMessage,
+  getVersionedUploadDir,
+  isCharacterOnScreen,
+} from "@/lib/generation/common";
 import type { GenerationInput } from "@/lib/generation/request";
-import { insertAssetVersion,loadShotAssets } from "@/lib/shot-asset-utils";
-import { selectAsset,selectReferences } from "@/lib/shot-assets";
-import { asc,eq } from "drizzle-orm";
+import { insertAssetVersion, loadShotAssets } from "@/lib/shot-asset-utils";
+import { selectAsset, selectReferences } from "@/lib/shot-assets";
+import { asc, eq } from "drizzle-orm";
 
 export async function handleSingleReferenceVideo(input: GenerationInput) {
   const { projectId, userId, payload, modelConfig } = input;
@@ -21,9 +24,6 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
   }
   if (!modelConfig?.video) {
     throw new ApiError(400, "No video model configured");
-  }
-  if (!modelConfig?.image) {
-    throw new ApiError(400, "No image model configured");
   }
 
   const [shot] = await db.select().from(shots).where(eq(shots.id, shotId));
@@ -56,27 +56,28 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
   // generated from scene frames alone.
 
   // Seedance @ syntax mapping: "@图1是角色A，@图2是角色B"
-  const charRefMapping = charRefs.map((c, i) => `@图片${i + 1}是${c.name}`).join("，");
-
-  const characterDescriptions = projectCharacters
-    .map((c) => `${c.name}: ${c.description}`)
-    .join("\n");
 
   const shotDialogues = await db
-    .select({ text: dialogues.text, characterId: dialogues.characterId, sequence: dialogues.sequence })
+    .select({
+      text: dialogues.text,
+      characterId: dialogues.characterId,
+      sequence: dialogues.sequence,
+    })
     .from(dialogues)
     .where(eq(dialogues.shotId, shotId))
     .orderBy(asc(dialogues.sequence));
-  const videoContextForDialogue = shot.motionScript || shot.videoScript || shot.prompt || "";
-  const onScreenDialogueChars = shotDialogues
-    .map((d) => projectCharacters.find((c) => c.id === d.characterId)?.name ?? "Unknown")
-    .filter((name) => isCharacterOnScreen(name, videoContextForDialogue, (selectAsset(assets, "first_frame")?.prompt ?? null)));
+  const videoContextForDialogue =
+    shot.motionScript || shot.videoScript || shot.prompt || "";
 
   const dialogueList = shotDialogues.map((d) => {
     const char = projectCharacters.find((c) => c.id === d.characterId);
     const characterName = char?.name ?? "Unknown";
-    const onScreen = isCharacterOnScreen(characterName, videoContextForDialogue, (selectAsset(assets, "first_frame")?.prompt ?? null));
-    const visualHint = onScreen ? (char?.visualHint || undefined) : undefined;
+    const onScreen = isCharacterOnScreen(
+      characterName,
+      videoContextForDialogue,
+      selectAsset(assets, "first_frame")?.prompt ?? null,
+    );
+    const visualHint = onScreen ? char?.visualHint || undefined : undefined;
     return {
       characterName,
       text: d.text,
@@ -86,10 +87,16 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
   });
 
   const ratio = (payload?.ratio as string) || "16:9";
-  const refVideoSlots = await resolveSlotContents("ref_video_generate", { userId, projectId });
+  const refVideoSlots = await resolveSlotContents("ref_video_generate", {
+    userId,
+    projectId,
+  });
 
   try {
-    await db.update(shots).set({ status: "generating" }).where(eq(shots.id, shotId));
+    await db
+      .update(shots)
+      .set({ status: "generating" })
+      .where(eq(shots.id, shotId));
 
     // Step 1: Collect scene frames (pure environment) — may be multiple per shot
     //         (e.g. ground → sky transitions in an action beat).
@@ -99,10 +106,15 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
       .map((r) => r.fileUrl as string);
 
     if (sceneFramePaths.length === 0) {
-      throw new ApiError(400, "No scene reference images. Please generate scene reference images first.");
+      throw new ApiError(
+        400,
+        "No scene reference images. Please generate scene reference images first.",
+      );
     }
 
-    console.log(`[SingleReferenceVideo] Shot ${shot.sequence}: ${sceneFramePaths.length} scene frame(s), ${charRefs.length} character ref(s)`);
+    console.log(
+      `[SingleReferenceVideo] Shot ${shot.sequence}: ${sceneFramePaths.length} scene frame(s), ${charRefs.length} character ref(s)`,
+    );
 
     // Step 2: Build Seedance 2 multi-reference image list.
     //         Order matters — it becomes 图1, 图2, … in the mapping.
@@ -115,20 +127,24 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
     const characterRefInfos = charRefs.map((c, i) => ({
       name: c.name,
       index: i + 1,
-      visualHint: projectCharacters.find((pc) => pc.name === c.name)?.visualHint,
+      visualHint: projectCharacters.find((pc) => pc.name === c.name)
+        ?.visualHint,
     }));
     const sceneAssetList = selectReferences(assets)
       .filter((r) => r.fileUrl)
       .sort((a, b) => a.sequenceInType - b.sequenceInType);
     const sceneFrameInfos = sceneFramePaths.map((_, i) => {
       const metaObj = sceneAssetList[i]?.meta as { sceneName?: string } | null;
-      const name = metaObj?.sceneName || (sceneFramePaths.length > 1 ? `场景-${i + 1}` : `场景`);
+      const name =
+        metaObj?.sceneName ||
+        (sceneFramePaths.length > 1 ? `场景-${i + 1}` : `场景`);
       return { label: name, index: charRefs.length + i + 1 };
     });
-    const fullMapping = [
-      ...characterRefInfos.map((c) => `@图片${c.index}是${c.name}`),
-      ...sceneFrameInfos.map((s) => `@图片${s.index}是${s.label}`),
-    ].join("，") + "。";
+    const fullMapping =
+      [
+        ...characterRefInfos.map((c) => `@图片${c.index}是${c.name}`),
+        ...sceneFrameInfos.map((s) => `@图片${s.index}是${s.label}`),
+      ].join("，") + "。";
 
     const videoProvider = resolveVideoProvider(modelConfig, versionedUploadDir);
 
@@ -136,48 +152,23 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
     const videoMaxDuration = getModelMaxDuration(videoModelId);
     const effectiveDuration = Math.min(shot.duration ?? 10, videoMaxDuration);
 
-    // Step 3: Use stored videoPrompt if available; otherwise auto-plan via AI
-    let videoPrompt: string;
-    if (shot.videoPrompt) {
-      // If the stored prompt already has mapping, trust it; otherwise prepend.
-      videoPrompt = shot.videoPrompt.includes("图像映射")
-        ? shot.videoPrompt
-        : `图像映射：${fullMapping}。\n\n${shot.videoPrompt}`;
-    } else {
-      const textProvider = resolveAIProvider(modelConfig);
-      const refVideoSystem = await resolvePrompt("ref_video_prompt", { userId, projectId });
-      try {
-        const motionContext = shot.motionScript || shot.videoScript || shot.prompt || "";
-        const promptRequest = buildRefVideoPromptRequest({
-          motionScript: motionContext,
-          cameraDirection: shot.cameraDirection || "static",
-          duration: effectiveDuration,
-          characters: characterRefInfos,
-          sceneFrames: sceneFrameInfos,
-          dialogues: dialogueList.length > 0 ? dialogueList : undefined,
-        });
-        console.log(`[SingleReferenceVideo] Shot ${shot.sequence} promptRequest:\n${promptRequest}`);
-        const rawPrompt = await textProvider.generateText(promptRequest, {
-          systemPrompt: refVideoSystem,
-          images: sceneFramePaths,
-          temperature: 0.7,
-        });
-        videoPrompt = `Duration: ${effectiveDuration}s.\n\n${rawPrompt.trim()}`;
-      } catch (err) {
-        console.warn("[SingleReferenceVideo] Vision prompt generation failed, falling back:", err);
-        const fallback = buildReferenceVideoPrompt({
-          videoScript: shot.videoScript || shot.motionScript || shot.prompt || "",
-          cameraDirection: shot.cameraDirection || "static",
-          duration: effectiveDuration,
-          characters: projectCharacters,
-          dialogues: dialogueList.length > 0 ? dialogueList : undefined,
-          slotContents: refVideoSlots,
-        });
-        videoPrompt = `图像映射：${fullMapping}。\n\n${fallback}`;
-      }
-    }
+    const prompt =
+      shot.videoPrompt ||
+      buildReferenceVideoPrompt({
+        videoScript: shot.videoScript || shot.motionScript || shot.prompt || "",
+        cameraDirection: shot.cameraDirection || "static",
+        duration: effectiveDuration,
+        characters: projectCharacters,
+        dialogues: dialogueList.length > 0 ? dialogueList : undefined,
+        slotContents: refVideoSlots,
+      });
+    const videoPrompt = prompt.includes("图像映射")
+      ? prompt
+      : `图像映射：${fullMapping}\n\n${prompt}`;
 
-    console.log(`[SingleReferenceVideo] Shot ${shot.sequence}: generating video with ${orderedRefImages.length} reference images`);
+    console.log(
+      `[SingleReferenceVideo] Shot ${shot.sequence}: generating video with ${orderedRefImages.length} reference images`,
+    );
 
     const result = await videoProvider.generateVideo({
       initialImage: sceneFramePaths[0],
@@ -188,8 +179,12 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
     });
 
     await insertAssetVersion({
-      shotId, type: "reference_video", sequenceInType: 0,
-      prompt: videoPrompt, fileUrl: result.filePath, status: "completed",
+      shotId,
+      type: "reference_video",
+      sequenceInType: 0,
+      prompt: videoPrompt,
+      fileUrl: result.filePath,
+      status: "completed",
       meta: result.lastFrameUrl ? { lastFrameUrl: result.lastFrameUrl } : null,
     });
     await db
@@ -199,8 +194,14 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
 
     return { shotId, referenceVideoUrl: result.filePath, status: "ok" };
   } catch (err) {
-    console.error(`[SingleReferenceVideo] Error for shot ${shot.sequence}:`, err);
-    await db.update(shots).set({ status: "failed" }).where(eq(shots.id, shotId));
+    console.error(
+      `[SingleReferenceVideo] Error for shot ${shot.sequence}:`,
+      err,
+    );
+    await db
+      .update(shots)
+      .set({ status: "failed" })
+      .where(eq(shots.id, shotId));
     throw new ApiError(500, extractErrorMessage(err));
   }
 }

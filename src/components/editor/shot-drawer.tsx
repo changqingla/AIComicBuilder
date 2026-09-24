@@ -22,7 +22,15 @@ import {
   Clock,
 } from "lucide-react";
 import { type Shot } from "@/lib/editor-types";
-import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl, getFirstFramePrompt, getLastFramePrompt } from "@/lib/shot-assets";
+import {
+  getFirstFrameUrl,
+  getLastFrameUrl,
+  getSceneRefFrameUrl,
+  getKeyframeVideoUrl,
+  getReferenceVideoUrl,
+  getFirstFramePrompt,
+  getLastFramePrompt,
+} from "@/lib/shot-assets";
 
 type DrawerShot = Shot;
 
@@ -61,11 +69,21 @@ export function ShotDrawer({
 
   // Local edit state
   const [editPrompt, setEditPrompt] = useDraft(shot?.prompt ?? "");
-  const [editStartFrame, setEditStartFrame] = useDraft(shot ? getFirstFramePrompt(shot) ?? "" : "");
-  const [editEndFrame, setEditEndFrame] = useDraft(shot ? getLastFramePrompt(shot) ?? "" : "");
-  const [editMotionScript, setEditMotionScript] = useDraft(shot?.motionScript ?? "");
-  const [editVideoPrompt, setEditVideoPrompt] = useDraft(shot?.videoPrompt ?? "");
-  const [editCameraDirection, setEditCameraDirection] = useDraft(shot?.cameraDirection ?? "static");
+  const [editStartFrame, setEditStartFrame] = useDraft(
+    shot ? (getFirstFramePrompt(shot) ?? "") : "",
+  );
+  const [editEndFrame, setEditEndFrame] = useDraft(
+    shot ? (getLastFramePrompt(shot) ?? "") : "",
+  );
+  const [editMotionScript, setEditMotionScript] = useDraft(
+    shot?.motionScript ?? "",
+  );
+  const [editVideoPrompt, setEditVideoPrompt] = useDraft(
+    shot?.videoPrompt ?? "",
+  );
+  const [editCameraDirection, setEditCameraDirection] = useDraft(
+    shot?.cameraDirection ?? "static",
+  );
   const [editDuration, setEditDuration] = useDraft(shot?.duration ?? 5);
 
   // Local generating state (independent of page-level anyGenerating)
@@ -76,8 +94,6 @@ export function ShotDrawer({
   const [rewritingText, setRewritingText] = useState(false);
 
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-
-
 
   // Escape key to close
   useEffect(() => {
@@ -96,12 +112,20 @@ export function ShotDrawer({
   const firstFrameUrl = getFirstFrameUrl(shot);
   const lastFrameUrl = getLastFrameUrl(shot);
   const sceneRefFrameUrl = getSceneRefFrameUrl(shot);
-  const resolvedVideoUrl = generationMode === "reference" ? getReferenceVideoUrl(shot) : getKeyframeVideoUrl(shot);
+  const resolvedVideoUrl =
+    generationMode === "reference"
+      ? getReferenceVideoUrl(shot)
+      : getKeyframeVideoUrl(shot);
   const hasFrame = !!(sceneRefFrameUrl || firstFrameUrl || lastFrameUrl);
   const hasFramePair = !!(firstFrameUrl && lastFrameUrl);
   const hasVideoPrompt = !!shot.videoPrompt;
   const hasVideo = !!resolvedVideoUrl;
-  const localGenerating = generatingFrames || generatingSceneFrame || generatingVideo || generatingPrompt || rewritingText;
+  const localGenerating =
+    generatingFrames ||
+    generatingSceneFrame ||
+    generatingVideo ||
+    generatingPrompt ||
+    rewritingText;
 
   async function patchShot(fields: Record<string, unknown>) {
     if (!shot) return;
@@ -112,7 +136,9 @@ export function ShotDrawer({
         body: JSON.stringify(fields),
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
   }
 
@@ -125,13 +151,19 @@ export function ShotDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "single_frame_generate",
-          payload: { shotId: shot!.id, ratio: videoRatio, versionId: selectedVersionId },
+          payload: {
+            shotId: shot!.id,
+            ratio: videoRatio,
+            versionId: selectedVersionId,
+          },
           modelConfig: getModelConfig(),
         }),
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     } finally {
       setGeneratingFrames(false);
     }
@@ -152,7 +184,9 @@ export function ShotDrawer({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     } finally {
       setGeneratingSceneFrame(false);
     }
@@ -172,7 +206,9 @@ export function ShotDrawer({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     } finally {
       setGeneratingPrompt(false);
     }
@@ -186,14 +222,23 @@ export function ShotDrawer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: generationMode === "reference" ? "single_reference_video" : "single_video_generate",
-          payload: { shotId: shot!.id, ratio: videoRatio, versionId: selectedVersionId },
+          action:
+            generationMode === "reference"
+              ? "single_reference_video"
+              : "single_video_generate",
+          payload: {
+            shotId: shot!.id,
+            ratio: videoRatio,
+            versionId: selectedVersionId,
+          },
           modelConfig: getModelConfig(),
         }),
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     } finally {
       setGeneratingVideo(false);
     }
@@ -213,18 +258,21 @@ export function ShotDrawer({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     } finally {
       setRewritingText(false);
     }
   }
 
-  const frameAssets = generationMode === "reference"
-    ? [{ src: sceneRefFrameUrl, label: t("shot.sceneRefFrame") }]
-    : [
-        { src: firstFrameUrl, label: t("shot.firstFrame") },
-        { src: lastFrameUrl, label: t("shot.lastFrame") },
-      ];
+  const frameAssets =
+    generationMode === "reference"
+      ? [{ src: sceneRefFrameUrl, label: t("shot.sceneRefFrame") }]
+      : [
+          { src: firstFrameUrl, label: t("shot.firstFrame") },
+          { src: lastFrameUrl, label: t("shot.lastFrame") },
+        ];
 
   return (
     <>
@@ -241,17 +289,23 @@ export function ShotDrawer({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/8 font-mono text-sm font-bold text-primary">
             {shot.sequence}
           </div>
-          <p className="flex-1 truncate text-sm font-medium text-[--text-primary]">{shot.prompt}</p>
+          <p className="flex-1 truncate text-sm font-medium text-[--text-primary]">
+            {shot.prompt}
+          </p>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => hasPrev && onShotChange(shots[currentIndex - 1].id)}
+              onClick={() =>
+                hasPrev && onShotChange(shots[currentIndex - 1].id)
+              }
               disabled={!hasPrev || localGenerating}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] transition-colors hover:bg-[--surface] hover:text-[--text-primary] disabled:opacity-30"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
-              onClick={() => hasNext && onShotChange(shots[currentIndex + 1].id)}
+              onClick={() =>
+                hasNext && onShotChange(shots[currentIndex + 1].id)
+              }
               disabled={!hasNext || localGenerating}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] transition-colors hover:bg-[--surface] hover:text-[--text-primary] disabled:opacity-30"
             >
@@ -268,10 +322,11 @@ export function ShotDrawer({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-
           {/* Step 1: Text */}
           <section>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">{t("shot.stepText")}</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+              {t("shot.stepText")}
+            </p>
             <div className="space-y-2">
               <Textarea
                 value={editPrompt}
@@ -320,7 +375,9 @@ export function ShotDrawer({
               <input
                 value={editCameraDirection}
                 onChange={(e) => setEditCameraDirection(e.target.value)}
-                onBlur={() => patchShot({ cameraDirection: editCameraDirection })}
+                onBlur={() =>
+                  patchShot({ cameraDirection: editCameraDirection })
+                }
                 className="w-full rounded-xl border border-[--border-subtle] bg-white px-3 py-2 text-sm outline-none focus:border-primary/50"
                 placeholder="static / pan-left / zoom-in ..."
               />
@@ -333,7 +390,10 @@ export function ShotDrawer({
                     max={15}
                     value={editDuration}
                     onChange={(e) => {
-                      const v = Math.min(15, Math.max(5, Number(e.target.value)));
+                      const v = Math.min(
+                        15,
+                        Math.max(5, Number(e.target.value)),
+                      );
                       setEditDuration(v);
                       patchShot({ duration: v });
                     }}
@@ -344,18 +404,33 @@ export function ShotDrawer({
               </div>
               {shot.dialogues.length > 0 && (
                 <div className="space-y-1 rounded-xl bg-[--surface] p-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">{t("shot.dialogue")}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+                    {t("shot.dialogue")}
+                  </p>
                   {shot.dialogues.map((d) => (
                     <p key={d.id} className="text-sm">
-                      <span className="font-semibold text-primary">{d.characterName}</span>
-                      <span className="mx-1.5 text-[--text-muted]">&mdash;</span>
+                      <span className="font-semibold text-primary">
+                        {d.characterName}
+                      </span>
+                      <span className="mx-1.5 text-[--text-muted]">
+                        &mdash;
+                      </span>
                       <span className="text-[--text-secondary]">{d.text}</span>
                     </p>
                   ))}
                 </div>
               )}
-              <Button size="xs" variant="outline" onClick={handleRewriteText} disabled={rewritingText || anyGenerating}>
-                {rewritingText ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={handleRewriteText}
+                disabled={rewritingText || anyGenerating}
+              >
+                {rewritingText ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
                 {rewritingText ? t("common.generating") : t("shot.rewriteText")}
               </Button>
             </div>
@@ -364,7 +439,9 @@ export function ShotDrawer({
           {/* Step 2: Frames */}
           <section>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
-              {generationMode === "reference" ? t("shot.stepSceneFrame") : t("shot.stepFrames")}
+              {generationMode === "reference"
+                ? t("shot.stepSceneFrame")
+                : t("shot.stepFrames")}
             </p>
             {hasFrame && (
               <div className="mb-2 flex gap-2">
@@ -372,12 +449,21 @@ export function ShotDrawer({
                   <div
                     key={i}
                     className={`overflow-hidden rounded-lg border border-[--border-subtle] bg-[--surface] cursor-pointer hover:opacity-80 transition-opacity ${generationMode === "reference" ? "w-full" : "flex-1"}`}
-                    onClick={() => asset.src && setPreviewSrc(uploadUrl(asset.src))}
-                  >
-                    {asset.src
-                      ? <img src={uploadUrl(asset.src)} className="w-full object-contain" alt={asset.label} />
-                      : <div className="flex h-16 items-center justify-center"><ImageIcon className="h-4 w-4 text-[--text-muted]" /></div>
+                    onClick={() =>
+                      asset.src && setPreviewSrc(uploadUrl(asset.src))
                     }
+                  >
+                    {asset.src ? (
+                      <img
+                        src={uploadUrl(asset.src)}
+                        className="w-full object-contain"
+                        alt={asset.label}
+                      />
+                    ) : (
+                      <div className="flex h-16 items-center justify-center">
+                        <ImageIcon className="h-4 w-4 text-[--text-muted]" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -385,20 +471,33 @@ export function ShotDrawer({
             <Button
               size="xs"
               variant={!hasFrame ? "default" : "outline"}
-              onClick={generationMode === "reference" ? handleGenerateSceneFrame : handleGenerateFrames}
-              disabled={generatingFrames || generatingSceneFrame || anyGenerating}
-            >
-              {(generatingFrames || generatingSceneFrame) ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3" />}
-              {(generatingFrames || generatingSceneFrame)
-                ? t("common.generating")
-                : hasFrame ? t("shot.regenerateFrames") : t("project.generateFrames")
+              onClick={
+                generationMode === "reference"
+                  ? handleGenerateSceneFrame
+                  : handleGenerateFrames
               }
+              disabled={
+                generatingFrames || generatingSceneFrame || anyGenerating
+              }
+            >
+              {generatingFrames || generatingSceneFrame ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <ImageIcon className="h-3 w-3" />
+              )}
+              {generatingFrames || generatingSceneFrame
+                ? t("common.generating")
+                : hasFrame
+                  ? t("shot.regenerateFrames")
+                  : t("project.generateFrames")}
             </Button>
           </section>
 
           {/* Step 3: Video Prompt */}
           <section>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">{t("shot.stepVideoPrompt")}</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+              {t("shot.stepVideoPrompt")}
+            </p>
             {hasVideoPrompt && (
               <Textarea
                 value={editVideoPrompt}
@@ -413,24 +512,34 @@ export function ShotDrawer({
               onClick={handleGenerateVideoPrompt}
               disabled={generatingPrompt || !hasFrame || anyGenerating}
             >
-              {generatingPrompt ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              {generatingPrompt ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
               {generatingPrompt
                 ? t("common.generating")
-                : hasVideoPrompt ? t("shot.regeneratePrompt") : t("shot.generateVideoPrompt")
-              }
+                : hasVideoPrompt
+                  ? t("shot.regeneratePrompt")
+                  : t("shot.generateVideoPrompt")}
             </Button>
           </section>
 
           {/* Step 4: Video */}
           <section>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">{t("shot.stepVideo")}</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+              {t("shot.stepVideo")}
+            </p>
             {hasVideo && (
               <div
                 className="group relative mb-2 overflow-hidden rounded-xl border border-[--border-subtle] bg-black cursor-pointer"
                 style={{ aspectRatio: "16/9" }}
                 onClick={() => setPreviewSrc(uploadUrl(resolvedVideoUrl!))}
               >
-                <video className="h-full w-full object-contain" src={uploadUrl(resolvedVideoUrl!)} />
+                <video
+                  className="h-full w-full object-contain"
+                  src={uploadUrl(resolvedVideoUrl!)}
+                />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-lg">
                     <VideoIcon className="h-4 w-4 text-[--text-primary] translate-x-0.5" />
@@ -442,16 +551,24 @@ export function ShotDrawer({
               size="xs"
               variant={hasVideoPrompt && !hasVideo ? "default" : "outline"}
               onClick={handleGenerateVideo}
-              disabled={generatingVideo || (generationMode === "keyframe" && !hasFramePair) || anyGenerating}
+              disabled={
+                generatingVideo ||
+                (generationMode === "keyframe" && !hasFramePair) ||
+                anyGenerating
+              }
             >
-              {generatingVideo ? <Loader2 className="h-3 w-3 animate-spin" /> : <VideoIcon className="h-3 w-3" />}
+              {generatingVideo ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <VideoIcon className="h-3 w-3" />
+              )}
               {generatingVideo
                 ? t("common.generating")
-                : hasVideo ? t("shot.regenerateVideo") : t("project.generateVideo")
-              }
+                : hasVideo
+                  ? t("shot.regenerateVideo")
+                  : t("project.generateVideo")}
             </Button>
           </section>
-
         </div>
       </div>
 
@@ -461,11 +578,23 @@ export function ShotDrawer({
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setPreviewSrc(null)}
         >
-          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative max-h-[90vh] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {previewSrc.match(/\.(mp4|webm|mov)/) ? (
-              <video src={previewSrc} controls autoPlay className="max-h-[85vh] rounded-xl" />
+              <video
+                src={previewSrc}
+                controls
+                autoPlay
+                className="max-h-[85vh] rounded-xl"
+              />
             ) : (
-              <img src={previewSrc} alt="Preview" className="max-h-[85vh] rounded-xl" />
+              <img
+                src={previewSrc}
+                alt="Preview"
+                className="max-h-[85vh] rounded-xl"
+              />
             )}
             <button
               onClick={() => setPreviewSrc(null)}

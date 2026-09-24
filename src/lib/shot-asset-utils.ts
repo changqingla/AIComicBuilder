@@ -12,9 +12,9 @@
 import { db } from "@/lib/db";
 import { shotAssets } from "@/lib/db/schema";
 import { id as genId } from "@/lib/id";
-import { and,desc,eq,inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
-import type { ShotAsset,ShotAssetType } from "@/lib/shot-assets";
+import type { ShotAsset, ShotAssetType } from "@/lib/shot-assets";
 type ShotAssetStatus = ShotAsset["status"];
 
 function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAsset {
@@ -38,7 +38,7 @@ function rowToAsset(row: typeof shotAssets.$inferSelect): ShotAsset {
 /** Get all currently-active assets of a given type for a shot, ordered by sequenceInType. */
 export async function getActiveAssets(
   shotId: string,
-  type: ShotAssetType
+  type: ShotAssetType,
 ): Promise<ShotAsset[]> {
   const rows = await db
     .select()
@@ -47,8 +47,8 @@ export async function getActiveAssets(
       and(
         eq(shotAssets.shotId, shotId),
         eq(shotAssets.type, type),
-        eq(shotAssets.isActive, 1)
-      )
+        eq(shotAssets.isActive, 1),
+      ),
     )
     .orderBy(shotAssets.sequenceInType);
   return rows.map(rowToAsset);
@@ -58,7 +58,7 @@ export async function getActiveAssets(
 export async function getActiveAsset(
   shotId: string,
   type: ShotAssetType,
-  sequenceInType = 0
+  sequenceInType = 0,
 ): Promise<ShotAsset | null> {
   const [row] = await db
     .select()
@@ -68,8 +68,8 @@ export async function getActiveAsset(
         eq(shotAssets.shotId, shotId),
         eq(shotAssets.type, type),
         eq(shotAssets.sequenceInType, sequenceInType),
-        eq(shotAssets.isActive, 1)
-      )
+        eq(shotAssets.isActive, 1),
+      ),
     )
     .limit(1);
   return row ? rowToAsset(row) : null;
@@ -79,7 +79,7 @@ export async function getActiveAsset(
 export async function getAssetHistory(
   shotId: string,
   type: ShotAssetType,
-  sequenceInType = 0
+  sequenceInType = 0,
 ): Promise<ShotAsset[]> {
   const rows = await db
     .select()
@@ -88,8 +88,8 @@ export async function getAssetHistory(
       and(
         eq(shotAssets.shotId, shotId),
         eq(shotAssets.type, type),
-        eq(shotAssets.sequenceInType, sequenceInType)
-      )
+        eq(shotAssets.sequenceInType, sequenceInType),
+      ),
     )
     .orderBy(desc(shotAssets.assetVersion));
   return rows.map(rowToAsset);
@@ -116,9 +116,7 @@ export interface UpsertAssetInput {
  *
  * Returns the inserted row.
  */
-export function insertAssetVersion(
-  input: UpsertAssetInput
-): ShotAsset {
+export function insertAssetVersion(input: UpsertAssetInput): ShotAsset {
   return db.transaction((tx) => {
     const sequenceInType = input.sequenceInType ?? 0;
     const slot = and(
@@ -126,46 +124,70 @@ export function insertAssetVersion(
       eq(shotAssets.type, input.type),
       eq(shotAssets.sequenceInType, sequenceInType),
     );
-    const previous = tx.select().from(shotAssets).where(slot)
-      .orderBy(desc(shotAssets.assetVersion)).get();
+    const previous = tx
+      .select()
+      .from(shotAssets)
+      .where(slot)
+      .orderBy(desc(shotAssets.assetVersion))
+      .get();
+    const source =
+      tx
+        .select()
+        .from(shotAssets)
+        .where(and(slot, eq(shotAssets.isActive, 1)))
+        .get() ?? previous;
     tx.update(shotAssets).set({ isActive: 0 }).where(slot).run();
-    const [row] = tx.insert(shotAssets).values({
-      id: genId(),
-      shotId: input.shotId,
-      type: input.type,
-      sequenceInType,
-      assetVersion: (previous?.assetVersion ?? 0) + 1,
-      isActive: 1,
-      prompt: input.prompt,
-      fileUrl: input.fileUrl ?? null,
-      status: input.status ?? "pending",
-      characters: input.characters === undefined
-        ? previous?.characters ?? null
-        : input.characters === null ? null : JSON.stringify(input.characters),
-      meta: input.meta === undefined
-        ? previous?.meta ?? null
-        : input.meta === null ? null : JSON.stringify(input.meta),
-      modelProvider: input.modelProvider ?? null,
-      modelId: input.modelId ?? null,
-    }).returning().all();
+    const [row] = tx
+      .insert(shotAssets)
+      .values({
+        id: genId(),
+        shotId: input.shotId,
+        type: input.type,
+        sequenceInType,
+        assetVersion: (previous?.assetVersion ?? 0) + 1,
+        isActive: 1,
+        prompt: input.prompt,
+        fileUrl: input.fileUrl ?? null,
+        status: input.status ?? "pending",
+        characters:
+          input.characters === undefined
+            ? (source?.characters ?? null)
+            : input.characters === null
+              ? null
+              : JSON.stringify(input.characters),
+        meta:
+          input.meta === undefined
+            ? (source?.meta ?? null)
+            : input.meta === null
+              ? null
+              : JSON.stringify(input.meta),
+        modelProvider:
+          input.modelProvider === undefined
+            ? (source?.modelProvider ?? null)
+            : input.modelProvider,
+        modelId:
+          input.modelId === undefined
+            ? (source?.modelId ?? null)
+            : input.modelId,
+      })
+      .returning()
+      .all();
     return rowToAsset(row);
   });
 }
 
-/** Update an existing asset row in place (e.g. to attach the generated file_url after generation completes). */
+/** Edit metadata on a version. Generated files are only saved by inserting a new version. */
 export async function patchAsset(
   assetId: string,
   patch: Partial<{
-    fileUrl: string | null;
     status: ShotAssetStatus;
     prompt: string;
     modelProvider: string | null;
     modelId: string | null;
     meta: Record<string, unknown> | null;
-  }>
+  }>,
 ): Promise<void> {
   const update: Record<string, unknown> = { updatedAt: new Date() };
-  if (patch.fileUrl !== undefined) update.fileUrl = patch.fileUrl;
   if (patch.status !== undefined) update.status = patch.status;
   if (patch.prompt !== undefined) update.prompt = patch.prompt;
   if (patch.modelProvider !== undefined)
@@ -181,7 +203,7 @@ export async function activateAssetVersion(
   shotId: string,
   type: ShotAssetType,
   sequenceInType: number,
-  assetVersion: number
+  assetVersion: number,
 ): Promise<void> {
   db.transaction((tx) => {
     const slot = and(
@@ -189,33 +211,36 @@ export async function activateAssetVersion(
       eq(shotAssets.type, type),
       eq(shotAssets.sequenceInType, sequenceInType),
     );
-    const target = tx.select().from(shotAssets)
-      .where(and(slot, eq(shotAssets.assetVersion, assetVersion))).get();
+    const target = tx
+      .select()
+      .from(shotAssets)
+      .where(and(slot, eq(shotAssets.assetVersion, assetVersion)))
+      .get();
     if (!target) throw new Error("Asset version not found");
     tx.update(shotAssets).set({ isActive: 0 }).where(slot).run();
-    tx.update(shotAssets).set({ isActive: 1, updatedAt: new Date() })
-      .where(eq(shotAssets.id, target.id)).run();
+    tx.update(shotAssets)
+      .set({ isActive: 1, updatedAt: new Date() })
+      .where(eq(shotAssets.id, target.id))
+      .run();
   });
 }
 
-/** Hard-delete all assets of a given type for a shot (used when wiping a mode's data). */
-export async function deleteAssetsByType(
-  shotId: string,
-  type: ShotAssetType
-): Promise<void> {
-  await db
-    .delete(shotAssets)
-    .where(and(eq(shotAssets.shotId, shotId), eq(shotAssets.type, type)));
-}
-
 export async function loadShotAssets(shotId: string): Promise<ShotAsset[]> {
-  const rows = await db.select().from(shotAssets).where(eq(shotAssets.shotId, shotId));
+  const rows = await db
+    .select()
+    .from(shotAssets)
+    .where(eq(shotAssets.shotId, shotId));
   return rows.map(rowToAsset);
 }
 
-export async function loadShotAssetsBatch(shotIds: string[]): Promise<Map<string, ShotAsset[]>> {
+export async function loadShotAssetsBatch(
+  shotIds: string[],
+): Promise<Map<string, ShotAsset[]>> {
   if (shotIds.length === 0) return new Map();
-  const rows = await db.select().from(shotAssets).where(inArray(shotAssets.shotId, shotIds));
+  const rows = await db
+    .select()
+    .from(shotAssets)
+    .where(inArray(shotAssets.shotId, shotIds));
   const byShot = new Map<string, ShotAsset[]>(shotIds.map((id) => [id, []]));
   for (const row of rows) byShot.get(row.shotId)!.push(rowToAsset(row));
   return byShot;

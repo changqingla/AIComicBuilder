@@ -5,10 +5,10 @@ import useSWR from "swr";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
 import { apiFetch } from "@/lib/api-fetch";
-import { ArrowLeft,Loader2 } from "lucide-react";
-import { useLocale,useTranslations } from "next-intl";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { use,useMemo } from "react";
+import { use, useMemo } from "react";
 import { toast } from "sonner";
 
 interface Character {
@@ -29,6 +29,9 @@ interface Episode {
   sequence: number;
 }
 
+const EMPTY_CHARACTERS: Character[] = [];
+const EMPTY_EPISODES: Episode[] = [];
+
 export default function CharactersPage({
   params,
 }: {
@@ -40,22 +43,23 @@ export default function CharactersPage({
   const tc = useTranslations("common");
   const tChar = useTranslations("character");
 
-  const { data, isLoading: loading, mutate: fetchData } = useSWR(
-    ["project-characters", projectId],
-    async ([, id]) => {
-      const [characters, episodes] = await Promise.all([
-        fetchJson<Character[]>(`/api/projects/${id}/characters`),
-        fetchJson<Episode[]>(`/api/projects/${id}/episodes`),
-      ]);
-      return { characters, episodes };
-    },
-  );
-  const characters = data?.characters ?? [];
-  const episodes = data?.episodes ?? [];
+  const {
+    data,
+    isLoading: loading,
+    mutate: fetchData,
+  } = useSWR(["project-characters", projectId], async ([, id]) => {
+    const [characters, episodes] = await Promise.all([
+      fetchJson<Character[]>(`/api/projects/${id}/characters`),
+      fetchJson<Episode[]>(`/api/projects/${id}/episodes`),
+    ]);
+    return { characters, episodes };
+  });
+  const characters = data?.characters ?? EMPTY_CHARACTERS;
+  const episodes = data?.episodes ?? EMPTY_EPISODES;
 
   const mainCharacters = useMemo(
     () => characters.filter((c) => c.scope === "main"),
-    [characters]
+    [characters],
   );
 
   const guestByEpisode = useMemo(() => {
@@ -80,7 +84,7 @@ export default function CharactersPage({
 
   const guestCount = useMemo(
     () => characters.filter((c) => c.scope === "guest").length,
-    [characters]
+    [characters],
   );
 
   async function handlePromote(characterId: string) {

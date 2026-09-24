@@ -15,7 +15,9 @@ interface ProjectStore {
 
 let requestNumber = 0;
 export const useProjectStore = create<ProjectStore>((set) => ({
-  project: null, loading: false, error: null,
+  project: null,
+  loading: false,
+  error: null,
   fetchProject: async (id) => {
     const request = ++requestNumber;
     set({ loading: true, error: null });
@@ -24,7 +26,8 @@ export const useProjectStore = create<ProjectStore>((set) => ({
       const project: Project = await response.json();
       if (request === requestNumber) set({ project, loading: false });
     } catch (error) {
-      if (request === requestNumber) set({ loading: false, error: String(error) });
+      if (request === requestNumber)
+        set({ loading: false, error: String(error) });
     }
   },
 }));

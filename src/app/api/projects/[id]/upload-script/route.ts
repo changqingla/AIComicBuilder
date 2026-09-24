@@ -28,7 +28,9 @@ async function parseDocx(buffer: Buffer): Promise<string> {
 
 async function parsePdf(buffer: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
-  const result = await extractText(new Uint8Array(buffer), { mergePages: true });
+  const result = await extractText(new Uint8Array(buffer), {
+    mergePages: true,
+  });
   return result.text;
 }
 
@@ -85,7 +87,7 @@ interface EpisodeResult {
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params;
   const userId = getUserIdFromRequest(request);
@@ -112,7 +114,7 @@ export async function POST(
   if (!modelConfigRaw) {
     return NextResponse.json(
       { error: "No model config provided" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -123,7 +125,7 @@ export async function POST(
   if (!modelConfig.text) {
     return NextResponse.json(
       { error: "No text model configured" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -140,14 +142,17 @@ export async function POST(
   if (!fullText.trim()) {
     return NextResponse.json(
       { error: "File contains no text" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   // Chunk the text
   const chunks = chunkText(fullText);
   const model = createLanguageModel(modelConfig.text);
-  const scriptSplitSystem = await resolvePrompt("script_split", { userId, projectId });
+  const scriptSplitSystem = await resolvePrompt("script_split", {
+    userId,
+    projectId,
+  });
 
   // Process all chunks concurrently
   const episodeOffset = 0;
@@ -176,7 +181,7 @@ export async function POST(
   if (allEpisodes.length === 0) {
     return NextResponse.json(
       { error: "AI could not split the script into episodes" },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
@@ -207,11 +212,11 @@ export async function POST(
   }
 
   console.log(
-    `[UploadScript] Created ${created.length} episodes from ${chunks.length} chunks`
+    `[UploadScript] Created ${created.length} episodes from ${chunks.length} chunks`,
   );
 
   return NextResponse.json(
     { episodes: created, count: created.length },
-    { status: 201 }
+    { status: 201 },
   );
 }

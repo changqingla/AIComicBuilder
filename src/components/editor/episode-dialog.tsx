@@ -2,12 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import {
-Dialog,
-DialogClose,
-DialogContent,
-DialogFooter,
-DialogHeader,
-DialogTitle,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
@@ -16,7 +16,11 @@ import { useState } from "react";
 interface EpisodeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { title: string; description?: string; keywords?: string }) => Promise<void>;
+  onSubmit: (data: {
+    title: string;
+    description?: string;
+    keywords?: string;
+  }) => Promise<void>;
   defaultValues?: { title?: string; description?: string; keywords?: string };
   mode?: "create" | "edit";
 }
@@ -35,7 +39,9 @@ function EpisodeDialogContent({
   const t = useTranslations("episode");
   const tc = useTranslations("common");
   const [title, setTitle] = useState(defaultValues?.title || "");
-  const [description, setDescription] = useState(defaultValues?.description || "");
+  const [description, setDescription] = useState(
+    defaultValues?.description || "",
+  );
   const [keywords, setKeywords] = useState(defaultValues?.keywords || "");
   const [submitting, setSubmitting] = useState(false);
 

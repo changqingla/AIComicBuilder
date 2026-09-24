@@ -47,7 +47,7 @@ function activeAssets(shot: ShotLike): ShotAsset[] {
 export function getAssetHistoryForSlot(
   shot: ShotLike,
   type: ShotAssetType,
-  sequenceInType = 0
+  sequenceInType = 0,
 ): ShotAsset[] {
   return safeAssets(shot)
     .filter((a) => a.type === type && a.sequenceInType === sequenceInType)
@@ -58,7 +58,7 @@ export function getAssetHistoryForSlot(
 export function getFirstFrameUrl(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "first_frame" && a.sequenceInType === 0
+      (a) => a.type === "first_frame" && a.sequenceInType === 0,
     )?.fileUrl ?? null
   );
 }
@@ -67,7 +67,7 @@ export function getFirstFrameUrl(shot: ShotLike): string | null {
 export function getLastFrameUrl(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "last_frame" && a.sequenceInType === 0
+      (a) => a.type === "last_frame" && a.sequenceInType === 0,
     )?.fileUrl ?? null
   );
 }
@@ -76,7 +76,7 @@ export function getLastFrameUrl(shot: ShotLike): string | null {
 export function getKeyframeVideoUrl(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "keyframe_video" && a.sequenceInType === 0
+      (a) => a.type === "keyframe_video" && a.sequenceInType === 0,
     )?.fileUrl ?? null
   );
 }
@@ -85,7 +85,7 @@ export function getKeyframeVideoUrl(shot: ShotLike): string | null {
 export function getReferenceVideoUrl(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "reference_video" && a.sequenceInType === 0
+      (a) => a.type === "reference_video" && a.sequenceInType === 0,
     )?.fileUrl ?? null
   );
 }
@@ -106,7 +106,7 @@ export function getSceneRefFrameUrl(shot: ShotLike): string | null {
 export function getFirstFramePrompt(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "first_frame" && a.sequenceInType === 0
+      (a) => a.type === "first_frame" && a.sequenceInType === 0,
     )?.prompt ?? null
   );
 }
@@ -115,7 +115,7 @@ export function getFirstFramePrompt(shot: ShotLike): string | null {
 export function getLastFramePrompt(shot: ShotLike): string | null {
   return (
     activeAssets(shot).find(
-      (a) => a.type === "last_frame" && a.sequenceInType === 0
+      (a) => a.type === "last_frame" && a.sequenceInType === 0,
     )?.prompt ?? null
   );
 }
@@ -131,12 +131,21 @@ export function hasKeyframePair(shot: ShotLike): boolean {
   return !!getFirstFrameUrl(shot) && !!getLastFrameUrl(shot);
 }
 
-
-export function selectAsset(assets: readonly ShotAsset[] = [], type: ShotAssetType, sequenceInType = 0) {
-  return assets.find((asset) => asset.isActive === 1 && asset.type === type && asset.sequenceInType === sequenceInType);
+export function selectAsset(
+  assets: readonly ShotAsset[] = [],
+  type: ShotAssetType,
+  sequenceInType = 0,
+) {
+  return assets.find(
+    (asset) =>
+      asset.isActive === 1 &&
+      asset.type === type &&
+      asset.sequenceInType === sequenceInType,
+  );
 }
 
 export function selectReferences(assets: readonly ShotAsset[] = []) {
-  return assets.filter((asset) => asset.isActive === 1 && asset.type === "reference")
+  return assets
+    .filter((asset) => asset.isActive === 1 && asset.type === "reference")
     .sort((a, b) => a.sequenceInType - b.sequenceInType);
 }

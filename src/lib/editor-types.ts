@@ -51,4 +51,3 @@ export type StoryboardVersion = {
   versionNum: number;
   createdAt: number;
 };
-

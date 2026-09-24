@@ -1,16 +1,25 @@
 "use client";
-import { useDebouncedCallback } from "use-debounce";
 import { useDraft } from "@/hooks/use-draft";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { apiFetch } from "@/lib/api-fetch";
 import { type Shot } from "@/lib/editor-types";
 import { id as genId } from "@/lib/id";
-import { getFirstFramePrompt,getFirstFrameUrl,getKeyframeVideoUrl,getLastFramePrompt,getLastFrameUrl,getReferenceVideoUrl,getSceneRefFrameUrl,type ShotAsset } from "@/lib/shot-assets";
+import {
+  getFirstFramePrompt,
+  getFirstFrameUrl,
+  getKeyframeVideoUrl,
+  getLastFramePrompt,
+  getLastFrameUrl,
+  getReferenceVideoUrl,
+  getSceneRefFrameUrl,
+  type ShotAsset,
+} from "@/lib/shot-assets";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 import { useModelStore } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import { useEffect,useMemo,useRef,useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 export interface ShotCardProps {
   shot: Shot;
   projectId: string;
@@ -23,7 +32,7 @@ export interface ShotCardProps {
   batchGeneratingVideoPrompts?: boolean;
   batchGeneratingVideos?: boolean;
 }
- type StepState = "done" | "generating" | "error" | "idle";
+type StepState = "done" | "generating" | "error" | "idle";
 export function useShotEditor({
   shot,
   projectId,
@@ -36,7 +45,6 @@ export function useShotEditor({
   batchGeneratingVideoPrompts = false,
   batchGeneratingVideos = false,
 }: ShotCardProps) {
-
   const id = shot.id;
   const sequence = shot.sequence;
   const prompt = shot.prompt;
@@ -57,14 +65,20 @@ export function useShotEditor({
   const firstFrame = getFirstFrameUrl(shot);
   const lastFrame = getLastFrameUrl(shot);
   const sceneRefFrame = getSceneRefFrameUrl(shot);
-  const videoUrl = generationMode === "reference" ? getReferenceVideoUrl(shot) : getKeyframeVideoUrl(shot);
+  const videoUrl =
+    generationMode === "reference"
+      ? getReferenceVideoUrl(shot)
+      : getKeyframeVideoUrl(shot);
   const startFrameDesc = getFirstFramePrompt(shot);
   const endFrameDesc = getLastFramePrompt(shot);
-  const status = generationMode === "reference"
-    ? shot.status === "generating"
-      ? "generating"
-      : videoUrl ? "completed" : "pending"
-    : shot.status;
+  const status =
+    generationMode === "reference"
+      ? shot.status === "generating"
+        ? "generating"
+        : videoUrl
+          ? "completed"
+          : "pending"
+      : shot.status;
   const t = useTranslations();
   const getModelConfig = useModelStore((s) => s.getModelConfig);
 
@@ -74,9 +88,10 @@ export function useShotEditor({
   const [editEndFrame, setEditEndFrame] = useDraft(endFrameDesc ?? "");
   const [editMotionScript, setEditMotionScript] = useDraft(motionScript ?? "");
   const [editVideoPrompt, setEditVideoPrompt] = useDraft(videoPrompt ?? "");
-  const [editCameraDirection, setEditCameraDirection] = useDraft(cameraDirection ?? "static");
+  const [editCameraDirection, setEditCameraDirection] = useDraft(
+    cameraDirection ?? "static",
+  );
   const [editDuration, setEditDuration] = useDraft(duration);
-
 
   // Generation state
   const [generatingFrames, setGeneratingFrames] = useState(false);
@@ -86,7 +101,9 @@ export function useShotEditor({
   const [rewritingText, setRewritingText] = useState(false);
 
   // Project characters (reactive)
-  const projectCharacters = useEpisodeEditorStore((s) => s.episode?.characters || []);
+  const projectCharacters = useEpisodeEditorStore(
+    (s) => s.episode?.characters || [],
+  );
 
   // UI state
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -98,23 +115,62 @@ export function useShotEditor({
   const imageGuard = useModelGuard("image");
   const videoGuard = useModelGuard("video");
 
-  const allRefItems = useMemo(() => shot.assets.filter((asset) => asset.isActive === 1), [shot.assets]);
+  const allRefItems = useMemo(
+    () => shot.assets.filter((asset) => asset.isActive === 1),
+    [shot.assets],
+  );
   function assetHistory(asset: ShotAsset) {
-    return shot.assets.filter((row) => row.type === asset.type && row.sequenceInType === asset.sequenceInType && row.fileUrl)
+    return shot.assets
+      .filter(
+        (row) =>
+          row.type === asset.type &&
+          row.sequenceInType === asset.sequenceInType &&
+          row.fileUrl,
+      )
       .sort((a, b) => a.assetVersion - b.assetVersion);
   }
-  function historyIds(asset: ShotAsset) { return assetHistory(asset).map((row) => row.id); }
+  function historyIds(asset: ShotAsset) {
+    return assetHistory(asset).map((row) => row.id);
+  }
   function modelRef(asset?: ShotAsset) {
-    return asset?.modelProvider && asset.modelId ? { providerId: asset.modelProvider, modelId: asset.modelId } : null;
+    return asset?.modelProvider && asset.modelId
+      ? { providerId: asset.modelProvider, modelId: asset.modelId }
+      : null;
   }
   function newAsset(type: ShotAsset["type"], prompt = ""): ShotAsset {
-    return { id: genId(), shotId: id, type, prompt, characters: null, fileUrl: null,
-      assetVersion: 1, isActive: 1, status: "pending",
-      sequenceInType: type === "reference" ? Math.max(-1, ...shot.assets.filter((a) => a.type === type).map((a) => a.sequenceInType)) + 1 : 0 };
+    return {
+      id: genId(),
+      shotId: id,
+      type,
+      prompt,
+      characters: null,
+      fileUrl: null,
+      assetVersion: 1,
+      isActive: 1,
+      status: "pending",
+      sequenceInType:
+        type === "reference"
+          ? Math.max(
+              -1,
+              ...shot.assets
+                .filter((a) => a.type === type)
+                .map((a) => a.sequenceInType),
+            ) + 1
+          : 0,
+    };
   }
-  const parsedRefImages = useMemo(() => allRefItems.filter((r) => r.type === "reference"), [allRefItems]);
-  const firstFrameItem = useMemo(() => allRefItems.find((r) => r.type === "first_frame"), [allRefItems]);
-  const lastFrameItem = useMemo(() => allRefItems.find((r) => r.type === "last_frame"), [allRefItems]);
+  const parsedRefImages = useMemo(
+    () => allRefItems.filter((r) => r.type === "reference"),
+    [allRefItems],
+  );
+  const firstFrameItem = useMemo(
+    () => allRefItems.find((r) => r.type === "first_frame"),
+    [allRefItems],
+  );
+  const lastFrameItem = useMemo(
+    () => allRefItems.find((r) => r.type === "last_frame"),
+    [allRefItems],
+  );
 
   // Derived state
   const hasText = !!(prompt || startFrameDesc || motionScript);
@@ -122,23 +178,48 @@ export function useShotEditor({
   const hasFramePair = !!(firstFrame && lastFrame);
   const hasVideoPrompt = !!videoPrompt;
   const hasVideo = !!videoUrl;
-  const hasRefImages = parsedRefImages.some((r) => r.status === "completed" && r.fileUrl);
+  const hasRefImages = parsedRefImages.some(
+    (r) => r.status === "completed" && r.fileUrl,
+  );
   const isGenerating = status === "generating";
 
   // Step states
-  const textState: StepState = rewritingText ? "generating" : hasText ? "done" : "idle";
+  const textState: StepState = rewritingText
+    ? "generating"
+    : hasText
+      ? "done"
+      : "idle";
   const frameState: StepState =
-    generatingFrames || generatingSceneFrame || batchGeneratingFrames ? "generating"
-    : status === "failed" && !hasFrame ? "error"
-    : hasFrame ? "done" : "idle";
-  const promptState: StepState = generatingPrompt || batchGeneratingVideoPrompts ? "generating" : hasVideoPrompt ? "done" : "idle";
+    generatingFrames || generatingSceneFrame || batchGeneratingFrames
+      ? "generating"
+      : status === "failed" && !hasFrame
+        ? "error"
+        : hasFrame
+          ? "done"
+          : "idle";
+  const promptState: StepState =
+    generatingPrompt || batchGeneratingVideoPrompts
+      ? "generating"
+      : hasVideoPrompt
+        ? "done"
+        : "idle";
   const videoState: StepState =
-    generatingVideo || batchGeneratingVideos || (isGenerating && !hasVideo) ? "generating"
-    : status === "failed" && !hasVideo ? "error"
-    : hasVideo ? "done" : "idle";
+    generatingVideo || batchGeneratingVideos || (isGenerating && !hasVideo)
+      ? "generating"
+      : status === "failed" && !hasVideo
+        ? "error"
+        : hasVideo
+          ? "done"
+          : "idle";
 
   // Which step is "next"
-  const nextStep = !hasFrame ? "frame" : !hasVideoPrompt ? "prompt" : !hasVideo ? "video" : null;
+  const nextStep = !hasFrame
+    ? "frame"
+    : !hasVideoPrompt
+      ? "prompt"
+      : !hasVideo
+        ? "video"
+        : null;
 
   async function patchShot(fields: Record<string, unknown>) {
     await apiFetch(`/api/projects/${projectId}/shots/${id}`, {
@@ -163,29 +244,11 @@ export function useShotEditor({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
     setGeneratingFrames(false);
-  }
-
-  async function handleGenerateSceneFrame() {
-    if (!imageGuard()) return;
-    setGeneratingSceneFrame(true);
-    try {
-      await apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "single_scene_frame",
-          payload: { shotId: id },
-          modelConfig: getModelConfig(),
-        }),
-      });
-      onUpdate();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
-    }
-    setGeneratingSceneFrame(false);
   }
 
   async function handleGenerateVideoPrompt() {
@@ -202,7 +265,9 @@ export function useShotEditor({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
     setGeneratingPrompt(false);
   }
@@ -215,14 +280,19 @@ export function useShotEditor({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: generationMode === "reference" ? "single_reference_video" : "single_video_generate",
+          action:
+            generationMode === "reference"
+              ? "single_reference_video"
+              : "single_video_generate",
           payload: { shotId: id, ratio: videoRatio },
           modelConfig: getModelConfig(),
         }),
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
     setGeneratingVideo(false);
   }
@@ -241,7 +311,9 @@ export function useShotEditor({
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
     setRewritingText(false);
   }
@@ -249,27 +321,40 @@ export function useShotEditor({
   async function saveAssets(type: ShotAsset["type"], items: ShotAsset[]) {
     try {
       const previous = allRefItems.filter((asset) => asset.type === type);
-      const sameItems = previous.length === items.length && items.every((asset) => previous.some((row) => row.id === asset.id));
+      const sameItems =
+        previous.length === items.length &&
+        items.every((asset) => previous.some((row) => row.id === asset.id));
       if (sameItems) {
         for (const asset of items) {
           const saved = previous.find((row) => row.id === asset.id)!;
-          const changes = Object.fromEntries((["prompt", "characters", "modelProvider", "modelId"] as const)
-            .filter((key) => JSON.stringify(asset[key]) !== JSON.stringify(saved[key]))
-            .map((key) => [key, asset[key] ?? null]));
+          const changes = Object.fromEntries(
+            (["prompt", "characters", "modelProvider", "modelId"] as const)
+              .filter(
+                (key) =>
+                  JSON.stringify(asset[key]) !== JSON.stringify(saved[key]),
+              )
+              .map((key) => [key, asset[key] ?? null]),
+          );
           if (Object.keys(changes).length) await patchAsset(asset.id, changes);
         }
       } else {
         await apiFetch(`/api/projects/${projectId}/shots/${id}/assets`, {
-          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, items }),
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, items }),
         });
       }
       onUpdate();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save assets");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save assets",
+      );
     }
   }
 
-  async function handleClearFrame(type: "first_frame" | "last_frame" | "reference") {
+  async function handleClearFrame(
+    type: "first_frame" | "last_frame" | "reference",
+  ) {
     await saveAssets(type, []);
   }
 
@@ -286,12 +371,14 @@ export function useShotEditor({
     try {
       const resp = await apiFetch(
         `/api/projects/${projectId}/shots/${id}/assets/${assetId}/activate`,
-        { method: "POST" }
+        { method: "POST" },
       );
       if (!resp.ok) throw new Error(await resp.text());
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to switch version");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to switch version",
+      );
     }
   }
 
@@ -299,9 +386,14 @@ export function useShotEditor({
    * Save the prompt text for first_frame or last_frame.
    * If the asset row doesn't exist yet, create it via the sync endpoint.
    */
-  async function saveKeyframePrompt(type: "first_frame" | "last_frame", prompt: string) {
+  async function saveKeyframePrompt(
+    type: "first_frame" | "last_frame",
+    prompt: string,
+  ) {
     const existing = allRefItems.find((asset) => asset.type === type);
-    await saveAssets(type, [existing ? { ...existing, prompt } : newAsset(type, prompt)]);
+    await saveAssets(type, [
+      existing ? { ...existing, prompt } : newAsset(type, prompt),
+    ]);
   }
 
   function handleAddRefImage() {
@@ -316,27 +408,58 @@ export function useShotEditor({
 
   async function patchAsset(assetId: string, changes: Record<string, unknown>) {
     await apiFetch(`/api/projects/${projectId}/shots/${id}/assets/${assetId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes),
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
       keepalive: true,
     });
   }
-  const saveFirstLater = useDebouncedCallback((prompt: string) => saveKeyframePrompt("first_frame", prompt), 500);
-  const saveLastLater = useDebouncedCallback((prompt: string) => saveKeyframePrompt("last_frame", prompt), 500);
-  const saveRefLater = useDebouncedCallback(async (assetId: string, prompt: string) => {
-    try { await patchAsset(assetId, { prompt }); onUpdate(); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Failed to save prompt"); }
-  }, 500);
+  const saveFirstLater = useDebouncedCallback(
+    (prompt: string) => saveKeyframePrompt("first_frame", prompt),
+    500,
+  );
+  const saveLastLater = useDebouncedCallback(
+    (prompt: string) => saveKeyframePrompt("last_frame", prompt),
+    500,
+  );
+  const saveRefLater = useDebouncedCallback(
+    async (assetId: string, prompt: string) => {
+      try {
+        await patchAsset(assetId, { prompt });
+        onUpdate();
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to save prompt",
+        );
+      }
+    },
+    500,
+  );
   useEffect(() => {
-    const flush = () => { saveFirstLater.flush(); saveLastLater.flush(); saveRefLater.flush(); };
+    const flush = () => {
+      saveFirstLater.flush();
+      saveLastLater.flush();
+      saveRefLater.flush();
+    };
     document.addEventListener("visibilitychange", flush);
-    return () => { document.removeEventListener("visibilitychange", flush); flush(); };
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      flush();
+    };
   }, [saveFirstLater, saveLastLater, saveRefLater]);
 
-  function scheduleKeyframeSave(type: "first_frame" | "last_frame", prompt: string) {
+  function scheduleKeyframeSave(
+    type: "first_frame" | "last_frame",
+    prompt: string,
+  ) {
     (type === "first_frame" ? saveFirstLater : saveLastLater)(prompt);
   }
-  const [localRefPrompts, setLocalRefPrompts] = useState<Record<string, string>>({});
-  function getRefPromptValue(assetId: string, prompt: string) { return localRefPrompts[assetId] ?? prompt; }
+  const [localRefPrompts, setLocalRefPrompts] = useState<
+    Record<string, string>
+  >({});
+  function getRefPromptValue(assetId: string, prompt: string) {
+    return localRefPrompts[assetId] ?? prompt;
+  }
   function handleRefPromptChange(assetId: string, prompt: string) {
     setLocalRefPrompts((previous) => ({ ...previous, [assetId]: prompt }));
     saveRefLater(assetId, prompt);
@@ -344,14 +467,18 @@ export function useShotEditor({
 
   // Switch active version of a ref image — calls the backend activate endpoint
   // by id, then re-fetches. Ref id is the *currently active* asset row id.
-  async function handleSwitchRefImageVersion(refId: string, direction: "prev" | "next") {
+  async function handleSwitchRefImageVersion(
+    refId: string,
+    direction: "prev" | "next",
+  ) {
     const ref = parsedRefImages.find((r) => r.id === refId);
     if (!ref || !historyIds(ref) || historyIds(ref).length < 2) return;
     const currentIdx = historyIds(ref).indexOf(refId);
     if (currentIdx < 0) return;
-    const nextIdx = direction === "next"
-      ? (currentIdx + 1) % historyIds(ref).length
-      : (currentIdx - 1 + historyIds(ref).length) % historyIds(ref).length;
+    const nextIdx =
+      direction === "next"
+        ? (currentIdx + 1) % historyIds(ref).length
+        : (currentIdx - 1 + historyIds(ref).length) % historyIds(ref).length;
     const targetId = historyIds(ref)[nextIdx];
     await activateAssetById(targetId);
   }
@@ -363,10 +490,14 @@ export function useShotEditor({
   }
 
   // Per-ref-image loading state
-  const [regeneratingRefIds, setRegeneratingRefIds] = useState<Set<string>>(new Set());
+  const [regeneratingRefIds, setRegeneratingRefIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Resolve a model ref to a full provider config (for per-card model override)
-  function resolvePerCardImageRef(modelRef?: { providerId: string; modelId: string } | null) {
+  function resolvePerCardImageRef(
+    modelRef?: { providerId: string; modelId: string } | null,
+  ) {
     if (!modelRef) return null;
     const providers = useModelStore.getState().providers;
     const provider = providers.find((p) => p.id === modelRef.providerId);
@@ -434,13 +565,15 @@ export function useShotEditor({
       if (!resp.ok) throw new Error("Failed");
       onUpdate();
       toast.success(t("common.generationCompleted"));
-    } catch (err) {
+    } catch {
       toast.error(t("common.generationFailed"));
     }
     setGeneratingSceneFrame(false);
   }
 
-  function handleUploadFrame(field: "first_frame" | "last_frame" | "reference") {
+  function handleUploadFrame(
+    field: "first_frame" | "last_frame" | "reference",
+  ) {
     uploadFieldRef.current = field;
     uploadInputRef.current?.click();
   }
@@ -456,35 +589,154 @@ export function useShotEditor({
       form.append("file", file);
       form.append("type", field);
       form.append("sequenceInType", "0");
-      const res = await apiFetch(`/api/projects/${projectId}/shots/${id}/upload`, {
-        method: "POST",
-        body: form,
-      });
+      const res = await apiFetch(
+        `/api/projects/${projectId}/shots/${id}/upload`,
+        {
+          method: "POST",
+          body: form,
+        },
+      );
       if (!res.ok) throw new Error("Upload failed");
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : t("common.generationFailed"),
+      );
     }
     setUploadingField(null);
   }
 
   function handleCopyPrompt() {
-    const text = videoPrompt || `${videoScript || motionScript || prompt}\nCamera: ${cameraDirection}`;
+    const text =
+      videoPrompt ||
+      `${videoScript || motionScript || prompt}\nCamera: ${cameraDirection}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const frameAssets = generationMode === "reference"
-    ? [{ src: sceneRefFrame, label: t("shot.sceneRefFrame"), type: "image" as const }]
-    : [
-        { src: firstFrame, label: t("shot.firstFrame"), type: "image" as const },
-        { src: lastFrame, label: t("shot.lastFrame"), type: "image" as const },
-      ];
+  const frameAssets =
+    generationMode === "reference"
+      ? [
+          {
+            src: sceneRefFrame,
+            label: t("shot.sceneRefFrame"),
+            type: "image" as const,
+          },
+        ]
+      : [
+          {
+            src: firstFrame,
+            label: t("shot.firstFrame"),
+            type: "image" as const,
+          },
+          {
+            src: lastFrame,
+            label: t("shot.lastFrame"),
+            type: "image" as const,
+          },
+        ];
 
   // Progress dots: how many steps done out of 4
-  const stepsDone = [hasText, hasFrame, hasVideoPrompt, hasVideo].filter(Boolean).length;
 
-  
-return { projectId, onUpdate, generationMode, isCompact, onOpenDrawer, batchGeneratingFrames, batchGeneratingVideoPrompts, batchGeneratingVideos, id, sequence, prompt, motionScript, cameraDirection, duration, videoPrompt, transitionIn, transitionOut, compositionGuide, focalPoint, depthOfField, soundDesign, musicCue, isStale, dialogues, firstFrame, lastFrame, sceneRefFrame, videoUrl, t, editPrompt, setEditPrompt, editStartFrame, setEditStartFrame, editEndFrame, setEditEndFrame, editMotionScript, setEditMotionScript, editVideoPrompt, setEditVideoPrompt, editCameraDirection, setEditCameraDirection, editDuration, setEditDuration, generatingFrames, generatingSceneFrame, generatingVideo, generatingPrompt, rewritingText, projectCharacters, previewSrc, setPreviewSrc, copied, uploadingField, uploadInputRef, allRefItems, assetHistory, historyIds, modelRef, parsedRefImages, firstFrameItem, lastFrameItem, hasText, hasFrame, hasFramePair, hasVideoPrompt, hasVideo, hasRefImages, isGenerating, textState, frameState, promptState, videoState, nextStep, patchShot, handleGenerateFrames, handleGenerateVideoPrompt, handleGenerateVideo, handleRewriteText, saveAssets, handleClearFrame, saveRefImages, activateAssetById, saveKeyframePrompt, handleAddRefImage, handleRemoveRefImage, scheduleKeyframeSave, setLocalRefPrompts, getRefPromptValue, handleRefPromptChange, handleSwitchRefImageVersion, handleUpdateRefPrompt, regeneratingRefIds, handleRegenerateRefImage, handleBatchGenerateRefImagesForShot, handleUploadFrame, handleFileChange, handleCopyPrompt, frameAssets };
+  return {
+    projectId,
+    onUpdate,
+    generationMode,
+    isCompact,
+    onOpenDrawer,
+    batchGeneratingFrames,
+    batchGeneratingVideoPrompts,
+    batchGeneratingVideos,
+    id,
+    sequence,
+    prompt,
+    motionScript,
+    cameraDirection,
+    duration,
+    videoPrompt,
+    transitionIn,
+    transitionOut,
+    compositionGuide,
+    focalPoint,
+    depthOfField,
+    soundDesign,
+    musicCue,
+    isStale,
+    dialogues,
+    firstFrame,
+    lastFrame,
+    sceneRefFrame,
+    videoUrl,
+    t,
+    editPrompt,
+    setEditPrompt,
+    editStartFrame,
+    setEditStartFrame,
+    editEndFrame,
+    setEditEndFrame,
+    editMotionScript,
+    setEditMotionScript,
+    editVideoPrompt,
+    setEditVideoPrompt,
+    editCameraDirection,
+    setEditCameraDirection,
+    editDuration,
+    setEditDuration,
+    generatingFrames,
+    generatingSceneFrame,
+    generatingVideo,
+    generatingPrompt,
+    rewritingText,
+    projectCharacters,
+    previewSrc,
+    setPreviewSrc,
+    copied,
+    uploadingField,
+    uploadInputRef,
+    allRefItems,
+    assetHistory,
+    historyIds,
+    modelRef,
+    parsedRefImages,
+    firstFrameItem,
+    lastFrameItem,
+    hasText,
+    hasFrame,
+    hasFramePair,
+    hasVideoPrompt,
+    hasVideo,
+    hasRefImages,
+    isGenerating,
+    textState,
+    frameState,
+    promptState,
+    videoState,
+    nextStep,
+    patchShot,
+    handleGenerateFrames,
+    handleGenerateVideoPrompt,
+    handleGenerateVideo,
+    handleRewriteText,
+    saveAssets,
+    handleClearFrame,
+    saveRefImages,
+    activateAssetById,
+    saveKeyframePrompt,
+    handleAddRefImage,
+    handleRemoveRefImage,
+    scheduleKeyframeSave,
+    setLocalRefPrompts,
+    getRefPromptValue,
+    handleRefPromptChange,
+    handleSwitchRefImageVersion,
+    handleUpdateRefPrompt,
+    regeneratingRefIds,
+    handleRegenerateRefImage,
+    handleBatchGenerateRefImagesForShot,
+    handleUploadFrame,
+    handleFileChange,
+    handleCopyPrompt,
+    frameAssets,
+  };
 }

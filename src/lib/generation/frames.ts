@@ -1,17 +1,28 @@
-import { buildFirstFramePrompt,buildLastFramePrompt } from "@/lib/ai/prompts/frame-generate";
+import {
+  buildFirstFramePrompt,
+  buildLastFramePrompt,
+} from "@/lib/ai/prompts/frame-generate";
 import { resolveSlotContents } from "@/lib/ai/prompts/resolver";
 import { resolveImageProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
 import { shots } from "@/lib/db/schema";
 import { runShotBatch } from "@/lib/generation/batch";
-import { extractErrorMessage,getEpisodeCharacters,getVersionedUploadDir,ratioToImageOpts } from "@/lib/generation/common";
+import {
+  extractErrorMessage,
+  getEpisodeCharacters,
+  getVersionedUploadDir,
+  ratioToImageOpts,
+} from "@/lib/generation/common";
 import type { GenerationInput } from "@/lib/generation/request";
-import { getActiveAsset,insertAssetVersion } from "@/lib/shot-asset-utils";
+import { getActiveAsset, insertAssetVersion } from "@/lib/shot-asset-utils";
 import { eq } from "drizzle-orm";
 
 export async function handleBatchFrameGenerate(input: GenerationInput) {
-  return runShotBatch(input, handleSingleFrameGenerate, ["first_frame","last_frame"]);
+  return runShotBatch(input, handleSingleFrameGenerate, [
+    "first_frame",
+    "last_frame",
+  ]);
 }
 
 export async function handleSingleFrameGenerate(input: GenerationInput) {
@@ -38,7 +49,10 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
 
   const versionedUploadDir = await getVersionedUploadDir(shot.versionId);
   const shotEpisodeId = episodeId || shot.episodeId;
-  const projectCharacters = await getEpisodeCharacters(projectId, shotEpisodeId);
+  const projectCharacters = await getEpisodeCharacters(
+    projectId,
+    shotEpisodeId,
+  );
 
   const characterDescriptions = projectCharacters
     .map((c) => `${c.name}: ${c.description}`)
@@ -50,19 +64,33 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
     ...(ffAsset?.characters ?? []),
     ...(lfAsset?.characters ?? []),
   ]);
-  const filteredChars = shotCharNameSet.size > 0
-    ? projectCharacters.filter((c) => c.referenceImage && shotCharNameSet.has(c.name))
-    : projectCharacters.filter((c) => c.referenceImage);
-  const shotCharRefImages = filteredChars.map((c) => c.referenceImage as string);
+  const filteredChars =
+    shotCharNameSet.size > 0
+      ? projectCharacters.filter(
+          (c) => c.referenceImage && shotCharNameSet.has(c.name),
+        )
+      : projectCharacters.filter((c) => c.referenceImage);
+  const shotCharRefImages = filteredChars.map(
+    (c) => c.referenceImage as string,
+  );
 
   const ai = resolveImageProvider(modelConfig, versionedUploadDir);
   const imageOpts = ratioToImageOpts(payload?.ratio as string | undefined);
 
-  const frameFirstSlots = await resolveSlotContents("frame_generate_first", { userId, projectId });
-  const frameLastSlots = await resolveSlotContents("frame_generate_last", { userId, projectId });
+  const frameFirstSlots = await resolveSlotContents("frame_generate_first", {
+    userId,
+    projectId,
+  });
+  const frameLastSlots = await resolveSlotContents("frame_generate_last", {
+    userId,
+    projectId,
+  });
 
   try {
-    await db.update(shots).set({ status: "generating" }).where(eq(shots.id, shotId));
+    await db
+      .update(shots)
+      .set({ status: "generating" })
+      .where(eq(shots.id, shotId));
 
     const firstPrompt = buildFirstFramePrompt({
       sceneDescription: shot.prompt || "",
@@ -89,9 +117,13 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
       referenceImages: [firstFramePath, ...shotCharRefImages],
     });
 
-    await db.update(shots).set({ status: "completed" }).where(eq(shots.id, shotId));
+    db.transaction((tx) => {
+      tx.update(shots)
+        .set({ status: "completed" })
+        .where(eq(shots.id, shotId))
+        .run();
 
-      await insertAssetVersion({
+      insertAssetVersion({
         shotId,
         type: "first_frame",
         sequenceInType: 0,
@@ -100,7 +132,7 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
         fileUrl: firstFramePath,
         status: "completed",
       });
-      await insertAssetVersion({
+      insertAssetVersion({
         shotId,
         type: "last_frame",
         sequenceInType: 0,
@@ -109,11 +141,20 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
         fileUrl: lastFramePath,
         status: "completed",
       });
+    });
 
-    return { shotId, firstFrame: firstFramePath, lastFrame: lastFramePath, status: "ok" };
+    return {
+      shotId,
+      firstFrame: firstFramePath,
+      lastFrame: lastFramePath,
+      status: "ok",
+    };
   } catch (err) {
     console.error(`[SingleFrameGenerate] Error for shot ${shotId}:`, err);
-    await db.update(shots).set({ status: "failed" }).where(eq(shots.id, shotId));
+    await db
+      .update(shots)
+      .set({ status: "failed" })
+      .where(eq(shots.id, shotId));
     throw new ApiError(500, extractErrorMessage(err));
   }
 }

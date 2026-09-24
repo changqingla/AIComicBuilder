@@ -7,8 +7,13 @@ import { useTranslations } from "next-intl";
 
 export function PromptPreview() {
   const t = useTranslations("promptTemplates");
-  const { selectedPromptKey, registry, getSlotContent, editedSlots, serverOverrides } =
-    usePromptTemplateStore();
+  const {
+    selectedPromptKey,
+    registry,
+    getSlotContent,
+    editedSlots,
+    serverOverrides,
+  } = usePromptTemplateStore();
   const [previewText, setPreviewText] = useState("");
   const [highlights, setHighlights] = useState<
     Record<string, "overridden" | "default">
@@ -49,14 +54,13 @@ export function PromptPreview() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // Trigger on slot content changes via editedSlots/serverOverrides
-     
   }, [selectedPromptKey, prompt, getSlotContent, editedSlots, serverOverrides]);
 
   if (!prompt) return null;
 
   // Check if any slot is overridden
   const hasOverrides = Object.values(highlights).some(
-    (v) => v === "overridden"
+    (v) => v === "overridden",
   );
 
   return (

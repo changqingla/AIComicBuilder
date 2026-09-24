@@ -48,7 +48,9 @@ export function GenerationModeTab() {
             : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
         }`}
       >
-        <Film className={`h-4 w-4 ${mode === "keyframe" ? "text-primary" : ""}`} />
+        <Film
+          className={`h-4 w-4 ${mode === "keyframe" ? "text-primary" : ""}`}
+        />
         {t("generationModeKeyframe")}
       </button>
       <button
@@ -59,7 +61,9 @@ export function GenerationModeTab() {
             : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
         }`}
       >
-        <ImageIcon className={`h-4 w-4 ${mode === "reference" ? "text-violet-600" : ""}`} />
+        <ImageIcon
+          className={`h-4 w-4 ${mode === "reference" ? "text-violet-600" : ""}`}
+        />
         {t("generationModeReference")}
       </button>
     </div>

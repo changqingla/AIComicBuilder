@@ -10,7 +10,7 @@ import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   if (!(await assertProjectOwnership(req, id))) {
@@ -29,13 +29,18 @@ export async function POST(
   const shotsWithFrames = allShots
     .map((s) => ({
       sequence: s.sequence,
-      firstFrame: (selectAsset(assetsByShot.get(s.id), "first_frame")?.fileUrl ?? null) ?? null,
-      lastFrame: (selectAsset(assetsByShot.get(s.id), "last_frame")?.fileUrl ?? null) ?? null,
+      firstFrame:
+        selectAsset(assetsByShot.get(s.id), "first_frame")?.fileUrl ?? null,
+      lastFrame:
+        selectAsset(assetsByShot.get(s.id), "last_frame")?.fileUrl ?? null,
     }))
     .filter((s) => s.lastFrame && s.firstFrame);
 
   if (shotsWithFrames.length < 2) {
-    return NextResponse.json({ results: [], message: "Need at least 2 shots with frames" });
+    return NextResponse.json({
+      results: [],
+      message: "Need at least 2 shots with frames",
+    });
   }
 
   const provider = resolveAIProvider(body.modelConfig);
@@ -55,7 +60,7 @@ export async function POST(
       const result = await checkContinuity(
         provider,
         current.lastFrame,
-        next.firstFrame
+        next.firstFrame,
       );
       results.push({
         shotASequence: current.sequence,

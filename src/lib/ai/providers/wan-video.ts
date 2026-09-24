@@ -1,11 +1,18 @@
-import type { VideoProvider, VideoGenerateParams, VideoGenerateResult } from "../types";
+import { id as genId } from "@/lib/id";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type {
+  VideoGenerateParams,
+  VideoGenerateResult,
+  VideoProvider,
+} from "../types";
 
 // Convert a local file path to a data: URL; http(s) URLs are returned as-is
 function toImageUrl(imagePathOrUrl: string): string {
-  if (imagePathOrUrl.startsWith("http://") || imagePathOrUrl.startsWith("https://")) {
+  if (
+    imagePathOrUrl.startsWith("http://") ||
+    imagePathOrUrl.startsWith("https://")
+  ) {
     return imagePathOrUrl;
   }
   const ext = path.extname(imagePathOrUrl).toLowerCase().replace(".", "");
@@ -51,7 +58,11 @@ export class WanVideoProvider implements VideoProvider {
     model?: string;
     uploadDir?: string;
   }) {
-    this.apiKey = params?.apiKey || process.env.WAN_API_KEY || process.env.DASHSCOPE_API_KEY || "";
+    this.apiKey =
+      params?.apiKey ||
+      process.env.WAN_API_KEY ||
+      process.env.DASHSCOPE_API_KEY ||
+      "";
     this.baseUrl = (
       params?.baseUrl ||
       process.env.WAN_BASE_URL ||
@@ -66,18 +77,23 @@ export class WanVideoProvider implements VideoProvider {
     return this.model.startsWith("wan2.7");
   }
 
-  async generateVideo(params: VideoGenerateParams): Promise<VideoGenerateResult> {
+  async generateVideo(
+    params: VideoGenerateParams,
+  ): Promise<VideoGenerateResult> {
     let body: Record<string, unknown>;
 
     if ("firstFrame" in params) {
       // ── Keyframe mode ──
       body = this.buildKeyframeBody(
-        params as VideoGenerateParams & { firstFrame: string; lastFrame: string }
+        params as VideoGenerateParams & {
+          firstFrame: string;
+          lastFrame: string;
+        },
       );
     } else if (params.initialImage) {
       // ── Reference image mode (initial image, optional extra refs) ──
       body = this.buildReferenceBody(
-        params as VideoGenerateParams & { initialImage: string }
+        params as VideoGenerateParams & { initialImage: string },
       );
     } else {
       // ── Text-to-video mode ──
@@ -85,7 +101,7 @@ export class WanVideoProvider implements VideoProvider {
     }
 
     console.log(
-      `[WanVideo] Submitting task: model=${this.model}, ratio=${params.ratio}`
+      `[WanVideo] Submitting task: model=${this.model}, ratio=${params.ratio}`,
     );
 
     const submitRes = await fetch(
@@ -98,7 +114,7 @@ export class WanVideoProvider implements VideoProvider {
           "X-DashScope-Async": "enable",
         },
         body: JSON.stringify(body),
-      }
+      },
     );
 
     if (!submitRes.ok) {
@@ -113,7 +129,7 @@ export class WanVideoProvider implements VideoProvider {
     const taskId = submitResult.output?.task_id;
     if (!taskId) {
       throw new Error(
-        `WanVideo: no task_id in response: ${JSON.stringify(submitResult)}`
+        `WanVideo: no task_id in response: ${JSON.stringify(submitResult)}`,
       );
     }
 
@@ -124,7 +140,9 @@ export class WanVideoProvider implements VideoProvider {
     // Download and persist video
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) {
-      throw new Error(`WanVideo: failed to download video (${videoRes.status})`);
+      throw new Error(
+        `WanVideo: failed to download video (${videoRes.status})`,
+      );
     }
     const buffer = Buffer.from(await videoRes.arrayBuffer());
     const filename = `${genId()}.mp4`;
@@ -140,7 +158,7 @@ export class WanVideoProvider implements VideoProvider {
   // ── Body builders ──────────────────────────────────────────────────────────
 
   private buildKeyframeBody(
-    params: VideoGenerateParams & { firstFrame: string; lastFrame: string }
+    params: VideoGenerateParams & { firstFrame: string; lastFrame: string },
   ): Record<string, unknown> {
     if (this.isWan27) {
       // wan2.7 uses wan2.7-r2v model with media[] array
@@ -176,7 +194,7 @@ export class WanVideoProvider implements VideoProvider {
   }
 
   private buildReferenceBody(
-    params: VideoGenerateParams & { initialImage: string }
+    params: VideoGenerateParams & { initialImage: string },
   ): Record<string, unknown> {
     if (this.isWan27) {
       // wan2.7: reference_image via media[]
@@ -251,7 +269,7 @@ export class WanVideoProvider implements VideoProvider {
   // ── Polling ────────────────────────────────────────────────────────────────
 
   private async pollForResult(taskId: string): Promise<string> {
-    const maxAttempts = 360;   // 30 min — Wan models are slower
+    const maxAttempts = 360; // 30 min — Wan models are slower
     const interval = 5_000;
 
     for (let i = 0; i < maxAttempts; i++) {
@@ -283,7 +301,7 @@ export class WanVideoProvider implements VideoProvider {
         const videoUrl = result.output?.video_url;
         if (!videoUrl) {
           throw new Error(
-            `WanVideo: SUCCEEDED but no video_url in response: ${JSON.stringify(result)}`
+            `WanVideo: SUCCEEDED but no video_url in response: ${JSON.stringify(result)}`,
           );
         }
         return videoUrl;
@@ -291,7 +309,7 @@ export class WanVideoProvider implements VideoProvider {
 
       if (status === "FAILED") {
         throw new Error(
-          `WanVideo generation failed: ${result.output?.message ?? "unknown error"}`
+          `WanVideo generation failed: ${result.output?.message ?? "unknown error"}`,
         );
       }
 

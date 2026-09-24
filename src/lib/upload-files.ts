@@ -5,7 +5,8 @@ export function resolveUploadFile(filename: string): string | null {
   try {
     const root = fs.realpathSync(process.env.UPLOAD_DIR || "./uploads");
     const resolved = fs.realpathSync(filename);
-    return resolved.startsWith(root + path.sep) && fs.statSync(resolved).isFile()
+    return resolved.startsWith(root + path.sep) &&
+      fs.statSync(resolved).isFile()
       ? resolved
       : null;
   } catch {

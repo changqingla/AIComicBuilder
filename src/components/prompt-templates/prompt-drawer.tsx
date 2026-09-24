@@ -5,11 +5,11 @@ import useSWR from "swr";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getModelMaxDuration } from "@/lib/ai/model-limits";
 import { apiFetch } from "@/lib/api-fetch";
 import { useModelStore } from "@/stores/model-store";
-import { Lock,RotateCcw,Save,Wand2,X } from "lucide-react";
+import { Lock, RotateCcw, Save, Wand2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -55,7 +55,12 @@ interface PromptDrawerProps {
 
 const EMPTY_CONTENTS: Record<string, Record<string, string>> = {};
 
-export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectId }: PromptDrawerProps) {
+export function PromptDrawer({
+  open,
+  onOpenChange,
+  promptKeys: rawKeys,
+  projectId,
+}: PromptDrawerProps) {
   const t = useTranslations("promptTemplates");
   const promptKeys = Array.isArray(rawKeys) ? rawKeys : [rawKeys];
 
@@ -66,16 +71,20 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
   const videoMinDuration = Math.min(8, videoMaxDuration);
 
   function resolvePlaceholders(content: string): string {
-    const durationRange = videoMinDuration === videoMaxDuration
-      ? String(videoMaxDuration)
-      : `${videoMinDuration}-${videoMaxDuration}`;
+    const durationRange =
+      videoMinDuration === videoMaxDuration
+        ? String(videoMaxDuration)
+        : `${videoMinDuration}-${videoMaxDuration}`;
     return content
       .replace(/\{\{MIN_DURATION\}\}-\{\{MAX_DURATION\}\}/g, durationRange)
       .replace(/\{\{MIN_DURATION\}\}/g, String(videoMinDuration))
       .replace(/\{\{MAX_DURATION\}\}/g, String(videoMaxDuration))
       .replace(/\{\{DIALOGUE_MAX\}\}/g, String(Math.min(videoMaxDuration, 12)))
       .replace(/\{\{ACTION_MAX\}\}/g, String(Math.min(videoMaxDuration, 12)))
-      .replace(/\{\{ESTABLISHING_MAX\}\}/g, String(Math.min(videoMaxDuration, 10)));
+      .replace(
+        /\{\{ESTABLISHING_MAX\}\}/g,
+        String(Math.min(videoMaxDuration, 10)),
+      );
   }
 
   const isProject = !!projectId;
@@ -83,34 +92,66 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
     ? `/api/projects/${projectId}/prompt-templates`
     : "/api/prompt-templates";
 
-  const { data, isLoading: loading } = useSWR(open ? [templatesBasePath, promptKeys.join(",")] : null, async ([basePath, keys]) => {
-    const [registry, overrides] = await Promise.all([
-      fetchJson<PromptMeta[]>("/api/prompt-templates/registry"),
-      fetchJson<ServerOverride[]>(basePath),
-    ]);
-    const prompts = keys.split(",").map((key) => registry.find((prompt) => prompt.key === key)).filter((prompt) => !!prompt);
-    const server: Record<string, Record<string, string>> = {};
-    const contents: Record<string, Record<string, string>> = {};
-    for (const prompt of prompts) {
-      server[prompt.key] = Object.fromEntries(overrides.filter((row) => row.promptKey === prompt.key && row.slotKey).map((row) => [row.slotKey!, row.content]));
-      contents[prompt.key] = Object.fromEntries(prompt.slots.map((slot) => [slot.key, server[prompt.key][slot.key] ?? slot.defaultContent]));
-    }
-    const first = prompts[0];
-    const slot = first?.slots.find((slot) => slot.editable);
-    return { prompts, server, contents, promptKey: first?.key ?? null,
-      slot: first && slot ? { promptKey: first.key, slotKey: slot.key } : null };
-  }, { revalidateOnFocus: false, onError: () => toast.error("Failed to load prompt data") });
+  const { data, isLoading: loading } = useSWR(
+    open ? [templatesBasePath, promptKeys.join(",")] : null,
+    async ([basePath, keys]) => {
+      const [registry, overrides] = await Promise.all([
+        fetchJson<PromptMeta[]>("/api/prompt-templates/registry"),
+        fetchJson<ServerOverride[]>(basePath),
+      ]);
+      const prompts = keys
+        .split(",")
+        .map((key) => registry.find((prompt) => prompt.key === key))
+        .filter((prompt) => !!prompt);
+      const server: Record<string, Record<string, string>> = {};
+      const contents: Record<string, Record<string, string>> = {};
+      for (const prompt of prompts) {
+        server[prompt.key] = Object.fromEntries(
+          overrides
+            .filter((row) => row.promptKey === prompt.key && row.slotKey)
+            .map((row) => [row.slotKey!, row.content]),
+        );
+        contents[prompt.key] = Object.fromEntries(
+          prompt.slots.map((slot) => [
+            slot.key,
+            server[prompt.key][slot.key] ?? slot.defaultContent,
+          ]),
+        );
+      }
+      const first = prompts[0];
+      const slot = first?.slots.find((slot) => slot.editable);
+      return {
+        prompts,
+        server,
+        contents,
+        promptKey: first?.key ?? null,
+        slot:
+          first && slot ? { promptKey: first.key, slotKey: slot.key } : null,
+      };
+    },
+    {
+      revalidateOnFocus: false,
+      onError: () => toast.error("Failed to load prompt data"),
+    },
+  );
   const prompts = data?.prompts ?? [];
-  const [selectedPromptKey, setSelectedPromptKey] = useDraft(data?.promptKey ?? null);
+  const [selectedPromptKey, setSelectedPromptKey] = useDraft(
+    data?.promptKey ?? null,
+  );
   const [selectedSlot, setSelectedSlot] = useDraft(data?.slot ?? null);
-  const [slotContents, setSlotContents] = useDraft(data?.contents ?? EMPTY_CONTENTS);
-  const [serverOverrides, setServerOverrides] = useDraft(data?.server ?? EMPTY_CONTENTS);
+  const [slotContents, setSlotContents] = useDraft(
+    data?.contents ?? EMPTY_CONTENTS,
+  );
+  const [serverOverrides, setServerOverrides] = useDraft(
+    data?.server ?? EMPTY_CONTENTS,
+  );
 
   if (prompts.length === 0 && !loading) return null;
 
-
   const currentSlotMeta = selectedSlot
-    ? prompts.find((p) => p.key === selectedSlot.promptKey)?.slots.find((s) => s.key === selectedSlot.slotKey)
+    ? prompts
+        .find((p) => p.key === selectedSlot.promptKey)
+        ?.slots.find((s) => s.key === selectedSlot.slotKey)
     : null;
 
   const isModified = (promptKey: string, slotKey: string) => {
@@ -123,18 +164,24 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
   const hasUnsavedChanges = () => {
     for (const prompt of prompts) {
       for (const slot of prompt.slots.filter((s) => s.editable)) {
-        const serverValue = serverOverrides[prompt.key]?.[slot.key] ?? slot.defaultContent;
-        if ((slotContents[prompt.key]?.[slot.key] ?? "") !== serverValue) return true;
+        const serverValue =
+          serverOverrides[prompt.key]?.[slot.key] ?? slot.defaultContent;
+        if ((slotContents[prompt.key]?.[slot.key] ?? "") !== serverValue)
+          return true;
       }
     }
     return false;
   };
 
   // Title: single prompt shows its name; multiple shows generic
-  const headerTitle = prompts.length === 1
-    ? t(tKey(prompts[0].nameKey) as Parameters<typeof t>[0])
-    : t("title");
-  const headerSubtitle = prompts.length === 1 ? prompts[0].key : prompts.map((p) => p.key).join(", ");
+  const headerTitle =
+    prompts.length === 1
+      ? t(tKey(prompts[0].nameKey) as Parameters<typeof t>[0])
+      : t("title");
+  const headerSubtitle =
+    prompts.length === 1
+      ? prompts[0].key
+      : prompts.map((p) => p.key).join(", ");
 
   const handleSave = async () => {
     setSaving(true);
@@ -152,7 +199,10 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
         const slots: Record<string, string> = {};
         for (const slot of prompt.slots.filter((s) => s.editable)) {
           const current = slotContents[prompt.key]?.[slot.key] ?? "";
-          if (current !== slot.defaultContent || serverOverrides[prompt.key]?.[slot.key]) {
+          if (
+            current !== slot.defaultContent ||
+            serverOverrides[prompt.key]?.[slot.key]
+          ) {
             slots[slot.key] = current;
           }
         }
@@ -189,7 +239,9 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
   const handleReset = async () => {
     try {
       for (const prompt of prompts) {
-        await apiFetch(`${templatesBasePath}/${prompt.key}`, { method: "DELETE" });
+        await apiFetch(`${templatesBasePath}/${prompt.key}`, {
+          method: "DELETE",
+        });
       }
       const contents: Record<string, Record<string, string>> = {};
       for (const prompt of prompts) {
@@ -214,9 +266,7 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
         className="!fixed !top-0 !right-0 !left-auto !translate-x-0 !translate-y-0 !max-w-5xl !w-[min(1100px,100vw)] !h-screen !rounded-none !rounded-l-2xl !p-0 flex flex-col"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">
-          {t("editor.edit")}
-        </DialogTitle>
+        <DialogTitle className="sr-only">{t("editor.edit")}</DialogTitle>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[--border-subtle] px-5 py-3">
@@ -225,8 +275,12 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
               <Wand2 className="h-3.5 w-3.5 text-primary" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-[--text-primary]">{headerTitle}</div>
-              <div className="text-[10px] font-mono text-[--text-muted]">{headerSubtitle}</div>
+              <div className="text-sm font-semibold text-[--text-primary]">
+                {headerTitle}
+              </div>
+              <div className="text-[10px] font-mono text-[--text-muted]">
+                {headerSubtitle}
+              </div>
             </div>
             {isProject && (
               <Badge variant="default" className="text-[10px]">
@@ -278,17 +332,22 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                     </div>
                     {list.map((prompt) => {
                       const isSelected = selectedPromptKey === prompt.key;
-                      const dirtyCount = prompt.slots.filter(
-                        (s) => isModified(prompt.key, s.key)
+                      const dirtyCount = prompt.slots.filter((s) =>
+                        isModified(prompt.key, s.key),
                       ).length;
                       return (
                         <button
                           key={prompt.key}
                           onClick={() => {
                             setSelectedPromptKey(prompt.key);
-                            const firstEditable = prompt.slots.find((s) => s.editable);
+                            const firstEditable = prompt.slots.find(
+                              (s) => s.editable,
+                            );
                             if (firstEditable) {
-                              setSelectedSlot({ promptKey: prompt.key, slotKey: firstEditable.key });
+                              setSelectedSlot({
+                                promptKey: prompt.key,
+                                slotKey: firstEditable.key,
+                              });
                             } else {
                               setSelectedSlot(null);
                             }
@@ -307,10 +366,15 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                                   : "text-[--text-secondary]"
                               }`}
                             >
-                              {t(tKey(prompt.nameKey) as Parameters<typeof t>[0])}
+                              {t(
+                                tKey(prompt.nameKey) as Parameters<typeof t>[0],
+                              )}
                             </span>
                             {dirtyCount > 0 && (
-                              <Badge variant="default" className="text-[9px] px-1 py-0">
+                              <Badge
+                                variant="default"
+                                className="text-[9px] px-1 py-0"
+                              >
                                 {dirtyCount}
                               </Badge>
                             )}
@@ -352,7 +416,12 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                       return (
                         <button
                           key={slot.key}
-                          onClick={() => setSelectedSlot({ promptKey: prompt.key, slotKey: slot.key })}
+                          onClick={() =>
+                            setSelectedSlot({
+                              promptKey: prompt.key,
+                              slotKey: slot.key,
+                            })
+                          }
                           className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${
                             isSelected
                               ? "border border-primary/15 bg-primary/5 text-[--text-primary] font-medium"
@@ -360,10 +429,14 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                           }`}
                         >
                           <span className="flex-1 truncate">
-                            {t(tKey(slot.nameKey) as Parameters<typeof t>[0]) || slot.key}
+                            {t(tKey(slot.nameKey) as Parameters<typeof t>[0]) ||
+                              slot.key}
                           </span>
                           {modified && (
-                            <Badge variant="default" className="shrink-0 text-[9px] px-1 py-0">
+                            <Badge
+                              variant="default"
+                              className="shrink-0 text-[9px] px-1 py-0"
+                            >
                               {t("editor.modified")}
                             </Badge>
                           )}
@@ -380,7 +453,12 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                           return (
                             <button
                               key={slot.key}
-                              onClick={() => setSelectedSlot({ promptKey: prompt.key, slotKey: slot.key })}
+                              onClick={() =>
+                                setSelectedSlot({
+                                  promptKey: prompt.key,
+                                  slotKey: slot.key,
+                                })
+                              }
                               className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${
                                 isSelected
                                   ? "border border-[--border-subtle] bg-[--surface] text-[--text-secondary]"
@@ -389,7 +467,9 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                             >
                               <Lock className="h-2.5 w-2.5 shrink-0" />
                               <span className="flex-1 truncate">
-                                {t(tKey(slot.nameKey) as Parameters<typeof t>[0]) || slot.key}
+                                {t(
+                                  tKey(slot.nameKey) as Parameters<typeof t>[0],
+                                ) || slot.key}
                               </span>
                             </button>
                           );
@@ -407,21 +487,36 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
                 <div className="flex flex-1 flex-col p-3 overflow-hidden">
                   <div className="mb-2 flex items-center gap-2">
                     <span className="text-xs font-medium text-[--text-primary]">
-                      {t(tKey(currentSlotMeta.nameKey) as Parameters<typeof t>[0])}
+                      {t(
+                        tKey(currentSlotMeta.nameKey) as Parameters<
+                          typeof t
+                        >[0],
+                      )}
                     </span>
                     {!currentSlotMeta.editable && (
                       <Badge className="shrink-0 text-[9px] px-1.5 py-0 bg-[--surface] text-[--text-muted]">
                         {t("editor.locked")}
                       </Badge>
                     )}
-                    {currentSlotMeta.editable && isModified(selectedSlot.promptKey, selectedSlot.slotKey) && (
-                      <Badge variant="warning" className="text-[9px] px-1 py-0">
-                        {t("editor.modified")}
-                      </Badge>
-                    )}
+                    {currentSlotMeta.editable &&
+                      isModified(
+                        selectedSlot.promptKey,
+                        selectedSlot.slotKey,
+                      ) && (
+                        <Badge
+                          variant="warning"
+                          className="text-[9px] px-1 py-0"
+                        >
+                          {t("editor.modified")}
+                        </Badge>
+                      )}
                   </div>
                   <textarea
-                    value={resolvePlaceholders(slotContents[selectedSlot.promptKey]?.[selectedSlot.slotKey] ?? "")}
+                    value={resolvePlaceholders(
+                      slotContents[selectedSlot.promptKey]?.[
+                        selectedSlot.slotKey
+                      ] ?? "",
+                    )}
                     readOnly={!currentSlotMeta.editable}
                     onChange={(e) => {
                       if (!currentSlotMeta.editable) return;

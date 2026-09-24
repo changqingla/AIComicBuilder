@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { createLanguageModel, extractJSON } from "@/lib/ai/ai-sdk";
@@ -26,9 +27,33 @@ interface ExtractedRelation {
   description?: string;
 }
 
+const importResultSchema = z.object({
+  characters: z.array(
+    z.object({
+      name: z.string().trim().min(1),
+      frequency: z.number().int().positive(),
+      description: z.string(),
+      visualHint: z.string().optional(),
+    }),
+  ),
+  relationships: z.array(
+    z.object({
+      characterA: z.string(),
+      characterB: z.string(),
+      relationType: z.string(),
+      description: z.string().optional(),
+    }),
+  ),
+});
+
+function parseResult(text: string) {
+  const result = importResultSchema.parse(JSON.parse(extractJSON(text)));
+  return { chars: result.characters, rels: result.relationships };
+}
+
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params;
   const userId = getUserIdFromRequest(request);
@@ -53,21 +78,31 @@ export async function POST(
 
   const chunks = chunkText(body.text);
   const model = createLanguageModel(body.modelConfig.text);
-  const importCharSystem = await resolvePrompt("import_character_extract", { userId, projectId });
+  const importCharSystem = await resolvePrompt("import_character_extract", {
+    userId,
+    projectId,
+  });
 
   await addImportLog(
-    projectId, 2, "running",
-    `开始角色提取，共 ${chunks.length} 块`
+    projectId,
+    2,
+    "running",
+    `开始角色提取，共 ${chunks.length} 块`,
   );
 
   // Concurrent extraction from all chunks
-  let chunkResults: Array<{ chars: ExtractedChar[]; rels: ExtractedRelation[] }>;
+  let chunkResults: Array<{
+    chars: ExtractedChar[];
+    rels: ExtractedRelation[];
+  }>;
   try {
     chunkResults = await Promise.all(
       chunks.map(async (chunk, idx) => {
         await addImportLog(
-          projectId, 2, "running",
-          `正在处理第 ${idx + 1}/${chunks.length} 块...`
+          projectId,
+          2,
+          "running",
+          `正在处理第 ${idx + 1}/${chunks.length} 块...`,
         );
 
         const jsonMode = {
@@ -81,27 +116,28 @@ export async function POST(
         });
 
         try {
-          const parsed = JSON.parse(extractJSON(result.text));
-          // Support both { characters, relationships } and legacy array format
-          if (Array.isArray(parsed)) return { chars: parsed as ExtractedChar[], rels: [] as ExtractedRelation[] };
-          return { chars: (parsed.characters || []) as ExtractedChar[], rels: (parsed.relationships || []) as ExtractedRelation[] };
+          return parseResult(result.text);
         } catch {
-          console.error(`[ImportChars] Chunk ${idx + 1} JSON parse failed. Raw:\n${result.text.slice(0, 500)}...`);
+          console.error(
+            `[ImportChars] Chunk ${idx + 1} JSON parse failed. Raw:\n${result.text.slice(0, 500)}...`,
+          );
           await addImportLog(
-            projectId, 2, "running",
-            `第 ${idx + 1} 块 JSON 解析失败，正在重试...`
+            projectId,
+            2,
+            "running",
+            `第 ${idx + 1} 块 JSON 解析失败，正在重试...`,
           );
           const retry = await generateText({
             model,
             system: importCharSystem,
-            prompt: buildImportCharacterExtractPrompt(chunk) + "\n\nIMPORTANT: Return COMPLETE, VALID JSON.",
+            prompt:
+              buildImportCharacterExtractPrompt(chunk) +
+              "\n\nIMPORTANT: Return COMPLETE, VALID JSON.",
             providerOptions: jsonMode,
           });
-          const parsed = JSON.parse(extractJSON(retry.text));
-          if (Array.isArray(parsed)) return { chars: parsed as ExtractedChar[], rels: [] as ExtractedRelation[] };
-          return { chars: (parsed.characters || []) as ExtractedChar[], rels: (parsed.relationships || []) as ExtractedRelation[] };
+          return parseResult(retry.text);
         }
-      })
+      }),
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
@@ -129,7 +165,9 @@ export async function POST(
     allRelations.push(...rels);
   }
 
-  const merged = [...charMap.values()].sort((a, b) => b.frequency - a.frequency);
+  const merged = [...charMap.values()].sort(
+    (a, b) => b.frequency - a.frequency,
+  );
 
   // Classify: frequency >= 2 = main, else guest
   const result = merged.map((c) => ({
@@ -147,10 +185,15 @@ export async function POST(
   });
 
   await addImportLog(
-    projectId, 2, "done",
+    projectId,
+    2,
+    "done",
     `提取完成，共 ${result.length} 个角色（主角 ${result.filter((c) => c.scope === "main").length}，配角 ${result.filter((c) => c.scope === "guest").length}），${uniqueRelations.length} 个关系`,
-    { characters: result, relationships: uniqueRelations }
+    { characters: result, relationships: uniqueRelations },
   );
 
-  return NextResponse.json({ characters: result, relationships: uniqueRelations });
+  return NextResponse.json({
+    characters: result,
+    relationships: uniqueRelations,
+  });
 }

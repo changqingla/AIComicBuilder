@@ -4,7 +4,15 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { AgentSection } from "@/components/settings/agent-section";
 import { DefaultModelPicker } from "@/components/settings/default-model-picker";
 import { ProviderSection } from "@/components/settings/provider-section";
-import { ArrowLeft,ImageIcon,Settings,Type,VideoIcon,Wand2,Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  ImageIcon,
+  Settings,
+  Type,
+  VideoIcon,
+  Wand2,
+  Zap,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -56,8 +64,12 @@ export default function SettingsPage() {
               <Wand2 className="h-4 w-4" />
             </div>
             <div>
-              <div className="font-display text-sm font-semibold">{t("promptTemplates")}</div>
-              <div className="text-xs text-[--text-muted]">{t("promptTemplatesDesc")}</div>
+              <div className="font-display text-sm font-semibold">
+                {t("promptTemplates")}
+              </div>
+              <div className="text-xs text-[--text-muted]">
+                {t("promptTemplatesDesc")}
+              </div>
             </div>
           </Link>
 

@@ -3,17 +3,27 @@ import { useDraft } from "@/hooks/use-draft";
 
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { Button } from "@/components/ui/button";
-import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
 import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { useModelStore,type ModelRef } from "@/stores/model-store";
-import { ArrowUpCircle,Check,ChevronLeft,ChevronRight,Copy,Loader2,Sparkles,Trash2,Upload } from "lucide-react";
+import { useModelStore, type ModelRef } from "@/stores/model-store";
+import {
+  ArrowUpCircle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Loader2,
+  Sparkles,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef,useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface CharacterCardProps {
@@ -51,7 +61,9 @@ export function CharacterCard({
   const getModelConfig = useModelStore((s) => s.getModelConfig);
   const providers = useModelStore((s) => s.providers);
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
-  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(() => defaultImageModel);
+  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(
+    () => defaultImageModel,
+  );
   const [editName, setEditName] = useDraft(name);
   const [editDesc, setEditDesc] = useDraft(description);
   const [editVisualHint, setEditVisualHint] = useDraft(visualHint ?? "");
@@ -82,7 +94,11 @@ export function CharacterCard({
     await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, description: editDesc, visualHint: editVisualHint }),
+      body: JSON.stringify({
+        name: editName,
+        description: editDesc,
+        visualHint: editVisualHint,
+      }),
     });
     onUpdate();
   }
@@ -97,7 +113,10 @@ export function CharacterCard({
         body: JSON.stringify({
           action: "single_character_image",
           payload: { characterId: id },
-          modelConfig: { ...getModelConfig(), image: resolveImageRef(imageModelRef) },
+          modelConfig: {
+            ...getModelConfig(),
+            image: resolveImageRef(imageModelRef),
+          },
         }),
       });
       await response.json();
@@ -142,57 +161,66 @@ export function CharacterCard({
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
-        {referenceImage ? (() => {
-          let history: string[] = [];
-          try { history = JSON.parse(referenceImageHistory || "[]"); } catch {}
-          if (history.length === 0 && referenceImage) history = [referenceImage];
-          const currentIdx = history.indexOf(referenceImage);
-          const showArrows = history.length > 1;
-          async function switchTo(newPath: string) {
-            await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ referenceImage: newPath }),
-            });
-            onUpdate();
-          }
-          return (
-            <div className="relative w-full aspect-video overflow-hidden rounded-xl cursor-pointer group" onClick={() => setLightbox(true)}>
-              <img
-                src={uploadUrl(referenceImage)}
-                alt={name}
-                className="w-full h-full object-cover"
-              />
-              {showArrows && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const next = (currentIdx - 1 + history.length) % history.length;
-                      switchTo(history[next]);
-                    }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const next = (currentIdx + 1) % history.length;
-                      switchTo(history[next]);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-white">
-                    {currentIdx + 1}/{history.length}
-                  </span>
-                </>
-              )}
-            </div>
-          );
-        })() : isGenerating ? (
+        {referenceImage ? (
+          (() => {
+            let history: string[] = [];
+            try {
+              history = JSON.parse(referenceImageHistory || "[]");
+            } catch {}
+            if (history.length === 0 && referenceImage)
+              history = [referenceImage];
+            const currentIdx = history.indexOf(referenceImage);
+            const showArrows = history.length > 1;
+            async function switchTo(newPath: string) {
+              await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ referenceImage: newPath }),
+              });
+              onUpdate();
+            }
+            return (
+              <div
+                className="relative w-full aspect-video overflow-hidden rounded-xl cursor-pointer group"
+                onClick={() => setLightbox(true)}
+              >
+                <img
+                  src={uploadUrl(referenceImage)}
+                  alt={name}
+                  className="w-full h-full object-cover"
+                />
+                {showArrows && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const next =
+                          (currentIdx - 1 + history.length) % history.length;
+                        switchTo(history[next]);
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const next = (currentIdx + 1) % history.length;
+                        switchTo(history[next]);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                      {currentIdx + 1}/{history.length}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })()
+        ) : isGenerating ? (
           <div className="w-full aspect-video rounded-xl animate-shimmer" />
         ) : (
           <div className="flex w-full aspect-video items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-accent/10 text-3xl font-bold text-primary">
@@ -211,7 +239,9 @@ export function CharacterCard({
                 : "bg-purple-100 text-purple-700"
             }`}
           >
-            {scope === "main" ? t("episode.mainCharacter") : t("episode.guestCharacter")}
+            {scope === "main"
+              ? t("episode.mainCharacter")
+              : t("episode.guestCharacter")}
           </span>
           {episodeName && (
             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
@@ -253,60 +283,72 @@ export function CharacterCard({
           className="h-8 text-xs text-muted-foreground"
         />
         <div className="space-y-2">
-            <InlineModelPicker capability="image" value={imageModelRef} onChange={setImageModelRef} />
-            <div className="flex gap-2">
-              <Button
-                onClick={handleGenerateImage}
-                disabled={isGenerating}
-                className="flex-1"
-                size="sm"
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {isGenerating ? t("common.generating") : t("character.generateImage")}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 px-2.5"
-                title={t("character.uploadImage")}
-                disabled={uploading}
-                onClick={() => uploadInputRef.current?.click()}
-              >
-                {uploading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Upload className="h-3.5 w-3.5" />
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 px-2.5"
-                title="Copy image prompt"
-                onClick={async () => {
-                  const prompt = buildCharacterTurnaroundPrompt(editDesc || editName, editName);
-                  await navigator.clipboard.writeText(prompt);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-green-500" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </div>
+          <InlineModelPicker
+            capability="image"
+            value={imageModelRef}
+            onChange={setImageModelRef}
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={handleGenerateImage}
+              disabled={isGenerating}
+              className="flex-1"
+              size="sm"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {isGenerating
+                ? t("common.generating")
+                : t("character.generateImage")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 px-2.5"
+              title={t("character.uploadImage")}
+              disabled={uploading}
+              onClick={() => uploadInputRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Upload className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 px-2.5"
+              title="Copy image prompt"
+              onClick={async () => {
+                const prompt = buildCharacterTurnaroundPrompt(
+                  editDesc || editName,
+                  editName,
+                );
+                await navigator.clipboard.writeText(prompt);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-green-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
           </div>
+        </div>
       </div>
 
       {referenceImage && (
         <Dialog open={lightbox} onOpenChange={setLightbox}>
-          <DialogContent className="!max-w-[90vw] !w-[90vw] border-0 bg-transparent p-0 shadow-none" showCloseButton={false}>
+          <DialogContent
+            className="!max-w-[90vw] !w-[90vw] border-0 bg-transparent p-0 shadow-none"
+            showCloseButton={false}
+          >
             <DialogTitle className="sr-only">{name}</DialogTitle>
             <div className="relative inline-block w-full">
               <img

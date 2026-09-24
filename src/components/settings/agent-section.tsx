@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-fetch";
-import { Bot,Eye,EyeOff,Pencil,Plus,Save,Trash2,X } from "lucide-react";
+import { Bot, Eye, EyeOff, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -50,7 +50,10 @@ const EMPTY_FORM = {
 export function AgentSection() {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
-  const { data: agents = [], mutate: fetchAgents } = useSWR("/api/agents", fetchJson<Agent[]>);
+  const { data: agents = [], mutate: fetchAgents } = useSWR(
+    "/api/agents",
+    fetchJson<Agent[]>,
+  );
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -106,7 +109,10 @@ export function AgentSection() {
   async function handleDelete(id: string) {
     try {
       await apiFetch(`/api/agents/${id}`, { method: "DELETE" });
-      await fetchAgents(agents.filter((agent) => agent.id !== id), { revalidate: false });
+      await fetchAgents(
+        agents.filter((agent) => agent.id !== id),
+        { revalidate: false },
+      );
       if (editingId === id) resetForm();
     } catch {
       // silently fail
@@ -147,7 +153,10 @@ export function AgentSection() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { resetForm(); setShowForm(true); }}
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
             className="h-7 gap-1 text-xs"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -180,7 +189,9 @@ export function AgentSection() {
               <Label className="text-xs">{t("agentName")}</Label>
               <Input
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
                 placeholder={t("agentNamePlaceholder")}
                 required
               />
@@ -189,7 +200,9 @@ export function AgentSection() {
               <Label className="text-xs">{t("agentPlatform")}</Label>
               <select
                 value={form.platform}
-                onChange={(e) => setForm((f) => ({ ...f, platform: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, platform: e.target.value }))
+                }
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 {PLATFORMS.map((p) => (
@@ -203,7 +216,9 @@ export function AgentSection() {
               <Label className="text-xs">{t("agentCategory")}</Label>
               <select
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, category: e.target.value }))
+                }
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 {CATEGORIES.map((c) => (
@@ -220,7 +235,9 @@ export function AgentSection() {
               <Label className="text-xs">{t("agentAppId")}</Label>
               <Input
                 value={form.appId}
-                onChange={(e) => setForm((f) => ({ ...f, appId: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, appId: e.target.value }))
+                }
                 placeholder="app-xxxxxxxxxxxx"
                 required
               />
@@ -230,7 +247,9 @@ export function AgentSection() {
               <Input
                 type="password"
                 value={form.apiKey}
-                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, apiKey: e.target.value }))
+                }
                 placeholder="sk-xxxxxxxxxxxx"
                 required
               />
@@ -241,7 +260,9 @@ export function AgentSection() {
             <Label className="text-xs">{t("agentDescription")}</Label>
             <Input
               value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, description: e.target.value }))
+              }
               placeholder={t("agentDescriptionPlaceholder")}
             />
           </div>
@@ -279,11 +300,21 @@ export function AgentSection() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[--border-subtle] bg-[--surface]">
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">{t("agentName")}</th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">{t("agentPlatform")}</th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">{t("agentCategory")}</th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">{t("agentAppId")}</th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">API Key</th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                  {t("agentName")}
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                  {t("agentPlatform")}
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                  {t("agentCategory")}
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                  {t("agentAppId")}
+                </th>
+                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                  API Key
+                </th>
                 <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]"></th>
               </tr>
             </thead>
@@ -294,7 +325,9 @@ export function AgentSection() {
                   className={`transition-colors hover:bg-[--surface] ${editingId === agent.id ? "bg-primary/5" : ""}`}
                 >
                   <td className="px-3 py-2.5">
-                    <span className="font-medium text-[--text-primary]">{agent.name}</span>
+                    <span className="font-medium text-[--text-primary]">
+                      {agent.name}
+                    </span>
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="inline-flex items-center rounded-full bg-[--surface] px-2 py-0.5 text-[10px] font-medium text-[--text-muted] border border-[--border-subtle]">
@@ -309,7 +342,9 @@ export function AgentSection() {
                   <td className="px-3 py-2.5">
                     <span className="font-mono text-xs text-[--text-muted]">
                       {agent.appId.length > 20
-                        ? agent.appId.slice(0, 10) + "..." + agent.appId.slice(-6)
+                        ? agent.appId.slice(0, 10) +
+                          "..." +
+                          agent.appId.slice(-6)
                         : agent.appId}
                     </span>
                   </td>
@@ -323,7 +358,8 @@ export function AgentSection() {
                         <>
                           <EyeOff className="h-3 w-3" />
                           <span className="font-mono">
-                            {agent.apiKey.slice(0, 8)}...{agent.apiKey.slice(-4)}
+                            {agent.apiKey.slice(0, 8)}...
+                            {agent.apiKey.slice(-4)}
                           </span>
                         </>
                       ) : (

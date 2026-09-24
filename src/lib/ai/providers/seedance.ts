@@ -1,7 +1,11 @@
-import type { VideoProvider, VideoGenerateParams, VideoGenerateResult } from "../types";
+import { id as genId } from "@/lib/id";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type {
+  VideoGenerateParams,
+  VideoGenerateResult,
+  VideoProvider,
+} from "../types";
 
 function toDataUrl(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase().replace(".", "");
@@ -19,7 +23,10 @@ function toDataUrl(filePath: string): string {
 
 // Accepts either a local file path or an http(s) URL
 function toImageUrl(imagePathOrUrl: string): string {
-  if (imagePathOrUrl.startsWith("http://") || imagePathOrUrl.startsWith("https://")) {
+  if (
+    imagePathOrUrl.startsWith("http://") ||
+    imagePathOrUrl.startsWith("https://")
+  ) {
     return imagePathOrUrl;
   }
   return toDataUrl(imagePathOrUrl);
@@ -44,18 +51,29 @@ export class SeedanceProvider implements VideoProvider {
       "https://ark.cn-beijing.volces.com/api/v3"
     ).replace(/\/+$/, "");
     this.model =
-      params?.model || process.env.SEEDANCE_MODEL || "doubao-seedance-1-5-pro-250528";
-    this.uploadDir =
-      params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
+      params?.model ||
+      process.env.SEEDANCE_MODEL ||
+      "doubao-seedance-1-5-pro-250528";
+    this.uploadDir = params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
 
-  async generateVideo(params: VideoGenerateParams): Promise<VideoGenerateResult> {
-    const body = "firstFrame" in params
-      ? this.buildKeyframeBody(params as VideoGenerateParams & { firstFrame: string; lastFrame: string })
-      : this.buildReferenceBody(params as VideoGenerateParams & { initialImage: string });
+  async generateVideo(
+    params: VideoGenerateParams,
+  ): Promise<VideoGenerateResult> {
+    const body =
+      "firstFrame" in params
+        ? this.buildKeyframeBody(
+            params as VideoGenerateParams & {
+              firstFrame: string;
+              lastFrame: string;
+            },
+          )
+        : this.buildReferenceBody(
+            params as VideoGenerateParams & { initialImage: string },
+          );
 
     console.log(
-      `[Seedance] Submitting task: model=${body.model}, duration=${body.duration}, ratio=${body.ratio}`
+      `[Seedance] Submitting task: model=${body.model}, duration=${body.duration}, ratio=${body.ratio}`,
     );
 
     const submitResponse = await fetch(
@@ -67,20 +85,22 @@ export class SeedanceProvider implements VideoProvider {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(body),
-      }
+      },
     );
 
     if (!submitResponse.ok) {
       const errText = await submitResponse.text();
       throw new Error(
-        `Seedance submit failed: ${submitResponse.status} ${errText}`
+        `Seedance submit failed: ${submitResponse.status} ${errText}`,
       );
     }
 
     const submitResult = (await submitResponse.json()) as { id: string };
     console.log(`[Seedance] Task submitted: ${submitResult.id}`);
 
-    const { videoUrl, lastFrameUrl } = await this.pollForResult(submitResult.id);
+    const { videoUrl, lastFrameUrl } = await this.pollForResult(
+      submitResult.id,
+    );
 
     const videoResponse = await fetch(videoUrl);
     const buffer = Buffer.from(await videoResponse.arrayBuffer());
@@ -93,14 +113,24 @@ export class SeedanceProvider implements VideoProvider {
     return { filePath: filepath, lastFrameUrl };
   }
 
-  private buildKeyframeBody(params: VideoGenerateParams & { firstFrame: string; lastFrame: string }): Record<string, unknown> {
+  private buildKeyframeBody(
+    params: VideoGenerateParams & { firstFrame: string; lastFrame: string },
+  ): Record<string, unknown> {
     const isSeedance2 = this.model.includes("seedance-2");
     return {
       model: this.model,
       content: [
         { type: "text", text: params.prompt },
-        { type: "image_url", image_url: { url: toDataUrl(params.firstFrame) }, role: "first_frame" },
-        { type: "image_url", image_url: { url: toDataUrl(params.lastFrame) }, role: "last_frame" },
+        {
+          type: "image_url",
+          image_url: { url: toDataUrl(params.firstFrame) },
+          role: "first_frame",
+        },
+        {
+          type: "image_url",
+          image_url: { url: toDataUrl(params.lastFrame) },
+          role: "last_frame",
+        },
       ],
       duration: params.duration || 5,
       ratio: params.ratio || "16:9",
@@ -110,7 +140,9 @@ export class SeedanceProvider implements VideoProvider {
   }
 
   // Reference mode: use initial image, optionally with multi-reference images (Seedance 2.0)
-  private buildReferenceBody(params: VideoGenerateParams & { initialImage: string }): Record<string, unknown> {
+  private buildReferenceBody(
+    params: VideoGenerateParams & { initialImage: string },
+  ): Record<string, unknown> {
     const isSeedance2 = this.model.includes("seedance-2");
 
     const content: Record<string, unknown>[] = [
@@ -152,7 +184,9 @@ export class SeedanceProvider implements VideoProvider {
     };
   }
 
-  private async pollForResult(taskId: string): Promise<{ videoUrl: string; lastFrameUrl?: string }> {
+  private async pollForResult(
+    taskId: string,
+  ): Promise<{ videoUrl: string; lastFrameUrl?: string }> {
     const maxAttempts = 120;
     const interval = 5000;
 
@@ -163,7 +197,7 @@ export class SeedanceProvider implements VideoProvider {
         `${this.baseUrl}/contents/generations/tasks/${taskId}`,
         {
           headers: { Authorization: `Bearer ${this.apiKey}` },
-        }
+        },
       );
 
       if (!response.ok) continue;
@@ -184,7 +218,7 @@ export class SeedanceProvider implements VideoProvider {
       }
       if (result.status === "failed") {
         throw new Error(
-          `Seedance generation failed: ${result.error?.message || "unknown"}`
+          `Seedance generation failed: ${result.error?.message || "unknown"}`,
         );
       }
     }

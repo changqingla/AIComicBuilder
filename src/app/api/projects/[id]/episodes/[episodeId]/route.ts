@@ -1,22 +1,22 @@
 import { db } from "@/lib/db";
 import {
-characters,
-dialogues,
-episodeCharacters,
-episodes,
-projects,
-shots,
-storyboardVersions,
+  characters,
+  dialogues,
+  episodeCharacters,
+  episodes,
+  projects,
+  shots,
+  storyboardVersions,
 } from "@/lib/db/schema";
 import { getUserIdFromRequest } from "@/lib/get-user-id";
 import { markDownstreamStale } from "@/lib/staleness";
-import { and,asc,desc,eq,inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 async function resolveProjectAndEpisode(
   projectId: string,
   episodeId: string,
-  userId: string
+  userId: string,
 ) {
   const [project] = await db
     .select()
@@ -28,23 +28,21 @@ async function resolveProjectAndEpisode(
   const [episode] = await db
     .select()
     .from(episodes)
-    .where(
-      and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId))
-    );
+    .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)));
 
   return { project, episode: episode ?? null };
 }
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string; episodeId: string }> }
+  { params }: { params: Promise<{ id: string; episodeId: string }> },
 ) {
   const { id, episodeId } = await params;
   const userId = getUserIdFromRequest(request);
   const { project, episode } = await resolveProjectAndEpisode(
     id,
     episodeId,
-    userId
+    userId,
   );
 
   if (!project || !episode) {
@@ -61,11 +59,14 @@ export async function GET(
     .where(
       and(
         eq(storyboardVersions.projectId, id),
-        eq(storyboardVersions.episodeId, episodeId)
-      )
+        eq(storyboardVersions.episodeId, episodeId),
+      ),
     )
     .orderBy(desc(storyboardVersions.versionNum));
 
+  if (versionId && !allVersions.some((version) => version.id === versionId)) {
+    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+  }
   const resolvedVersionId = versionId ?? allVersions[0]?.id;
 
   // Fetch characters linked to this episode via episode_characters table
@@ -74,12 +75,17 @@ export async function GET(
     .from(episodeCharacters)
     .where(eq(episodeCharacters.episodeId, episodeId));
 
-  let epCharacters: typeof characters.$inferSelect[] = [];
+  let epCharacters: (typeof characters.$inferSelect)[] = [];
   if (linkedCharIds.length > 0) {
     epCharacters = await db
       .select()
       .from(characters)
-      .where(inArray(characters.id, linkedCharIds.map((r) => r.characterId)));
+      .where(
+        inArray(
+          characters.id,
+          linkedCharIds.map((r) => r.characterId),
+        ),
+      );
   }
   // No links = no characters for this episode (user needs to run character extraction)
 
@@ -92,14 +98,16 @@ export async function GET(
           and(
             eq(shots.projectId, id),
             eq(shots.episodeId, episodeId),
-            eq(shots.versionId, resolvedVersionId)
-          )
+            eq(shots.versionId, resolvedVersionId),
+          ),
         )
         .orderBy(asc(shots.sequence))
     : [];
 
   const { loadShotAssetsBatch } = await import("@/lib/shot-asset-utils");
-  const assetsByShot = await loadShotAssetsBatch(episodeShots.map((shot) => shot.id));
+  const assetsByShot = await loadShotAssetsBatch(
+    episodeShots.map((shot) => shot.id),
+  );
 
   // Enrich each shot with its dialogues + active asset rows
   const enrichedShots = await Promise.all(
@@ -118,7 +126,7 @@ export async function GET(
         .orderBy(asc(dialogues.sequence));
       const assets = assetsByShot.get(shot.id) ?? [];
       return { ...shot, dialogues: shotDialogues, assets };
-    })
+    }),
   );
 
   return NextResponse.json({
@@ -144,14 +152,14 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string; episodeId: string }> }
+  { params }: { params: Promise<{ id: string; episodeId: string }> },
 ) {
   const { id, episodeId } = await params;
   const userId = getUserIdFromRequest(request);
   const { project, episode } = await resolveProjectAndEpisode(
     id,
     episodeId,
-    userId
+    userId,
   );
 
   if (!project || !episode) {
@@ -170,7 +178,17 @@ export async function PATCH(
     targetDuration: number;
   }>;
 
-  const { title, description, keywords, idea, script, outline, status, generationMode, targetDuration } = body;
+  const {
+    title,
+    description,
+    keywords,
+    idea,
+    script,
+    outline,
+    status,
+    generationMode,
+    targetDuration,
+  } = body;
 
   const [updated] = await db
     .update(episodes)
@@ -198,14 +216,14 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string; episodeId: string }> }
+  { params }: { params: Promise<{ id: string; episodeId: string }> },
 ) {
   const { id, episodeId } = await params;
   const userId = getUserIdFromRequest(request);
   const { project, episode } = await resolveProjectAndEpisode(
     id,
     episodeId,
-    userId
+    userId,
   );
 
   if (!project || !episode) {
@@ -221,7 +239,7 @@ export async function DELETE(
   if (allEpisodes.length <= 1) {
     return NextResponse.json(
       { error: "Cannot delete the last episode" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

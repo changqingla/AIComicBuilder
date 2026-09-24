@@ -4,9 +4,9 @@ import { InlineModelPicker } from "@/components/editor/model-selector";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { useModelStore,type ModelRef } from "@/stores/model-store";
-import { ChevronDown,ChevronUp,Loader2,Sparkles,Users } from "lucide-react";
-import { useLocale,useTranslations } from "next-intl";
+import { useModelStore, type ModelRef } from "@/stores/model-store";
+import { ChevronDown, ChevronUp, Loader2, Sparkles, Users } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -38,15 +38,21 @@ export function CharactersInlinePanel({
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
   const imageGuard = useModelGuard("image");
 
-  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(() => defaultImageModel);
+  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(
+    () => defaultImageModel,
+  );
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   const storageKey = `charPanel:${projectId}`;
   const anyMissingRef = characters.some((c) => !c.referenceImage);
 
-  const [open, setOpen] = useState(() => (generationMode === "reference" && anyMissingRef)
-    || (typeof window !== "undefined" && localStorage.getItem(storageKey) === "true"));
+  const [open, setOpen] = useState(
+    () =>
+      (generationMode === "reference" && anyMissingRef) ||
+      (typeof window !== "undefined" &&
+        localStorage.getItem(storageKey) === "true"),
+  );
 
   function toggle() {
     setOpen((prev) => {
@@ -79,12 +85,17 @@ export function CharactersInlinePanel({
         body: JSON.stringify({
           action: "single_character_image",
           payload: { characterId },
-          modelConfig: { ...getModelConfig(), image: resolveImageRef(imageModelRef) },
+          modelConfig: {
+            ...getModelConfig(),
+            image: resolveImageRef(imageModelRef),
+          },
         }),
       });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : tCommon("generationFailed"));
+      toast.error(
+        err instanceof Error ? err.message : tCommon("generationFailed"),
+      );
     }
     setGeneratingId(null);
   }
@@ -94,11 +105,13 @@ export function CharactersInlinePanel({
   const needsAttention = generationMode === "reference" && anyMissingRef;
 
   return (
-    <div className={`rounded-xl border transition-colors ${
-      needsAttention && open
-        ? "border-amber-300 bg-amber-50/60"
-        : "border-[--border-subtle] bg-[--surface]/50"
-    }`}>
+    <div
+      className={`rounded-xl border transition-colors ${
+        needsAttention && open
+          ? "border-amber-300 bg-amber-50/60"
+          : "border-[--border-subtle] bg-[--surface]/50"
+      }`}
+    >
       {/* Header toggle */}
       <button
         className="flex w-full items-center gap-2 px-3 py-2 text-left"
@@ -125,7 +138,11 @@ export function CharactersInlinePanel({
         <div className="border-t border-[--border-subtle] px-3 pb-3 pt-2.5">
           {/* Model picker */}
           <div className="mb-3">
-            <InlineModelPicker capability="image" value={imageModelRef} onChange={setImageModelRef} />
+            <InlineModelPicker
+              capability="image"
+              value={imageModelRef}
+              onChange={setImageModelRef}
+            />
           </div>
 
           {/* Character grid */}
@@ -137,7 +154,10 @@ export function CharactersInlinePanel({
                   {/* Thumbnail */}
                   <div
                     className={`relative h-20 w-20 overflow-hidden rounded-lg border border-[--border-subtle] bg-[--surface] ${char.referenceImage ? "cursor-zoom-in" : ""}`}
-                    onClick={() => char.referenceImage && setPreviewSrc(uploadUrl(char.referenceImage))}
+                    onClick={() =>
+                      char.referenceImage &&
+                      setPreviewSrc(uploadUrl(char.referenceImage))
+                    }
                   >
                     {char.referenceImage ? (
                       <img
@@ -155,12 +175,16 @@ export function CharactersInlinePanel({
                       </div>
                     )}
                     {/* Status badge */}
-                    <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                      char.referenceImage ? "bg-emerald-500" : "bg-amber-500"
-                    }`} />
+                    <div
+                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
+                        char.referenceImage ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
+                    />
                   </div>
                   {/* Name */}
-                  <span className="max-w-[80px] truncate text-[11px] text-[--text-muted]">{char.name}</span>
+                  <span className="max-w-[80px] truncate text-[11px] text-[--text-muted]">
+                    {char.name}
+                  </span>
                   {/* Generate button (only when no image) */}
                   {!char.referenceImage && (
                     <button
@@ -168,7 +192,11 @@ export function CharactersInlinePanel({
                       disabled={isGenerating || !!generatingId}
                       className="flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                     >
-                      {isGenerating ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
+                      {isGenerating ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-2.5 w-2.5" />
+                      )}
                       Gen
                     </button>
                   )}
@@ -195,8 +223,15 @@ export function CharactersInlinePanel({
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setPreviewSrc(null)}
         >
-          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-            <img src={previewSrc} alt="Preview" className="max-h-[85vh] rounded-xl" />
+          <div
+            className="relative max-h-[90vh] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewSrc}
+              alt="Preview"
+              className="max-h-[85vh] rounded-xl"
+            />
             <button
               onClick={() => setPreviewSrc(null)}
               className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-bold shadow-lg hover:scale-110 transition-transform"

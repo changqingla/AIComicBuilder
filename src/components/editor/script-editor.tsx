@@ -10,7 +10,13 @@ import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 
 import { useModelStore } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import { Sparkles, Loader2, FileText, Lightbulb, ListOrdered } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  FileText,
+  Lightbulb,
+  ListOrdered,
+} from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { AgentPicker } from "@/components/agent-picker";
 import { apiFetch } from "@/lib/api-fetch";
@@ -27,8 +33,10 @@ export function ScriptEditor() {
   const [generating, setGenerating] = useState(false);
   const [generatingOutline, setGeneratingOutline] = useState(false);
   const outline = episode?.outline ?? "";
-  const setOutline = (value: string) => updateDraft(episodeId, { outline: value });
-  const updateScript = (value: string) => updateDraft(episodeId, { script: value });
+  const setOutline = (value: string) =>
+    updateDraft(episodeId, { outline: value });
+  const updateScript = (value: string) =>
+    updateDraft(episodeId, { script: value });
   const textGuard = useModelGuard("text");
   const scriptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,15 +51,29 @@ export function ScriptEditor() {
     setSaving(true);
     try {
       await apiFetch(`/api/projects/${draft.projectId}/episodes/${draft.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: draft.idea, script: draft.script, outline: draft.outline }),
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idea: draft.idea,
+          script: draft.script,
+          outline: draft.outline,
+        }),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t("common.generationFailed"));
-    } finally { setSaving(false); }
+      toast.error(
+        error instanceof Error ? error.message : t("common.generationFailed"),
+      );
+    } finally {
+      setSaving(false);
+    }
   }
   const saveLater = useDebouncedCallback(save, 1500);
-  useEffect(() => () => { saveLater.flush(); }, [saveLater]);
+  useEffect(
+    () => () => {
+      saveLater.flush();
+    },
+    [saveLater],
+  );
 
   function edit(patch: Partial<EpisodeDetail>) {
     if (!episode) return;
@@ -67,21 +89,24 @@ export function ScriptEditor() {
   async function handleGenerateOutline() {
     if (!episode) return;
     if (!textGuard("script_outline", episode.projectId)) return;
+    await saveLater.flush();
     setGeneratingOutline(true);
     setOutline("");
 
     try {
-      
-      const resp = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "script_outline",
-          payload: { idea: episode.idea || "" },
-          modelConfig: getModelConfig(),
-          episodeId: episodeId,
-        }),
-      });
+      const resp = await apiFetch(
+        `/api/projects/${episode.projectId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "script_outline",
+            payload: { idea: episode.idea || "" },
+            modelConfig: getModelConfig(),
+            episodeId: episodeId,
+          }),
+        },
+      );
       if (!resp.ok) throw new Error("Failed to generate outline");
 
       // Stream response
@@ -103,6 +128,7 @@ export function ScriptEditor() {
 
       await fetchEpisode(episode.projectId, episodeId);
     } catch (err) {
+      setOutline(episode.outline);
       console.error("Outline generate error:", err);
       toast.error(t("common.generationFailed"));
     } finally {
@@ -116,29 +142,39 @@ export function ScriptEditor() {
 
   async function handleGenerateScript() {
     if (!episode) return;
-    if (!textGuard("script_generate", episode.projectId) || (!outline.trim() && !textGuard("script_outline", episode.projectId))) return;
+    if (
+      !textGuard("script_generate", episode.projectId) ||
+      (!outline.trim() && !textGuard("script_outline", episode.projectId))
+    )
+      return;
+    await saveLater.flush();
     setGenerating(true);
 
     const idea = episode.idea || "";
-    
+
     let currentOutline = outline;
 
     try {
       // Step 1: Auto-generate outline if empty (streaming)
       if (!currentOutline.trim()) {
         setGeneratingOutline(true);
-        toast.info(t("project.generatingOutlineFirst") || "Generating outline first...");
+        toast.info(
+          t("project.generatingOutlineFirst") || "Generating outline first...",
+        );
 
-        const outlineResp = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "script_outline",
-            payload: { idea },
-            modelConfig: getModelConfig(),
-            episodeId: episodeId,
-          }),
-        });
+        const outlineResp = await apiFetch(
+          `/api/projects/${episode.projectId}/generate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "script_outline",
+              payload: { idea },
+              modelConfig: getModelConfig(),
+              episodeId: episodeId,
+            }),
+          },
+        );
 
         if (outlineResp.ok && outlineResp.body) {
           const reader = outlineResp.body.getReader();
@@ -161,16 +197,19 @@ export function ScriptEditor() {
       // Step 2: Generate script (with outline if available)
       updateScript("");
 
-      const response = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "script_generate",
-          payload: { idea, outline: currentOutline || undefined },
-          modelConfig: getModelConfig(),
-          episodeId: episodeId,
-        }),
-      });
+      const response = await apiFetch(
+        `/api/projects/${episode.projectId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "script_generate",
+            payload: { idea, outline: currentOutline || undefined },
+            modelConfig: getModelConfig(),
+            episodeId: episodeId,
+          }),
+        },
+      );
 
       if (response.body) {
         const reader = response.body.getReader();
@@ -187,6 +226,7 @@ export function ScriptEditor() {
 
       await fetchEpisode(episode.projectId, episodeId ?? undefined);
     } catch (err) {
+      updateScript(episode.script);
       console.error("Script generate error:", err);
       toast.error(t("common.generationFailed"));
     }
@@ -208,7 +248,10 @@ export function ScriptEditor() {
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <PromptEditButton promptKeys={["script_outline", "script_generate"]} projectId={episode.projectId} />
+          <PromptEditButton
+            promptKeys={["script_outline", "script_generate"]}
+            projectId={episode.projectId}
+          />
           <InlineModelPicker capability="text" />
           {saving && (
             <span className="flex items-center gap-1.5 text-xs text-[--text-muted]">
@@ -229,7 +272,9 @@ export function ScriptEditor() {
         </div>
         <Textarea
           value={episode.idea}
-          onChange={(e) => { edit({ idea: e.target.value });  }}
+          onChange={(e) => {
+            edit({ idea: e.target.value });
+          }}
           onBlur={handleSave}
           placeholder={t("project.scriptIdeaPlaceholder")}
           rows={4}
@@ -252,18 +297,25 @@ export function ScriptEditor() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <AgentPicker projectId={episode.projectId} category="script_outline" />
+              <AgentPicker
+                projectId={episode.projectId}
+                category="script_outline"
+              />
               <Button
                 size="sm"
                 onClick={handleGenerateOutline}
-                disabled={generatingOutline || generating || !episode.idea?.trim()}
+                disabled={
+                  generatingOutline || generating || !episode.idea?.trim()
+                }
               >
                 {generatingOutline ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                {generatingOutline ? t("common.generating") : t("project.generateOutline")}
+                {generatingOutline
+                  ? t("common.generating")
+                  : t("project.generateOutline")}
               </Button>
             </div>
           </div>
@@ -290,18 +342,25 @@ export function ScriptEditor() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <AgentPicker projectId={episode.projectId} category="script_generate" />
+              <AgentPicker
+                projectId={episode.projectId}
+                category="script_generate"
+              />
               <Button
                 size="sm"
                 onClick={handleGenerateScript}
-                disabled={generating || generatingOutline || !episode.idea?.trim()}
+                disabled={
+                  generating || generatingOutline || !episode.idea?.trim()
+                }
               >
                 {generating ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                {generating ? t("common.generating") : t("project.generateScript")}
+                {generating
+                  ? t("common.generating")
+                  : t("project.generateScript")}
               </Button>
             </div>
           </div>
@@ -309,8 +368,12 @@ export function ScriptEditor() {
             <Textarea
               ref={scriptTextareaRef}
               value={episode.script}
-              onChange={(e) => { edit({ script: e.target.value }); }}
-              onBlur={() => { if (!generating) handleSave(); }}
+              onChange={(e) => {
+                edit({ script: e.target.value });
+              }}
+              onBlur={() => {
+                if (!generating) handleSave();
+              }}
               disabled={generating}
               className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
                 generating ? "opacity-40" : ""

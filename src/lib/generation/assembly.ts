@@ -1,21 +1,34 @@
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
-import { characters,dialogues,episodes,projects,shots,storyboardVersions } from "@/lib/db/schema";
+import {
+  characters,
+  dialogues,
+  episodes,
+  projects,
+  shots,
+  storyboardVersions,
+} from "@/lib/db/schema";
 import { extractErrorMessage } from "@/lib/generation/common";
 import type { GenerationInput } from "@/lib/generation/request";
 import { loadShotAssetsBatch } from "@/lib/shot-asset-utils";
 import { selectAsset } from "@/lib/shot-assets";
 import { assembleVideo } from "@/lib/video/ffmpeg";
-import { and,asc,desc,eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
-export async function handleVideoAssembleSync(input: GenerationInput) {
+export async function handleVideoAssemble(input: GenerationInput) {
   const { projectId, payload, episodeId } = input;
   let generationModeValue: string = "keyframe";
   if (episodeId) {
-    const [episode] = await db.select({ generationMode: episodes.generationMode }).from(episodes).where(eq(episodes.id, episodeId));
+    const [episode] = await db
+      .select({ generationMode: episodes.generationMode })
+      .from(episodes)
+      .where(eq(episodes.id, episodeId));
     generationModeValue = episode?.generationMode ?? "keyframe";
   } else {
-    const [project] = await db.select({ generationMode: projects.generationMode }).from(projects).where(eq(projects.id, projectId));
+    const [project] = await db
+      .select({ generationMode: projects.generationMode })
+      .from(projects)
+      .where(eq(projects.id, projectId));
     generationModeValue = project?.generationMode ?? "keyframe";
   }
 
@@ -24,7 +37,10 @@ export async function handleVideoAssembleSync(input: GenerationInput) {
   // If no versionId provided, fall back to the latest version for this project/episode
   if (!versionId) {
     const versionWhere = episodeId
-      ? and(eq(storyboardVersions.projectId, projectId), eq(storyboardVersions.episodeId, episodeId))
+      ? and(
+          eq(storyboardVersions.projectId, projectId),
+          eq(storyboardVersions.episodeId, episodeId),
+        )
       : eq(storyboardVersions.projectId, projectId);
     const [latestVersion] = await db
       .select({ id: storyboardVersions.id })
@@ -44,12 +60,15 @@ export async function handleVideoAssembleSync(input: GenerationInput) {
     .where(and(...shotWhereConditions))
     .orderBy(asc(shots.sequence));
 
-  const isReference = generationModeValue === "reference";
+  const isReference =
+    (payload?.generationMode ?? generationModeValue) === "reference";
   const assetsByShot = await loadShotAssetsBatch(projectShots.map((s) => s.id));
   const videoPaths = projectShots
     .map((s) => {
       const v = assetsByShot.get(s.id);
-      return isReference ? (selectAsset(v, "reference_video")?.fileUrl ?? null) : (selectAsset(v, "keyframe_video")?.fileUrl ?? null);
+      return isReference
+        ? (selectAsset(v, "reference_video")?.fileUrl ?? null)
+        : (selectAsset(v, "keyframe_video")?.fileUrl ?? null);
     })
     .filter(Boolean) as string[];
 
@@ -58,28 +77,41 @@ export async function handleVideoAssembleSync(input: GenerationInput) {
   }
 
   // Build transitions array from shot transitionOut / transitionIn fields
-  type TransitionType = "cut" | "dissolve" | "fade_in" | "fade_out" | "wipeleft" | "slideright" | "circleopen";
+  type TransitionType =
+    | "cut"
+    | "dissolve"
+    | "fade_in"
+    | "fade_out"
+    | "wipeleft"
+    | "slideright"
+    | "circleopen";
   const completedShots = projectShots.filter((s) => {
     const v = assetsByShot.get(s.id);
-    return isReference ? (selectAsset(v, "reference_video")?.fileUrl ?? null) : (selectAsset(v, "keyframe_video")?.fileUrl ?? null);
+    return isReference
+      ? (selectAsset(v, "reference_video")?.fileUrl ?? null)
+      : (selectAsset(v, "keyframe_video")?.fileUrl ?? null);
   });
-  const transitions: TransitionType[] = completedShots.slice(0, -1).map((shot, i) => {
-    const nextShot = completedShots[i + 1];
-    return ((shot.transitionOut && shot.transitionOut !== "cut")
-      ? shot.transitionOut
-      : (nextShot?.transitionIn || "cut")) as TransitionType;
-  });
+  const transitions: TransitionType[] = completedShots
+    .slice(0, -1)
+    .map((shot, i) => {
+      const nextShot = completedShots[i + 1];
+      return (
+        shot.transitionOut && shot.transitionOut !== "cut"
+          ? shot.transitionOut
+          : nextShot?.transitionIn || "cut"
+      ) as TransitionType;
+    });
 
   // Get dialogues for subtitles
   const allSubtitles: {
     text: string;
-    shotSequence: number;
+    shotIndex: number;
     dialogueSequence: number;
     dialogueCount: number;
     startRatio?: number;
     endRatio?: number;
   }[] = [];
-  for (const shot of completedShots) {
+  for (const [shotIndex, shot] of completedShots.entries()) {
     const shotDialogues = await db
       .select({
         text: dialogues.text,
@@ -101,7 +133,7 @@ export async function handleVideoAssembleSync(input: GenerationInput) {
       const er = d.endRatio ? parseFloat(String(d.endRatio)) : undefined;
       allSubtitles.push({
         text: `${d.characterName}: ${d.text}`,
-        shotSequence: d.shotSequence,
+        shotIndex,
         dialogueSequence: idx,
         dialogueCount: count,
         startRatio: sr,
@@ -115,24 +147,35 @@ export async function handleVideoAssembleSync(input: GenerationInput) {
       videoPaths,
       subtitles: allSubtitles,
       projectId,
-      shotDurations: completedShots.map((s) => s.duration ?? 10),
       transitions,
     });
 
     if (episodeId) {
       await db
         .update(episodes)
-        .set({ status: "completed", finalVideoUrl: result.videoPath, updatedAt: new Date() })
+        .set({
+          status: "completed",
+          finalVideoUrl: result.videoPath,
+          updatedAt: new Date(),
+        })
         .where(eq(episodes.id, episodeId));
     } else {
       await db
         .update(projects)
-        .set({ status: "completed", finalVideoUrl: result.videoPath, updatedAt: new Date() })
+        .set({
+          status: "completed",
+          finalVideoUrl: result.videoPath,
+          updatedAt: new Date(),
+        })
         .where(eq(projects.id, projectId));
     }
 
     console.log(`[VideoAssemble] Completed: ${result.videoPath}`);
-    return { outputPath: result.videoPath, srtPath: result.srtPath, status: "ok" };
+    return {
+      outputPath: result.videoPath,
+      srtPath: result.srtPath,
+      status: "ok",
+    };
   } catch (err) {
     console.error("[VideoAssemble] Error:", err);
     throw new ApiError(500, extractErrorMessage(err));

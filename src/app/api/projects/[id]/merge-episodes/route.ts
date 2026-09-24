@@ -7,7 +7,7 @@ import { getUserIdFromRequest } from "@/lib/get-user-id";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params;
   const userId = getUserIdFromRequest(req);
@@ -28,7 +28,7 @@ export async function POST(
   if (!Array.isArray(episodeIds) || episodeIds.length < 2) {
     return NextResponse.json(
       { error: "At least 2 episodes required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -37,17 +37,14 @@ export async function POST(
     .select()
     .from(episodes)
     .where(
-      and(
-        eq(episodes.projectId, projectId),
-        inArray(episodes.id, episodeIds)
-      )
+      and(eq(episodes.projectId, projectId), inArray(episodes.id, episodeIds)),
     )
     .orderBy(asc(episodes.sequence));
 
   if (selectedEpisodes.length !== episodeIds.length) {
     return NextResponse.json(
       { error: "Some episodes not found" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -55,7 +52,7 @@ export async function POST(
   if (missingVideo) {
     return NextResponse.json(
       { error: `Episode "${missingVideo.title}" has no video` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -65,7 +62,6 @@ export async function POST(
       videoPaths,
       subtitles: [],
       projectId,
-      shotDurations: [],
     });
 
     return NextResponse.json({ videoUrl: result.videoPath, status: "ok" });
@@ -73,7 +69,7 @@ export async function POST(
     console.error("[MergeEpisodes] Error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Merge failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

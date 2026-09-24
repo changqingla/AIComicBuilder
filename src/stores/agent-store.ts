@@ -19,7 +19,11 @@ interface AgentStore {
   loading: boolean;
   fetchAgents: () => Promise<void>;
   fetchBindings: (projectId: string) => Promise<void>;
-  setBinding: (projectId: string, category: string, agentId: string | null) => Promise<void>;
+  setBinding: (
+    projectId: string,
+    category: string,
+    agentId: string | null,
+  ) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
@@ -39,13 +43,23 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const res = await apiFetch(`/api/projects/${projectId}/agent-bindings`);
     if (res.ok) {
       const bindings: AgentBinding[] = await res.json();
-      set((state) => ({ bindingsByProject: { ...state.bindingsByProject, [projectId]: bindings }, loading: false }));
+      set((state) => ({
+        bindingsByProject: {
+          ...state.bindingsByProject,
+          [projectId]: bindings,
+        },
+        loading: false,
+      }));
     } else {
       set({ loading: false });
     }
   },
 
-  setBinding: async (projectId: string, category: string, agentId: string | null) => {
+  setBinding: async (
+    projectId: string,
+    category: string,
+    agentId: string | null,
+  ) => {
     await apiFetch(`/api/projects/${projectId}/agent-bindings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

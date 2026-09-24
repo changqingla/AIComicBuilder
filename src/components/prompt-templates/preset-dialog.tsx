@@ -4,10 +4,10 @@ import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
 import {
-Dialog,
-DialogContent,
-DialogHeader,
-DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-fetch";
@@ -32,14 +32,25 @@ interface PresetDialogProps {
   promptKey: string;
 }
 
-export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProps) {
+export function PresetDialog({
+  open,
+  onOpenChange,
+  promptKey,
+}: PresetDialogProps) {
   const t = useTranslations("promptTemplates.presets");
   const store = usePromptTemplateStore();
   const { registry, getSlotContent, setServerOverrides } = store;
 
-  const { data: presets = [], isLoading: loading, mutate: setPresets } = useSWR(
+  const {
+    data: presets = [],
+    isLoading: loading,
+    mutate: setPresets,
+  } = useSWR(
     open ? ["presets", promptKey] : null,
-    async ([, key]) => (await fetchJson<Preset[]>("/api/prompt-presets")).filter((preset) => preset.promptKey === key),
+    async ([, key]) =>
+      (await fetchJson<Preset[]>("/api/prompt-presets")).filter(
+        (preset) => preset.promptKey === key,
+      ),
     { onError: () => toast.error("Failed to load presets") },
   );
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -189,7 +200,9 @@ export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProp
                   {t("userCreated")}
                 </div>
                 {userPresets.length === 0 ? (
-                  <p className="text-sm text-[--text-muted] py-1">{t("noUserPresets")}</p>
+                  <p className="text-sm text-[--text-muted] py-1">
+                    {t("noUserPresets")}
+                  </p>
                 ) : (
                   userPresets.map((preset) => (
                     <PresetCard
