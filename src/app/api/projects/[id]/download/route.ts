@@ -11,8 +11,8 @@ import {
 import { and, eq, asc, desc } from "drizzle-orm";
 import archiver from "archiver";
 import path from "node:path";
-import fs from "node:fs";
 import { getUserIdFromRequest } from "@/lib/get-user-id";
+import { resolveUploadFile } from "@/lib/upload-files";
 
 export async function GET(
   request: Request,
@@ -94,14 +94,9 @@ export async function GET(
   const chunks: Uint8Array[] = [];
   archive.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-  const uploadDir = path.resolve(process.env.UPLOAD_DIR || "./uploads");
-  const uploadRoot = fs.existsSync(uploadDir) ? fs.realpathSync(uploadDir) : uploadDir;
-
   function addFile(srcPath: string, archiveName: string) {
-    if (!fs.existsSync(srcPath)) return;
-    const abs = fs.realpathSync(srcPath);
-    if (!abs.startsWith(uploadRoot + path.sep) || !fs.statSync(abs).isFile()) return;
-    archive.file(abs, { name: archiveName });
+    const file = resolveUploadFile(srcPath);
+    if (file) archive.file(file, { name: archiveName });
   }
 
   for (const char of episodeChars) {

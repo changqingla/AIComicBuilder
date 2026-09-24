@@ -60,8 +60,8 @@ AI 驱动的漫剧生成器 — 从剧本到动画视频的全自动流水线。
 
 ### 环境要求
 
-- Node.js 18+
-- pnpm
+- Node.js 24.15（使用 `nvm use` 读取仓库中的版本）
+- pnpm 10.11（使用 `corepack enable`，版本由 `package.json` 固定）
 - FFmpeg（视频合成功能需要）
 
 ### 安装
@@ -73,7 +73,7 @@ pnpm install
 ### 初始化数据库
 
 ```bash
-pnpm drizzle-kit push
+# 启动应用时自动执行 Drizzle 迁移，不要用 schema push 替代迁移历史。
 ```
 
 ### 启动

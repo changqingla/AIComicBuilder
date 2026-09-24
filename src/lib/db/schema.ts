@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -174,7 +175,10 @@ export const shotAssets = sqliteTable("shot_assets", {
   updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
-});
+}, (table) => [
+  uniqueIndex("shot_assets_slot_version").on(table.shotId, table.type, table.sequenceInType, table.assetVersion),
+  uniqueIndex("shot_assets_active_slot").on(table.shotId, table.type, table.sequenceInType).where(sql`${table.isActive} = 1`),
+]);
 
 export const shots = sqliteTable("shots", {
   id: text("id").primaryKey(),

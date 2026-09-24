@@ -31,8 +31,8 @@ import { eq, asc, and, lt, gt, desc, or, isNull, inArray } from "drizzle-orm";
 import { getUserIdFromRequest } from "@/lib/get-user-id";
 import path from "path";
 import { id as genId } from "@/lib/id";
-import { enqueueTask } from "@/lib/task-queue";
-import type { TaskType } from "@/lib/task-queue";
+import { generationRequestSchema, hasGenerationAccess } from "@/lib/generation/request";
+import { characterExtractionSchema, saveExtractedCharacters } from "@/lib/generation/characters";
 import { buildScriptParsePrompt } from "@/lib/ai/prompts/script-parse";
 import { buildScriptGeneratePrompt } from "@/lib/ai/prompts/script-generate";
 import { buildCharacterExtractPrompt } from "@/lib/ai/prompts/character-extract";
@@ -175,6 +175,7 @@ export async function POST(
 ) {
   const { id: projectId } = await params;
   const userId = getUserIdFromRequest(request);
+  if (!userId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Verify project ownership
   const [ownerCheck] = await db
@@ -185,12 +186,12 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = (await request.json()) as {
-    action: string;
-    payload?: Record<string, unknown>;
-    modelConfig?: ModelConfig;
-    episodeId?: string;
-  };
+  const parsed = generationRequestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid generation request", details: parsed.error.issues }, { status: 400 });
+  const body = parsed.data;
+  if (!hasGenerationAccess(projectId, body)) {
+    return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+  }
 
   const { action, payload, modelConfig, episodeId } = body;
   console.log(`[Generate] action=${action}, projectId=${projectId}, episodeId=${episodeId || "none"}`);
@@ -295,15 +296,7 @@ export async function POST(
     return handleSingleShotRefImageGenerateAll(projectId, userId, payload, modelConfig);
   }
 
-  // Image/video generation - keep in task queue
-  const task = await enqueueTask({
-    type: action as NonNullable<TaskType>,
-    projectId,
-    payload: { projectId, ...payload, modelConfig, episodeId, userId },
-    ...(episodeId ? { episodeId } : {}),
-  });
-
-  return NextResponse.json(task, { status: 201 });
+  return NextResponse.json({ error: "Unknown generation action" }, { status: 400 });
 }
 
 // --- script_outline: stream plain text outline from an idea ---
@@ -652,27 +645,6 @@ async function handleCharacterExtract(
     );
   }
 
-  // Fetch all existing project characters for dedup
-  const existingChars = await db
-    .select()
-    .from(characters)
-    .where(eq(characters.projectId, projectId));
-  const existingByName = new Map(
-    existingChars.map((c) => [c.name.toLowerCase().trim(), c])
-  );
-
-  // If extracting for an episode, capture the old episode-linked character ids
-  // BEFORE deleting the links, so we can scope relation cleanup to this episode only.
-  let oldEpisodeCharIds: string[] = [];
-  if (episodeId) {
-    const oldLinks = await db
-      .select({ characterId: episodeCharacters.characterId })
-      .from(episodeCharacters)
-      .where(eq(episodeCharacters.episodeId, episodeId));
-    oldEpisodeCharIds = oldLinks.map((l) => l.characterId);
-    await db.delete(episodeCharacters).where(eq(episodeCharacters.episodeId, episodeId));
-  }
-
   let aiText: string;
   const boundAgent = await findBoundAgent(projectId, "character_extract");
   if (boundAgent) {
@@ -694,128 +666,12 @@ async function handleCharacterExtract(
     aiText = text;
   }
 
-  const parsed = JSON.parse(extractJSON(aiText));
-
-  // Support both formats: new { characters, relationships } and legacy array
-  const extracted: Array<{
-    name: string;
-    description: string;
-    visualHint?: string;
-    scope?: string;
-    heightCm?: number;
-    bodyType?: string;
-    performanceStyle?: string;
-  }> = Array.isArray(parsed) ? parsed : (parsed.characters || []);
-  const extractedRelations: Array<{
-    characterA: string;
-    characterB: string;
-    relationType: string;
-    description?: string;
-  }> = Array.isArray(parsed) ? [] : (parsed.relationships || []);
-
-  let reusedCount = 0;
-  let createdCount = 0;
-  const linkedCharIds: string[] = [];
-
-  for (const char of extracted) {
-    const key = char.name.toLowerCase().trim();
-    const existing = existingByName.get(key);
-
-    if (existing) {
-      // Reuse existing character — always update description from new extraction
-      await db.update(characters)
-        .set({
-          description: char.description,
-          visualHint: char.visualHint ?? existing.visualHint ?? "",
-          scope: (char.scope === "guest" ? "guest" : "main") as "main" | "guest",
-        })
-        .where(eq(characters.id, existing.id));
-      console.log(`[CharacterExtract] Updated existing character "${char.name}" (${existing.id}), desc length: ${char.description.length}`);
-      linkedCharIds.push(existing.id);
-      reusedCount++;
-    } else {
-      // Create new character
-      const charId = genId();
-      const scope = char.scope === "guest" ? "guest" : "main";
-      await db.insert(characters).values({
-        id: charId,
-        projectId,
-        name: char.name,
-        description: char.description,
-        visualHint: char.visualHint ?? "",
-        heightCm: char.heightCm || 0,
-        bodyType: char.bodyType || "average",
-        performanceStyle: char.performanceStyle || "",
-        scope,
-        episodeId: null,
-      });
-      existingByName.set(key, { id: charId, name: char.name } as typeof existingChars[0]);
-      linkedCharIds.push(charId);
-      createdCount++;
-    }
+  const result = characterExtractionSchema.safeParse(JSON.parse(extractJSON(aiText)));
+  if (!result.success) {
+    return NextResponse.json({ error: "Invalid character extraction result", details: result.error.issues }, { status: 422 });
   }
-
-  // Create episode_characters links
-  if (episodeId) {
-    for (const charId of linkedCharIds) {
-      await db.insert(episodeCharacters).values({
-        id: genId(),
-        episodeId,
-        characterId: charId,
-      });
-    }
-  }
-
-  // Auto-create character relationships from extraction — replace existing on re-run.
-  // Scoping rule: a relation belongs to this episode iff BOTH endpoints are in the
-  // episode's character list. Project-level extraction clears all project relations.
-  if (extractedRelations.length > 0) {
-    if (episodeId) {
-      // Episode-scoped: only clear relations whose both endpoints were in this episode.
-      if (oldEpisodeCharIds.length > 0) {
-        await db
-          .delete(characterRelations)
-          .where(
-            and(
-              eq(characterRelations.projectId, projectId),
-              inArray(characterRelations.characterAId, oldEpisodeCharIds),
-              inArray(characterRelations.characterBId, oldEpisodeCharIds)
-            )
-          );
-      }
-    } else {
-      // Project-level: clear everything for the project.
-      await db.delete(characterRelations).where(eq(characterRelations.projectId, projectId));
-    }
-
-    const allChars = await db.select().from(characters).where(eq(characters.projectId, projectId));
-    const nameToId = new Map(allChars.map((c) => [c.name, c.id]));
-
-    for (const rel of extractedRelations) {
-      const aId = nameToId.get(rel.characterA);
-      const bId = nameToId.get(rel.characterB);
-      if (aId && bId && aId !== bId) {
-        try {
-          await db.insert(characterRelations).values({
-            id: genId(),
-            projectId,
-            characterAId: aId,
-            characterBId: bId,
-            relationType: rel.relationType || "neutral",
-            description: rel.description || "",
-          });
-        } catch {
-          // Skip duplicates
-        }
-      }
-    }
-  }
-
-  console.log(
-    `[CharacterExtract] ${extracted.length} characters: ${reusedCount} reused, ${createdCount} new, ${linkedCharIds.length} linked to episode, ${extractedRelations.length} relations`
-  );
-
-  return NextResponse.json({ characters: extracted });
+  saveExtractedCharacters(projectId, episodeId, result.data);
+  return NextResponse.json({ characters: result.data.characters });
 }
 
 // --- single_character_image: generate turnaround image for one character ---
@@ -1239,7 +1095,7 @@ async function handleShotSplitStream(
         return shotList as ParsedShot[];
       } catch (err) {
         console.error(`[ShotSplit] Chunk ${idx + 1} failed:`, err);
-        return [] as ParsedShot[];
+        throw new Error(`Shot chunk ${idx + 1} failed`, { cause: err });
       }
     })
   );

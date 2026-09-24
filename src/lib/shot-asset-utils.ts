@@ -149,77 +149,37 @@ export interface UpsertAssetInput {
 export async function insertAssetVersion(
   input: UpsertAssetInput
 ): Promise<ShotAssetRow> {
-  const sequenceInType = input.sequenceInType ?? 0;
-
-  // Find any existing rows in this slot to compute the new version number,
-  // and to deactivate the current active row.
-  const existing = await db
-    .select()
-    .from(shotAssets)
-    .where(
-      and(
-        eq(shotAssets.shotId, input.shotId),
-        eq(shotAssets.type, input.type),
-        eq(shotAssets.sequenceInType, sequenceInType)
-      )
-    )
-    .orderBy(desc(shotAssets.assetVersion));
-
-  const nextVersion = existing.length > 0 ? existing[0].assetVersion + 1 : 1;
-
-  // Previous row in this slot — we inherit meta / characters from it when
-  // the caller doesn't explicitly override. Version bump should NOT silently
-  // drop metadata like sceneName, character tags, etc.
-  const previousRow = existing[0];
-
-  // Deactivate any currently active row in this slot.
-  const activeIds = existing
-    .filter((r) => r.isActive === 1)
-    .map((r) => r.id);
-  for (const id of activeIds) {
-    await db
-      .update(shotAssets)
-      .set({ isActive: 0, updatedAt: new Date() })
-      .where(eq(shotAssets.id, id));
-  }
-
-  // Resolve characters: explicit input > previous row's characters > null
-  const resolvedCharacters =
-    input.characters !== undefined
-      ? input.characters
-        ? JSON.stringify(input.characters)
-        : null
-      : previousRow?.characters ?? null;
-
-  // Resolve meta: explicit input > previous row's meta > null
-  const resolvedMeta =
-    input.meta !== undefined
-      ? input.meta
-        ? JSON.stringify(input.meta)
-        : null
-      : previousRow?.meta ?? null;
-
-  const now = new Date();
-  const newRow = {
-    id: genId(),
-    shotId: input.shotId,
-    type: input.type,
-    sequenceInType,
-    assetVersion: nextVersion,
-    isActive: 1,
-    prompt: input.prompt,
-    fileUrl: input.fileUrl ?? null,
-    status: input.status ?? "pending",
-    characters: resolvedCharacters,
-    modelProvider: input.modelProvider ?? null,
-    modelId: input.modelId ?? null,
-    meta: resolvedMeta,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await db.insert(shotAssets).values(newRow);
-  return rowToAsset({ ...newRow });
+  return db.transaction((tx) => {
+    const sequenceInType = input.sequenceInType ?? 0;
+    const slot = and(
+      eq(shotAssets.shotId, input.shotId),
+      eq(shotAssets.type, input.type),
+      eq(shotAssets.sequenceInType, sequenceInType),
+    );
+    const previous = tx.select().from(shotAssets).where(slot)
+      .orderBy(desc(shotAssets.assetVersion)).get();
+    tx.update(shotAssets).set({ isActive: 0 }).where(slot).run();
+    const [row] = tx.insert(shotAssets).values({
+      id: genId(),
+      shotId: input.shotId,
+      type: input.type,
+      sequenceInType,
+      assetVersion: (previous?.assetVersion ?? 0) + 1,
+      isActive: 1,
+      prompt: input.prompt,
+      fileUrl: input.fileUrl ?? null,
+      status: input.status ?? "pending",
+      characters: input.characters === undefined
+        ? previous?.characters ?? null
+        : input.characters === null ? null : JSON.stringify(input.characters),
+      meta: input.meta === undefined
+        ? previous?.meta ?? null
+        : input.meta === null ? null : JSON.stringify(input.meta),
+      modelProvider: input.modelProvider ?? null,
+      modelId: input.modelId ?? null,
+    }).returning().all();
+    return rowToAsset(row);
+  });
 }
 
 /** Update an existing asset row in place (e.g. to attach the generated file_url after generation completes). */
@@ -253,25 +213,19 @@ export async function activateAssetVersion(
   sequenceInType: number,
   assetVersion: number
 ): Promise<void> {
-  const slotRows = await db
-    .select()
-    .from(shotAssets)
-    .where(
-      and(
-        eq(shotAssets.shotId, shotId),
-        eq(shotAssets.type, type),
-        eq(shotAssets.sequenceInType, sequenceInType)
-      )
+  db.transaction((tx) => {
+    const slot = and(
+      eq(shotAssets.shotId, shotId),
+      eq(shotAssets.type, type),
+      eq(shotAssets.sequenceInType, sequenceInType),
     );
-  for (const row of slotRows) {
-    await db
-      .update(shotAssets)
-      .set({
-        isActive: row.assetVersion === assetVersion ? 1 : 0,
-        updatedAt: new Date(),
-      })
-      .where(eq(shotAssets.id, row.id));
-  }
+    const target = tx.select().from(shotAssets)
+      .where(and(slot, eq(shotAssets.assetVersion, assetVersion))).get();
+    if (!target) throw new Error("Asset version not found");
+    tx.update(shotAssets).set({ isActive: 0 }).where(slot).run();
+    tx.update(shotAssets).set({ isActive: 1, updatedAt: new Date() })
+      .where(eq(shotAssets.id, target.id)).run();
+  });
 }
 
 /** Hard-delete all assets of a given type for a shot (used when wiping a mode's data). */
