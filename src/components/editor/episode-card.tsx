@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import { MoreHorizontal, Pencil, Trash2, Film, Clock, Play, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Episode } from "@/stores/episode-store";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import type { Episode } from "@/stores/episode-store";
+import { Check,Clock,Film,MoreHorizontal,Pencil,Play,Trash2 } from "lucide-react";
+import { useLocale,useTranslations } from "next-intl";
+import Link from "next/link";
+import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 
 interface EpisodeCardProps {
   episode: Episode;

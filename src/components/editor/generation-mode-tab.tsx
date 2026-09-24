@@ -1,7 +1,8 @@
 "use client";
+import { useParams } from "next/navigation";
 
 import { useTranslations } from "next-intl";
-import { useProjectStore } from "@/stores/project-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 
 import { apiFetch } from "@/lib/api-fetch";
 import { Film, ImageIcon } from "lucide-react";
@@ -10,31 +11,29 @@ import { toast } from "sonner";
 type GenerationMode = "keyframe" | "reference";
 
 export function GenerationModeTab() {
+  const { episodeId } = useParams<{ episodeId: string }>();
   const t = useTranslations("project");
-  const { project, setProject } = useProjectStore();
+  const { episode, updateDraft } = useEpisodeEditorStore();
 
-  if (!project) return null;
+  if (!episode) return null;
 
-  const mode = (project.generationMode || "keyframe") as GenerationMode;
+  const mode = (episode.generationMode || "keyframe") as GenerationMode;
 
   async function switchMode(newMode: GenerationMode) {
-    if (!project || newMode === mode) return;
+    if (!episode || newMode === mode) return;
 
-    const previous = project;
-    setProject({ ...project, generationMode: newMode });
+    const previous = episode;
+    updateDraft(episodeId, { generationMode: newMode });
 
     try {
-      const episodeId = useProjectStore.getState().currentEpisodeId;
-      const url = episodeId
-        ? `/api/projects/${project.id}/episodes/${episodeId}`
-        : `/api/projects/${project.id}`;
+      const url = `/api/projects/${episode.projectId}/episodes/${episodeId}`;
       await apiFetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ generationMode: newMode }),
       });
     } catch (err) {
-      setProject(previous);
+      updateDraft(episodeId, { generationMode: previous.generationMode });
       toast.error(err instanceof Error ? err.message : "Failed to switch mode");
     }
   }

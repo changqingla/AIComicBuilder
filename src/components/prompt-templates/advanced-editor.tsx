@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePromptTemplateStore } from "@/stores/prompt-template-store";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
-import { toast } from "sonner";
-import { Save, RotateCcw } from "lucide-react";
+import { usePromptTemplateStore } from "@/stores/prompt-template-store";
+import { RotateCcw,Save } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect,useState } from "react";
+import { toast } from "sonner";
 
 interface AdvancedEditorProps {
   scope?: "global" | "project";

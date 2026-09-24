@@ -1,13 +1,13 @@
 "use client";
 
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { AgentSection } from "@/components/settings/agent-section";
 import { DefaultModelPicker } from "@/components/settings/default-model-picker";
 import { ProviderSection } from "@/components/settings/provider-section";
-import { AgentSection } from "@/components/settings/agent-section";
+import { ArrowLeft,ImageIcon,Settings,Type,VideoIcon,Wand2,Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Settings, Zap, Type, ImageIcon, VideoIcon, Wand2, Bot } from "lucide-react";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");

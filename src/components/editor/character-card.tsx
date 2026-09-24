@@ -1,19 +1,20 @@
 "use client";
+import { useDraft } from "@/hooks/use-draft";
 
-import { useEffect, useRef, useState } from "react";
+import { InlineModelPicker } from "@/components/editor/model-selector";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useTranslations } from "next-intl";
-import { uploadUrl } from "@/lib/utils/upload-url";
-import { useModelStore, type ModelRef } from "@/stores/model-store";
-import { Sparkles, Loader2, Copy, Check, ArrowUpCircle, Trash2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
-import { InlineModelPicker } from "@/components/editor/model-selector";
-import { apiFetch } from "@/lib/api-fetch";
 import { useModelGuard } from "@/hooks/use-model-guard";
-import { toast } from "sonner";
 import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
+import { apiFetch } from "@/lib/api-fetch";
+import { uploadUrl } from "@/lib/utils/upload-url";
+import { useModelStore,type ModelRef } from "@/stores/model-store";
+import { ArrowUpCircle,Check,ChevronLeft,ChevronRight,Copy,Loader2,Sparkles,Trash2,Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useRef,useState } from "react";
+import { toast } from "sonner";
 
 interface CharacterCardProps {
   id: string;
@@ -51,14 +52,11 @@ export function CharacterCard({
   const providers = useModelStore((s) => s.providers);
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
   const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(() => defaultImageModel);
-  const [editName, setEditName] = useState(name);
-  const [editDesc, setEditDesc] = useState(description);
-  const [editVisualHint, setEditVisualHint] = useState(visualHint ?? "");
+  const [editName, setEditName] = useDraft(name);
+  const [editDesc, setEditDesc] = useDraft(description);
+  const [editVisualHint, setEditVisualHint] = useDraft(visualHint ?? "");
 
   // Sync local state when props change (e.g. after re-extraction)
-  useEffect(() => { setEditName(name); }, [name]);
-  useEffect(() => { setEditDesc(description); }, [description]);
-  useEffect(() => { setEditVisualHint(visualHint ?? ""); }, [visualHint]);
   const [generating, setGenerating] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const [copied, setCopied] = useState(false);

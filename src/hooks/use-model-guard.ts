@@ -1,5 +1,7 @@
 "use client";
 
+import { useAgentStore } from "@/stores/agent-store";
+import type { AgentCategory } from "@/lib/ai/agent-caller";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -19,14 +21,18 @@ const messageKeys: Record<Capability, string> = {
  * Returns false (and shows a toast) if the model is not configured.
  * Returns true if the model is configured and the action can proceed.
  */
-export function useModelGuard(capability: Capability): () => boolean {
+export function useModelGuard(capability: Capability): (category?: AgentCategory, projectId?: string) => boolean {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("settings");
   // Use selector pattern (consistent with codebase; avoids re-renders on unrelated store changes)
   const getModelConfig = useModelStore((s) => s.getModelConfig);
 
-  return useCallback((): boolean => {
+  return useCallback((category?: AgentCategory, projectId?: string): boolean => {
+    if (capability === "text" && category && projectId) {
+      const bindings = useAgentStore.getState().bindingsByProject[projectId];
+      if (!bindings || bindings.some((binding) => binding.category === category && binding.agentId)) return true;
+    }
     // If the store hasn't hydrated from localStorage yet, allow through.
     // The API will handle missing config server-side.
     if (!useModelStore.persist.hasHydrated()) {

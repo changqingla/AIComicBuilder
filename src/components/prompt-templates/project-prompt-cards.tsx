@@ -1,12 +1,15 @@
 "use client";
+import { useDraft } from "@/hooks/use-draft";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useEffect, useState, useCallback } from "react";
-import { apiFetch } from "@/lib/api-fetch";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-fetch";
+import { Edit,Loader2,RotateCcw } from "lucide-react";
+import { useLocale,useTranslations } from "next-intl";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Edit, RotateCcw, FileText } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -86,41 +89,24 @@ interface ProjectPromptCardsProps {
   projectId: string;
 }
 
+const EMPTY_OVERRIDES: ProjectPromptTemplate[] = [];
+
 export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
   const locale = useLocale();
   const t = useTranslations("promptTemplates");
 
-  const [registry, setRegistry] = useState<RegistryEntry[]>([]);
-  const [overrides, setOverrides] = useState<ProjectPromptTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [enabled, setEnabled] = useState(false);
+  const { data, isLoading: loading } = useSWR(["project-prompts", projectId], async ([, id]) => {
+    const [registry, overrides, project] = await Promise.all([
+      fetchJson<RegistryEntry[]>("/api/prompt-templates/registry"),
+      fetchJson<ProjectPromptTemplate[]>(`/api/projects/${id}/prompt-templates`),
+      fetchJson<{ useProjectPrompts: boolean }>(`/api/projects/${id}`),
+    ]);
+    return { registry, overrides, enabled: !!project.useProjectPrompts };
+  }, { revalidateOnFocus: false, onError: () => toast.error("Load failed") });
+  const registry = data?.registry ?? [];
+  const [overrides, setOverrides] = useDraft(data?.overrides ?? EMPTY_OVERRIDES);
+  const [enabled, setEnabled] = useDraft(data?.enabled ?? false);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
-
-  // Fetch registry + project overrides + project settings on mount
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [regResp, overResp, projResp] = await Promise.all([
-        apiFetch("/api/prompt-templates/registry"),
-        apiFetch(`/api/projects/${projectId}/prompt-templates`),
-        apiFetch(`/api/projects/${projectId}`),
-      ]);
-      const regData: RegistryEntry[] = await regResp.json();
-      const overData: ProjectPromptTemplate[] = await overResp.json();
-      const projData = await projResp.json();
-      setRegistry(regData);
-      setOverrides(overData);
-      setEnabled(!!projData.useProjectPrompts);
-    } catch {
-      toast.error("Load failed");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   // Compute per-prompt stats
   function getPromptStats(entry: RegistryEntry) {

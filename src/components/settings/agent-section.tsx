@@ -1,12 +1,14 @@
 "use client";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api-fetch";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Eye, EyeOff, Bot, Save, Pencil, X } from "lucide-react";
+import { apiFetch } from "@/lib/api-fetch";
+import { Bot,Eye,EyeOff,Pencil,Plus,Save,Trash2,X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface Agent {
   id: string;
@@ -48,26 +50,12 @@ const EMPTY_FORM = {
 export function AgentSection() {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { data: agents = [], mutate: fetchAgents } = useSWR("/api/agents", fetchJson<Agent[]>);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(EMPTY_FORM);
-
-  const fetchAgents = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/agents");
-      const data = await res.json();
-      setAgents(data);
-    } catch {
-      // silently fail
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAgents();
-  }, [fetchAgents]);
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -118,7 +106,7 @@ export function AgentSection() {
   async function handleDelete(id: string) {
     try {
       await apiFetch(`/api/agents/${id}`, { method: "DELETE" });
-      setAgents((prev) => prev.filter((a) => a.id !== id));
+      await fetchAgents(agents.filter((agent) => agent.id !== id), { revalidate: false });
       if (editingId === id) resetForm();
     } catch {
       // silently fail

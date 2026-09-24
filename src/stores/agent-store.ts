@@ -15,7 +15,7 @@ interface AgentInfo {
 
 interface AgentStore {
   agents: AgentInfo[];
-  bindings: AgentBinding[];
+  bindingsByProject: Record<string, AgentBinding[]>;
   loading: boolean;
   fetchAgents: () => Promise<void>;
   fetchBindings: (projectId: string) => Promise<void>;
@@ -24,7 +24,7 @@ interface AgentStore {
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
   agents: [],
-  bindings: [],
+  bindingsByProject: {},
   loading: false,
 
   fetchAgents: async () => {
@@ -38,7 +38,8 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ loading: true });
     const res = await apiFetch(`/api/projects/${projectId}/agent-bindings`);
     if (res.ok) {
-      set({ bindings: await res.json(), loading: false });
+      const bindings: AgentBinding[] = await res.json();
+      set((state) => ({ bindingsByProject: { ...state.bindingsByProject, [projectId]: bindings }, loading: false }));
     } else {
       set({ loading: false });
     }

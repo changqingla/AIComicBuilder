@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useMemo,useState } from "react";
 
 interface Shot {
   id: string;

@@ -1,15 +1,18 @@
 "use client";
+import { useDraft } from "@/hooks/use-draft";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useCallback, useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { apiFetch } from "@/lib/api-fetch";
-import { toast } from "sonner";
-import { Save, RotateCcw, Wand2, Lock, X } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useModelStore } from "@/stores/model-store";
+import { Button } from "@/components/ui/button";
+import { Dialog,DialogContent,DialogTitle } from "@/components/ui/dialog";
 import { getModelMaxDuration } from "@/lib/ai/model-limits";
+import { apiFetch } from "@/lib/api-fetch";
+import { useModelStore } from "@/stores/model-store";
+import { Lock,RotateCcw,Save,Wand2,X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────
 
@@ -50,18 +53,13 @@ interface PromptDrawerProps {
   projectId?: string;
 }
 
+const EMPTY_CONTENTS: Record<string, Record<string, string>> = {};
+
 export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectId }: PromptDrawerProps) {
   const t = useTranslations("promptTemplates");
   const promptKeys = Array.isArray(rawKeys) ? rawKeys : [rawKeys];
 
-  const [prompts, setPrompts] = useState<PromptMeta[]>([]);
-  const [selectedPromptKey, setSelectedPromptKey] = useState<string | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<{ promptKey: string; slotKey: string } | null>(null);
-  // promptKey -> slotKey -> content
-  const [slotContents, setSlotContents] = useState<Record<string, Record<string, string>>>({});
-  const [serverOverrides, setServerOverrides] = useState<Record<string, Record<string, string>>>({});
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const defaultVideoModel = useModelStore((s) => s.defaultVideoModel);
   const videoMaxDuration = getModelMaxDuration(defaultVideoModel?.modelId);
@@ -85,56 +83,28 @@ export function PromptDrawer({ open, onOpenChange, promptKeys: rawKeys, projectI
     ? `/api/projects/${projectId}/prompt-templates`
     : "/api/prompt-templates";
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [regResp, overResp] = await Promise.all([
-        apiFetch("/api/prompt-templates/registry"),
-        apiFetch(templatesBasePath),
-      ]);
-      const regData: PromptMeta[] = await regResp.json();
-      const overData: ServerOverride[] = await overResp.json();
-
-      const found = promptKeys.map((k) => regData.find((r) => r.key === k)).filter(Boolean) as PromptMeta[];
-      if (found.length === 0) return;
-      setPrompts(found);
-
-      // Build server overrides & slot contents for all prompts
-      const overMap: Record<string, Record<string, string>> = {};
-      const contents: Record<string, Record<string, string>> = {};
-      for (const prompt of found) {
-        overMap[prompt.key] = {};
-        contents[prompt.key] = {};
-        for (const o of overData) {
-          if (o.promptKey === prompt.key && o.slotKey) {
-            overMap[prompt.key][o.slotKey] = o.content;
-          }
-        }
-        for (const slot of prompt.slots) {
-          contents[prompt.key][slot.key] = overMap[prompt.key][slot.key] ?? slot.defaultContent;
-        }
-      }
-      setServerOverrides(overMap);
-      setSlotContents(contents);
-
-      // Auto-select first prompt + its first editable slot
-      const firstPrompt = found[0];
-      setSelectedPromptKey(firstPrompt?.key ?? null);
-      const firstEditable = firstPrompt?.slots.find((s) => s.editable);
-      if (firstPrompt && firstEditable) {
-        setSelectedSlot({ promptKey: firstPrompt.key, slotKey: firstEditable.key });
-      }
-    } catch {
-      toast.error("Failed to load prompt data");
-    } finally {
-      setLoading(false);
+  const { data, isLoading: loading } = useSWR(open ? [templatesBasePath, promptKeys.join(",")] : null, async ([basePath, keys]) => {
+    const [registry, overrides] = await Promise.all([
+      fetchJson<PromptMeta[]>("/api/prompt-templates/registry"),
+      fetchJson<ServerOverride[]>(basePath),
+    ]);
+    const prompts = keys.split(",").map((key) => registry.find((prompt) => prompt.key === key)).filter((prompt) => !!prompt);
+    const server: Record<string, Record<string, string>> = {};
+    const contents: Record<string, Record<string, string>> = {};
+    for (const prompt of prompts) {
+      server[prompt.key] = Object.fromEntries(overrides.filter((row) => row.promptKey === prompt.key && row.slotKey).map((row) => [row.slotKey!, row.content]));
+      contents[prompt.key] = Object.fromEntries(prompt.slots.map((slot) => [slot.key, server[prompt.key][slot.key] ?? slot.defaultContent]));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promptKeys.join(","), templatesBasePath]);
-
-  useEffect(() => {
-    if (open) loadData();
-  }, [open, loadData]);
+    const first = prompts[0];
+    const slot = first?.slots.find((slot) => slot.editable);
+    return { prompts, server, contents, promptKey: first?.key ?? null,
+      slot: first && slot ? { promptKey: first.key, slotKey: slot.key } : null };
+  }, { revalidateOnFocus: false, onError: () => toast.error("Failed to load prompt data") });
+  const prompts = data?.prompts ?? [];
+  const [selectedPromptKey, setSelectedPromptKey] = useDraft(data?.promptKey ?? null);
+  const [selectedSlot, setSelectedSlot] = useDraft(data?.slot ?? null);
+  const [slotContents, setSlotContents] = useDraft(data?.contents ?? EMPTY_CONTENTS);
+  const [serverOverrides, setServerOverrides] = useDraft(data?.server ?? EMPTY_CONTENTS);
 
   if (prompts.length === 0 && !loading) return null;
 

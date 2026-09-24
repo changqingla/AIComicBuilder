@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, use } from "react";
-import { useProjectStore } from "@/stores/project-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 
 import { ProjectNav } from "@/components/editor/project-nav";
 import { Loader2 } from "lucide-react";
@@ -16,13 +16,13 @@ export default function EpisodeLayout({
 }) {
   const { id, episodeId } = use(params);
   const t = useTranslations("common");
-  const { project, loading, fetchProject } = useProjectStore();
+  const { episode, loading, openEpisode } = useEpisodeEditorStore();
 
   useEffect(() => {
-    fetchProject(id, episodeId);
-  }, [id, episodeId, fetchProject]);
+    openEpisode(id, episodeId);
+  }, [id, episodeId, openEpisode]);
 
-  if (loading || !project) {
+  if (loading || !episode || episode.id !== episodeId) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -35,7 +35,7 @@ export default function EpisodeLayout({
     <div className="flex flex-1">
       <ProjectNav projectId={id} episodeId={episodeId} />
       <main className="flex-1 bg-[--surface] p-6 pb-24 lg:pb-6 min-w-0">
-        {children}
+        <div key={episodeId} className="min-w-0">{children}</div>
       </main>
     </div>
   );

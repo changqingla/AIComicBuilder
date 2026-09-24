@@ -1,61 +1,58 @@
 "use client";
+import { useDraft } from "@/hooks/use-draft";
 
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useParams } from "next/navigation";
-import { useProjectStore,  } from "@/stores/project-store";
-import { getKeyframeVideoUrl, getReferenceVideoUrl, getSceneRefFrameUrl, getFirstFrameUrl } from "@/lib/shot-assets";
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
-import { uploadUrl } from "@/lib/utils/upload-url";
-import {
-  Sparkles,
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  Play,
-  Monitor,
-  Download,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-fetch";
+import { getFirstFrameUrl,getKeyframeVideoUrl,getReferenceVideoUrl,getSceneRefFrameUrl } from "@/lib/shot-assets";
+import { cn } from "@/lib/utils";
+import { uploadUrl } from "@/lib/utils/upload-url";
+import { useEpisodeEditorStore,} from "@/stores/episode-editor-store";
+import {
+ChevronLeft,
+ChevronRight,
+Download,
+Loader2,
+Monitor,
+Play,
+Sparkles,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useParams,useSearchParams } from "next/navigation";
+import { useEffect,useRef,useState } from "react";
 import { toast } from "sonner";
 
 export default function EpisodePreviewPage() {
+  const { episodeId } = useParams<{ episodeId: string }>();
   const t = useTranslations();
-  const { project, fetchProject } = useProjectStore();
+  const { episode, fetchEpisode } = useEpisodeEditorStore();
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
   const versionId = searchParams.get("versionId");
 
   useEffect(() => {
     if (versionId && params?.id) {
-      fetchProject(params.id, undefined, versionId);
+      fetchEpisode(params.id, episodeId, versionId);
     }
-  }, [versionId, params?.id, fetchProject]);
+  }, [versionId, params?.id, episodeId, fetchEpisode]);
 
   const [assembling, setAssembling] = useState(false);
   const [selectedShot, setSelectedShot] = useState(0);
   const [videoValid, setVideoValid] = useState<boolean | null>(null);
   const checkedUrl = useRef<string | null>(null);
 
-  const finalVideoUrl = project?.finalVideoUrl ?? null;
-  const generationMode = project?.generationMode ?? "keyframe";
+  const finalVideoUrl = episode?.finalVideoUrl ?? null;
+  const generationMode = episode?.generationMode ?? "keyframe";
 
   // Which mode's videos to preview — default to the project's generationMode
-  const hasKeyframeVideos = project?.shots.some((s) => getKeyframeVideoUrl(s)) ?? false;
-  const hasReferenceVideos = project?.shots.some((s) => getReferenceVideoUrl(s)) ?? false;
+  const hasKeyframeVideos = episode?.shots.some((s) => getKeyframeVideoUrl(s)) ?? false;
+  const hasReferenceVideos = episode?.shots.some((s) => getReferenceVideoUrl(s)) ?? false;
   const hasBothModes = hasKeyframeVideos && hasReferenceVideos;
 
-  const [previewMode, setPreviewMode] = useState<"keyframe" | "reference">(generationMode);
-
-  // Sync previewMode when project loads
-  useEffect(() => {
-    if (project) setPreviewMode(project.generationMode ?? "keyframe");
-  }, [project?.generationMode]);
+  const [previewMode, setPreviewMode] = useDraft<"keyframe" | "reference">(generationMode);
 
   // Check if final video file actually exists
   useEffect(() => {
-    if (!finalVideoUrl) { setVideoValid(null); return; }
+    if (!finalVideoUrl) return;
     if (checkedUrl.current === finalVideoUrl) return;
     checkedUrl.current = finalVideoUrl;
     fetch(uploadUrl(finalVideoUrl), { method: "HEAD" })
@@ -63,29 +60,29 @@ export default function EpisodePreviewPage() {
       .catch(() => setVideoValid(false));
   }, [finalVideoUrl]);
 
-  if (!project) return null;
+  if (!episode) return null;
 
-  const getVideoUrl = (shot: typeof project.shots[0]) =>
+  const getVideoUrl = (shot: typeof episode.shots[0]) =>
     previewMode === "reference" ? getReferenceVideoUrl(shot) : getKeyframeVideoUrl(shot);
 
-  const getThumbnail = (shot: typeof project.shots[0]) =>
+  const getThumbnail = (shot: typeof episode.shots[0]) =>
     previewMode === "reference" ? getSceneRefFrameUrl(shot) : getFirstFrameUrl(shot);
 
-  const shotsWithVideo = project.shots.filter((s) => getVideoUrl(s));
-  const allShotsHaveVideo = project.shots.length > 0 && project.shots.every((s) => getVideoUrl(s));
+  const shotsWithVideo = episode.shots.filter((s) => getVideoUrl(s));
+  const allShotsHaveVideo = episode.shots.length > 0 && episode.shots.every((s) => getVideoUrl(s));
   const completedVideos = shotsWithVideo.length;
   const currentShot = shotsWithVideo[selectedShot];
   const hasValidVideo = finalVideoUrl && videoValid === true;
 
   async function handleAssemble() {
-    if (!project) return;
+    if (!episode) return;
     setAssembling(true);
     checkedUrl.current = null;
     try {
-      const res = await apiFetch(`/api/projects/${project.id}/generate`, {
+      const res = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "video_assemble", payload: versionId ? { versionId } : undefined, episodeId: useProjectStore.getState().currentEpisodeId }),
+        body: JSON.stringify({ action: "video_assemble", payload: versionId ? { versionId } : undefined, episodeId: episodeId }),
       });
       await res.json();
     } catch (err) {
@@ -93,14 +90,14 @@ export default function EpisodePreviewPage() {
       toast.error(t("common.generationFailed"));
     }
     setAssembling(false);
-    await fetchProject(project.id, useProjectStore.getState().currentEpisodeId!);
+    await fetchEpisode(episode.projectId, episodeId, versionId ?? undefined);
   }
 
   function handleDownload() {
     if (!hasValidVideo) return;
     const a = document.createElement("a");
     a.href = uploadUrl(finalVideoUrl!);
-    a.download = `${project!.title || "video"}-final.mp4`;
+    a.download = `${episode!.title || "video"}-final.mp4`;
     a.click();
   }
 
@@ -124,7 +121,7 @@ export default function EpisodePreviewPage() {
             <p className="text-xs text-[--text-muted]">
               {t("project.shotsCompleted", {
                 completed: completedVideos,
-                total: project.shots.length,
+                total: episode.shots.length,
               })}
             </p>
           </div>

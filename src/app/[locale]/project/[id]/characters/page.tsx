@@ -1,12 +1,14 @@
 "use client";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useEffect, useState, useMemo, useCallback, use } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { Users, ArrowLeft, Loader2, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api-fetch";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
+import { apiFetch } from "@/lib/api-fetch";
+import { ArrowLeft,Loader2 } from "lucide-react";
+import { useLocale,useTranslations } from "next-intl";
 import Link from "next/link";
+import { use,useMemo } from "react";
 import { toast } from "sonner";
 
 interface Character {
@@ -38,23 +40,18 @@ export default function CharactersPage({
   const tc = useTranslations("common");
   const tChar = useTranslations("character");
 
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    const [chars, eps] = await Promise.all([
-      apiFetch(`/api/projects/${projectId}/characters`).then((r) => r.json()),
-      apiFetch(`/api/projects/${projectId}/episodes`).then((r) => r.json()),
-    ]);
-    setCharacters(chars);
-    setEpisodes(eps);
-    setLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { data, isLoading: loading, mutate: fetchData } = useSWR(
+    ["project-characters", projectId],
+    async ([, id]) => {
+      const [characters, episodes] = await Promise.all([
+        fetchJson<Character[]>(`/api/projects/${id}/characters`),
+        fetchJson<Episode[]>(`/api/projects/${id}/episodes`),
+      ]);
+      return { characters, episodes };
+    },
+  );
+  const characters = data?.characters ?? [];
+  const episodes = data?.episodes ?? [];
 
   const mainCharacters = useMemo(
     () => characters.filter((c) => c.scope === "main"),

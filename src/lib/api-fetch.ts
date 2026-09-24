@@ -16,3 +16,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   }
   return response;
 }
+
+export async function fetchJson<T>(url: string): Promise<T> {
+  return (await apiFetch(url)).json();
+}

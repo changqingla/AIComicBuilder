@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
+Dialog,
+DialogClose,
+DialogContent,
+DialogFooter,
+DialogHeader,
+DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface EpisodeDialogProps {
   open: boolean;
@@ -21,7 +21,11 @@ interface EpisodeDialogProps {
   mode?: "create" | "edit";
 }
 
-export function EpisodeDialog({
+export function EpisodeDialog(props: EpisodeDialogProps) {
+  return props.open ? <EpisodeDialogContent {...props} /> : null;
+}
+
+function EpisodeDialogContent({
   open,
   onOpenChange,
   onSubmit,
@@ -34,14 +38,6 @@ export function EpisodeDialog({
   const [description, setDescription] = useState(defaultValues?.description || "");
   const [keywords, setKeywords] = useState(defaultValues?.keywords || "");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(defaultValues?.title || "");
-      setDescription(defaultValues?.description || "");
-      setKeywords(defaultValues?.keywords || "");
-    }
-  }, [open, defaultValues?.title, defaultValues?.description, defaultValues?.keywords]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

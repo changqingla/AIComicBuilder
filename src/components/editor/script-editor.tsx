@@ -1,9 +1,12 @@
 "use client";
+import { useDebouncedCallback } from "use-debounce";
+import type { EpisodeDetail } from "@/stores/episode-editor-store";
+import { useParams } from "next/navigation";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useProjectStore } from "@/stores/project-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 
 import { useModelStore } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
@@ -16,97 +19,67 @@ import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-butt
 import { toast } from "sonner";
 
 export function ScriptEditor() {
+  const { episodeId } = useParams<{ episodeId: string }>();
   const t = useTranslations();
-  const { project, updateIdea, updateScript, fetchProject } = useProjectStore();
+  const { episode, updateDraft, fetchEpisode } = useEpisodeEditorStore();
   const getModelConfig = useModelStore((s) => s.getModelConfig);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingOutline, setGeneratingOutline] = useState(false);
-  const [outline, setOutline] = useState(project?.outline || "");
+  const outline = episode?.outline ?? "";
+  const setOutline = (value: string) => updateDraft(episodeId, { outline: value });
+  const updateScript = (value: string) => updateDraft(episodeId, { script: value });
   const textGuard = useModelGuard("text");
   const scriptTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Sync outline from project when project data changes
-  useEffect(() => {
-    if (project?.outline !== undefined) {
-      setOutline(project.outline || "");
-    }
-  }, [project?.outline]);
 
   useEffect(() => {
     if (generating && scriptTextareaRef.current) {
       const el = scriptTextareaRef.current;
       el.scrollTop = el.scrollHeight;
     }
-  }, [project?.script, generating]);
+  }, [episode?.script, generating]);
 
-  // Auto-save: debounced (1.5s after last keystroke) + onBlur fallback
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savingRef = useRef(false);
-
-  const persistNow = useCallback(async () => {
-    const state = useProjectStore.getState();
-    const proj = state.project;
-    if (!proj || savingRef.current) return;
-    savingRef.current = true;
+  async function save(draft: EpisodeDetail) {
     setSaving(true);
-    const episodeId = state.currentEpisodeId;
-    const url = episodeId
-      ? `/api/projects/${proj.id}/episodes/${episodeId}`
-      : `/api/projects/${proj.id}`;
     try {
-      await apiFetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: proj.idea, script: proj.script, outline: proj.outline }),
+      await apiFetch(`/api/projects/${draft.projectId}/episodes/${draft.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea: draft.idea, script: draft.script, outline: draft.outline }),
       });
-    } catch (err) {
-      console.error("Auto-save error:", err);
-    }
-    savingRef.current = false;
-    setSaving(false);
-  }, []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("common.generationFailed"));
+    } finally { setSaving(false); }
+  }
+  const saveLater = useDebouncedCallback(save, 1500);
+  useEffect(() => () => { saveLater.flush(); }, [saveLater]);
 
-  const scheduleSave = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      persistNow();
-    }, 1500);
-  }, [persistNow]);
-
-  // Clean up debounce on unmount and flush pending save
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        persistNow();
-      }
-    };
-  }, [persistNow]);
-
-  if (!project) return null;
-
+  function edit(patch: Partial<EpisodeDetail>) {
+    if (!episode) return;
+    updateDraft(episodeId, patch);
+    saveLater({ ...episode, ...patch });
+  }
   function handleSave() {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    persistNow();
+    if (saveLater.isPending()) saveLater.flush();
   }
 
+  if (!episode) return null;
+
   async function handleGenerateOutline() {
-    if (!project) return;
-    if (!textGuard()) return;
+    if (!episode) return;
+    if (!textGuard("script_outline", episode.projectId)) return;
     setGeneratingOutline(true);
     setOutline("");
 
     try {
-      const currentEpisodeId = useProjectStore.getState().currentEpisodeId;
-      const resp = await apiFetch(`/api/projects/${project.id}/generate`, {
+      
+      const resp = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "script_outline",
-          payload: { idea: project.idea || "" },
+          payload: { idea: episode.idea || "" },
           modelConfig: getModelConfig(),
-          episodeId: currentEpisodeId,
+          episodeId: episodeId,
         }),
       });
       if (!resp.ok) throw new Error("Failed to generate outline");
@@ -125,12 +98,10 @@ export function ScriptEditor() {
         }
 
         // Update store so it persists
-        useProjectStore.setState((state) => ({
-          project: state.project ? { ...state.project, outline: fullText } : null,
-        }));
+        setOutline(fullText);
       }
 
-      await fetchProject(project.id, currentEpisodeId ?? undefined);
+      await fetchEpisode(episode.projectId, episodeId);
     } catch (err) {
       console.error("Outline generate error:", err);
       toast.error(t("common.generationFailed"));
@@ -140,21 +111,16 @@ export function ScriptEditor() {
   }
 
   function handleOutlineChange(value: string) {
-    setOutline(value);
-    // Update project store so auto-save picks it up
-    useProjectStore.setState((state) => ({
-      project: state.project ? { ...state.project, outline: value } : null,
-    }));
-    scheduleSave();
+    edit({ outline: value });
   }
 
   async function handleGenerateScript() {
-    if (!project) return;
-    if (!textGuard()) return;
+    if (!episode) return;
+    if (!textGuard("script_generate", episode.projectId) || (!outline.trim() && !textGuard("script_outline", episode.projectId))) return;
     setGenerating(true);
 
-    const idea = project.idea || "";
-    const currentEpisodeId = useProjectStore.getState().currentEpisodeId;
+    const idea = episode.idea || "";
+    
     let currentOutline = outline;
 
     try {
@@ -163,14 +129,14 @@ export function ScriptEditor() {
         setGeneratingOutline(true);
         toast.info(t("project.generatingOutlineFirst") || "Generating outline first...");
 
-        const outlineResp = await apiFetch(`/api/projects/${project.id}/generate`, {
+        const outlineResp = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "script_outline",
             payload: { idea },
             modelConfig: getModelConfig(),
-            episodeId: currentEpisodeId,
+            episodeId: episodeId,
           }),
         });
 
@@ -187,9 +153,7 @@ export function ScriptEditor() {
           }
 
           currentOutline = fullOutline;
-          useProjectStore.setState((state) => ({
-            project: state.project ? { ...state.project, outline: fullOutline } : null,
-          }));
+          setOutline(fullOutline);
         }
         setGeneratingOutline(false);
       }
@@ -197,14 +161,14 @@ export function ScriptEditor() {
       // Step 2: Generate script (with outline if available)
       updateScript("");
 
-      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
+      const response = await apiFetch(`/api/projects/${episode.projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "script_generate",
           payload: { idea, outline: currentOutline || undefined },
           modelConfig: getModelConfig(),
-          episodeId: currentEpisodeId,
+          episodeId: episodeId,
         }),
       });
 
@@ -221,7 +185,7 @@ export function ScriptEditor() {
         }
       }
 
-      await fetchProject(project.id, currentEpisodeId ?? undefined);
+      await fetchEpisode(episode.projectId, episodeId ?? undefined);
     } catch (err) {
       console.error("Script generate error:", err);
       toast.error(t("common.generationFailed"));
@@ -244,7 +208,7 @@ export function ScriptEditor() {
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <PromptEditButton promptKeys={["script_outline", "script_generate"]} projectId={project.id} />
+          <PromptEditButton promptKeys={["script_outline", "script_generate"]} projectId={episode.projectId} />
           <InlineModelPicker capability="text" />
           {saving && (
             <span className="flex items-center gap-1.5 text-xs text-[--text-muted]">
@@ -260,12 +224,12 @@ export function ScriptEditor() {
         <div className="flex items-center gap-2 px-5 pt-3 pb-1">
           <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-            {t("project.idea")}
+            {t("episode.idea")}
           </span>
         </div>
         <Textarea
-          value={project.idea}
-          onChange={(e) => { updateIdea(e.target.value); scheduleSave(); }}
+          value={episode.idea}
+          onChange={(e) => { edit({ idea: e.target.value });  }}
           onBlur={handleSave}
           placeholder={t("project.scriptIdeaPlaceholder")}
           rows={4}
@@ -288,11 +252,11 @@ export function ScriptEditor() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <AgentPicker projectId={project.id} category="script_outline" />
+              <AgentPicker projectId={episode.projectId} category="script_outline" />
               <Button
                 size="sm"
                 onClick={handleGenerateOutline}
-                disabled={generatingOutline || generating || !project.idea?.trim()}
+                disabled={generatingOutline || generating || !episode.idea?.trim()}
               >
                 {generatingOutline ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -326,11 +290,11 @@ export function ScriptEditor() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <AgentPicker projectId={project.id} category="script_generate" />
+              <AgentPicker projectId={episode.projectId} category="script_generate" />
               <Button
                 size="sm"
                 onClick={handleGenerateScript}
-                disabled={generating || generatingOutline || !project.idea?.trim()}
+                disabled={generating || generatingOutline || !episode.idea?.trim()}
               >
                 {generating ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -341,11 +305,11 @@ export function ScriptEditor() {
               </Button>
             </div>
           </div>
-          {project.script ? (
+          {episode.script ? (
             <Textarea
               ref={scriptTextareaRef}
-              value={project.script}
-              onChange={(e) => { updateScript(e.target.value); if (!generating) scheduleSave(); }}
+              value={episode.script}
+              onChange={(e) => { edit({ script: e.target.value }); }}
               onBlur={() => { if (!generating) handleSave(); }}
               disabled={generating}
               className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${

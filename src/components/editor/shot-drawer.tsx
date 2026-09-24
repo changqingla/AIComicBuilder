@@ -1,4 +1,5 @@
 "use client";
+import { useDraft } from "@/hooks/use-draft";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
   RefreshCw,
   Clock,
 } from "lucide-react";
-import { type Shot,  } from "@/stores/project-store";
+import { type Shot } from "@/lib/editor-types";
 import { getFirstFrameUrl, getLastFrameUrl, getSceneRefFrameUrl, getKeyframeVideoUrl, getReferenceVideoUrl, getFirstFramePrompt, getLastFramePrompt } from "@/lib/shot-assets";
 
 type DrawerShot = Shot;
@@ -59,13 +60,13 @@ export function ShotDrawer({
   const shot = currentIndex >= 0 ? shots[currentIndex] : null;
 
   // Local edit state
-  const [editPrompt, setEditPrompt] = useState("");
-  const [editStartFrame, setEditStartFrame] = useState("");
-  const [editEndFrame, setEditEndFrame] = useState("");
-  const [editMotionScript, setEditMotionScript] = useState("");
-  const [editVideoPrompt, setEditVideoPrompt] = useState("");
-  const [editCameraDirection, setEditCameraDirection] = useState("static");
-  const [editDuration, setEditDuration] = useState(5);
+  const [editPrompt, setEditPrompt] = useDraft(shot?.prompt ?? "");
+  const [editStartFrame, setEditStartFrame] = useDraft(shot ? getFirstFramePrompt(shot) ?? "" : "");
+  const [editEndFrame, setEditEndFrame] = useDraft(shot ? getLastFramePrompt(shot) ?? "" : "");
+  const [editMotionScript, setEditMotionScript] = useDraft(shot?.motionScript ?? "");
+  const [editVideoPrompt, setEditVideoPrompt] = useDraft(shot?.videoPrompt ?? "");
+  const [editCameraDirection, setEditCameraDirection] = useDraft(shot?.cameraDirection ?? "static");
+  const [editDuration, setEditDuration] = useDraft(shot?.duration ?? 5);
 
   // Local generating state (independent of page-level anyGenerating)
   const [generatingFrames, setGeneratingFrames] = useState(false);
@@ -76,22 +77,7 @@ export function ShotDrawer({
 
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
-  // Sync local state when shot changes
-  useEffect(() => {
-    if (!shot) return;
-    setEditPrompt(shot.prompt ?? "");
-    setEditStartFrame(getFirstFramePrompt(shot) ?? "");
-    setEditEndFrame(getLastFramePrompt(shot) ?? "");
-    setEditMotionScript(shot.motionScript ?? "");
-    setEditVideoPrompt(shot.videoPrompt ?? "");
-    setEditCameraDirection(shot.cameraDirection ?? "static");
-    setEditDuration(shot.duration ?? 5);
-    setGeneratingFrames(false);
-    setGeneratingSceneFrame(false);
-    setGeneratingVideo(false);
-    setGeneratingPrompt(false);
-    setRewritingText(false);
-  }, [shot?.id]);
+
 
   // Escape key to close
   useEffect(() => {

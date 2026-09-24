@@ -12,7 +12,7 @@ interface AgentPickerProps {
 
 export function AgentPicker({ projectId, category }: AgentPickerProps) {
   const t = useTranslations("settings");
-  const { agents, bindings, fetchAgents, fetchBindings, setBinding } = useAgentStore();
+  const { agents, bindingsByProject, fetchAgents, fetchBindings, setBinding } = useAgentStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -31,7 +31,7 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
   }, [open]);
 
   const availableAgents = agents.filter((a) => a.category === category);
-  const currentBinding = bindings.find((b) => b.category === category);
+  const currentBinding = (bindingsByProject[projectId] ?? []).find((b) => b.category === category);
   const selectedAgent = availableAgents.find((a) => a.id === currentBinding?.agentId);
 
   return (

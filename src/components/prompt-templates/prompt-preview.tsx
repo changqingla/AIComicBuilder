@@ -19,7 +19,6 @@ export function PromptPreview() {
 
   useEffect(() => {
     if (!prompt || !selectedPromptKey) {
-      setPreviewText("");
       return;
     }
 
@@ -50,7 +49,7 @@ export function PromptPreview() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // Trigger on slot content changes via editedSlots/serverOverrides
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [selectedPromptKey, prompt, getSlotContent, editedSlots, serverOverrides]);
 
   if (!prompt) return null;

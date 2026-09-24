@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { useModelStore, type ModelRef } from "@/stores/model-store";
+import { InlineModelPicker } from "@/components/editor/model-selector";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { InlineModelPicker } from "@/components/editor/model-selector";
-import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Sparkles, Loader2, Users } from "lucide-react";
+import { useModelStore,type ModelRef } from "@/stores/model-store";
+import { ChevronDown,ChevronUp,Loader2,Sparkles,Users } from "lucide-react";
+import { useLocale,useTranslations } from "next-intl";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface Character {
   id: string;
@@ -45,17 +45,8 @@ export function CharactersInlinePanel({
   const storageKey = `charPanel:${projectId}`;
   const anyMissingRef = characters.some((c) => !c.referenceImage);
 
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    // Auto-expand rule: condition takes precedence over localStorage at mount time
-    if (generationMode === "reference" && anyMissingRef) {
-      setOpen(true);
-      return;
-    }
-    const stored = localStorage.getItem(storageKey);
-    setOpen(stored === "true");
-  }, []); // only on mount
+  const [open, setOpen] = useState(() => (generationMode === "reference" && anyMissingRef)
+    || (typeof window !== "undefined" && localStorage.getItem(storageKey) === "true"));
 
   function toggle() {
     setOpen((prev) => {
