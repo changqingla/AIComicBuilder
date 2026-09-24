@@ -1,5 +1,6 @@
 {
   "common": {
+    "saveFailed": "保存できませんでした。もう一度お試しください。",
     "appName": "AI コミックビルダー",
     "create": "作成",
     "save": "保存",
@@ -187,6 +188,7 @@
     "shot": "ショット"
   },
   "storyboard": {
+    "generateKeyframePrompts": "キーフレームのプロンプトを生成",
     "stale": "更新が必要",
     "regenerateStale": "古いショットを再生成",
     "batchRefImages": "参考画像を一括生成",

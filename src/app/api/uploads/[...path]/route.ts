@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
+import { resolveUploadFile } from "@/lib/upload-files";
 
 const uploadDir = process.env.UPLOAD_DIR || "./uploads";
 
@@ -15,19 +16,17 @@ const MIME_TYPES: Record<string, string> = {
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path: segments } = await params;
-  const filePath = path.join(uploadDir, ...segments);
+  // Uploaded files are supplied in the runtime upload directory.
+  const filePath = path.join(
+    /* turbopackIgnore: true */ uploadDir,
+    ...segments,
+  );
 
-  // Prevent directory traversal
-  const resolved = path.resolve(filePath);
-  const resolvedUploadDir = path.resolve(uploadDir);
-  if (!resolved.startsWith(resolvedUploadDir)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (!fs.existsSync(resolved)) {
+  const resolved = resolveUploadFile(filePath);
+  if (!resolved) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

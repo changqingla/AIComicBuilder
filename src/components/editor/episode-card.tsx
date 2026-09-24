@@ -1,12 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
-import { MoreHorizontal, Pencil, Trash2, Film, Clock, Play, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Episode } from "@/stores/episode-store";
 import { uploadUrl } from "@/lib/utils/upload-url";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import type { Episode } from "@/stores/episode-store";
+import {
+  Check,
+  Clock,
+  Film,
+  MoreHorizontal,
+  Pencil,
+  Play,
+  Trash2,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface EpisodeCardProps {
   episode: Episode;
@@ -21,8 +29,15 @@ interface EpisodeCardProps {
 }
 
 export function EpisodeCard({
-  episode, projectId, onEdit, onDelete, onPlayVideo,
-  selectionMode, selected, selectable, onToggleSelect,
+  episode,
+  projectId,
+  onEdit,
+  onDelete,
+  onPlayVideo,
+  selectionMode,
+  selected,
+  selectable,
+  onToggleSelect,
 }: EpisodeCardProps) {
   const locale = useLocale();
   const t = useTranslations("dashboard");
@@ -44,8 +59,11 @@ export function EpisodeCard({
 
   const hasVideo = !!episode.finalVideoUrl;
   const isProcessing = episode.status === "processing";
-  const isDraft = episode.status === "draft";
-  const previewImages = useMemo(() => episode.previewImages ?? [], [episode.previewImages]);
+
+  const previewImages = useMemo(
+    () => episode.previewImages ?? [],
+    [episode.previewImages],
+  );
   const hasPreview = previewImages.length > 0;
 
   // Carousel state for preview images
@@ -59,14 +77,20 @@ export function EpisodeCard({
   }, [hasPreview, previewImages.length, hasVideo]);
 
   const keywordList = episode.keywords
-    ? episode.keywords.split(/[,，]/).map((k) => k.trim()).filter(Boolean)
+    ? episode.keywords
+        .split(/[,，]/)
+        .map((k) => k.trim())
+        .filter(Boolean)
     : [];
 
-  const handlePlayClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onPlayVideo?.(episode);
-  }, [episode, onPlayVideo]);
+  const handlePlayClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onPlayVideo?.(episode);
+    },
+    [episode, onPlayVideo],
+  );
 
   const detailHref = `/${locale}/project/${projectId}/episodes/${episode.id}/script`;
 
@@ -75,13 +99,15 @@ export function EpisodeCard({
   /* Selection overlay */
   const selectionOverlay = selectionMode ? (
     <div className="absolute inset-0 z-20 flex items-start justify-start p-3">
-      <div className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
-        selected
-          ? "border-primary bg-primary text-white"
-          : selectable
-            ? "border-white/80 bg-white/60 backdrop-blur-sm"
-            : "border-gray-300 bg-gray-200"
-      }`}>
+      <div
+        className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
+          selected
+            ? "border-primary bg-primary text-white"
+            : selectable
+              ? "border-white/80 bg-white/60 backdrop-blur-sm"
+              : "border-gray-300 bg-gray-200"
+        }`}
+      >
         {selected && <Check className="h-3 w-3" />}
       </div>
       {!selectable && (
@@ -186,7 +212,9 @@ export function EpisodeCard({
       <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-black/[0.04]">
         <Clock className="h-[18px] w-[18px] text-[--text-muted] opacity-50" />
       </div>
-      <span className="text-[11px] text-[--text-muted] opacity-60">{te("videoGenerating")}</span>
+      <span className="text-[11px] text-[--text-muted] opacity-60">
+        {te("videoGenerating")}
+      </span>
     </div>
   ) : (
     /* Draft: static placeholder */
@@ -205,7 +233,9 @@ export function EpisodeCard({
       <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-black/[0.04]">
         <Film className="h-[18px] w-[18px] text-[--text-muted] opacity-50" />
       </div>
-      <span className="text-[11px] text-[--text-muted] opacity-60">{te("videoPending")}</span>
+      <span className="text-[11px] text-[--text-muted] opacity-60">
+        {te("videoPending")}
+      </span>
     </div>
   );
 
@@ -238,7 +268,9 @@ export function EpisodeCard({
             </span>
           ))}
           {keywordList.length > 5 && (
-            <span className="text-[10px] text-[--text-muted]">+{keywordList.length - 5}</span>
+            <span className="text-[10px] text-[--text-muted]">
+              +{keywordList.length - 5}
+            </span>
           )}
         </div>
       )}
@@ -300,9 +332,7 @@ export function EpisodeCard({
           className="group relative flex flex-col overflow-hidden rounded-[14px] border border-[--border-subtle] bg-white transition-all duration-200 hover:border-primary hover:shadow-[0_6px_24px_rgba(232,85,58,0.08)] hover:-translate-y-0.5"
         >
           {thumbnailContent}
-          <div className="flex flex-1 flex-col p-3.5 pt-3">
-            {bodyContent}
-          </div>
+          <div className="flex flex-1 flex-col p-3.5 pt-3">{bodyContent}</div>
         </div>
       );
     }
@@ -313,9 +343,7 @@ export function EpisodeCard({
         className="group relative flex flex-col overflow-hidden rounded-[14px] border border-[--border-subtle] bg-white transition-all duration-200 hover:border-primary hover:shadow-[0_6px_24px_rgba(232,85,58,0.08)] hover:-translate-y-0.5"
       >
         {thumbnailContent}
-        <div className="flex flex-1 flex-col p-3.5 pt-3">
-          {bodyContent}
-        </div>
+        <div className="flex flex-1 flex-col p-3.5 pt-3">{bodyContent}</div>
         {actionsMenu}
       </Link>
     );
@@ -325,19 +353,18 @@ export function EpisodeCard({
   return (
     <div
       className="group relative flex flex-col overflow-hidden rounded-[14px] border border-[--border-subtle] bg-white transition-all duration-200 hover:border-primary hover:shadow-[0_6px_24px_rgba(232,85,58,0.08)] hover:-translate-y-0.5"
-      onClick={selectionMode ? () => selectable && onToggleSelect?.(episode) : undefined}
+      onClick={
+        selectionMode
+          ? () => selectable && onToggleSelect?.(episode)
+          : undefined
+      }
     >
       {thumbnailContent}
 
       {selectionMode ? (
-        <div className="flex flex-1 flex-col p-3.5 pt-3">
-          {bodyContent}
-        </div>
+        <div className="flex flex-1 flex-col p-3.5 pt-3">{bodyContent}</div>
       ) : (
-        <Link
-          href={detailHref}
-          className="flex flex-1 flex-col p-3.5 pt-3"
-        >
+        <Link href={detailHref} className="flex flex-1 flex-col p-3.5 pt-3">
           {bodyContent}
         </Link>
       )}

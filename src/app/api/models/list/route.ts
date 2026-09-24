@@ -12,7 +12,7 @@ interface ModelItem {
 }
 
 function buildModelsUrl(baseUrl: string): string {
-  let url = baseUrl.replace(/\/+$/, "");
+  const url = baseUrl.replace(/\/+$/, "");
   // If baseUrl already ends with /v1, don't duplicate
   if (url.endsWith("/v1")) {
     return url + "/models";
@@ -20,7 +20,10 @@ function buildModelsUrl(baseUrl: string): string {
   return url + "/v1/models";
 }
 
-async function fetchModels(baseUrl: string, apiKey: string): Promise<ModelItem[]> {
+async function fetchModels(
+  baseUrl: string,
+  apiKey: string,
+): Promise<ModelItem[]> {
   const url = buildModelsUrl(baseUrl);
   console.log("[models/list] Fetching:", url);
 
@@ -40,7 +43,10 @@ async function fetchModels(baseUrl: string, apiKey: string): Promise<ModelItem[]
   return data.data.map((m) => ({ id: m.id, name: m.id }));
 }
 
-async function fetchGeminiModels(baseUrl: string, apiKey: string): Promise<ModelItem[]> {
+async function fetchGeminiModels(
+  baseUrl: string,
+  apiKey: string,
+): Promise<ModelItem[]> {
   const base = baseUrl.replace(/\/+$/, "");
   const url = `${base}/v1beta/models?key=${encodeURIComponent(apiKey)}`;
   console.log("[models/list] Fetching Gemini:", url.replace(apiKey, "***"));
@@ -52,7 +58,9 @@ async function fetchGeminiModels(baseUrl: string, apiKey: string): Promise<Model
     throw new Error(`${res.status} ${text.slice(0, 200)}`);
   }
 
-  const data = (await res.json()) as { models?: { name: string; displayName?: string }[] };
+  const data = (await res.json()) as {
+    models?: { name: string; displayName?: string }[];
+  };
   if (!data.models || !Array.isArray(data.models)) {
     throw new Error("Unexpected Gemini response format: missing models array");
   }
@@ -85,7 +93,10 @@ export async function POST(request: Request) {
     if (body.protocol === "ucloud-seedance") {
       return NextResponse.json({
         models: [
-          { id: "doubao-seedance-1-5-pro-251215", name: "Seedance 1.5 Pro (UCloud)" },
+          {
+            id: "doubao-seedance-1-5-pro-251215",
+            name: "Seedance 1.5 Pro (UCloud)",
+          },
           { id: "doubao-seedance-2-0-260128", name: "Seedance 2.0 (UCloud)" },
         ],
       });
@@ -120,15 +131,22 @@ export async function POST(request: Request) {
     }
 
     if (!body.baseUrl) {
-      return NextResponse.json({ error: "Base URL is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Base URL is required" },
+        { status: 400 },
+      );
     }
     if (!body.apiKey) {
-      return NextResponse.json({ error: "API Key is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "API Key is required" },
+        { status: 400 },
+      );
     }
 
-    const models = body.protocol === "gemini"
-      ? await fetchGeminiModels(body.baseUrl, body.apiKey)
-      : await fetchModels(body.baseUrl, body.apiKey);
+    const models =
+      body.protocol === "gemini"
+        ? await fetchGeminiModels(body.baseUrl, body.apiKey)
+        : await fetchModels(body.baseUrl, body.apiKey);
     return NextResponse.json({ models });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

@@ -1,27 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface EpisodeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { title: string; description?: string; keywords?: string }) => Promise<void>;
+  onSubmit: (data: {
+    title: string;
+    description?: string;
+    keywords?: string;
+  }) => Promise<void>;
   defaultValues?: { title?: string; description?: string; keywords?: string };
   mode?: "create" | "edit";
 }
 
-export function EpisodeDialog({
+export function EpisodeDialog(props: EpisodeDialogProps) {
+  return props.open ? <EpisodeDialogContent {...props} /> : null;
+}
+
+function EpisodeDialogContent({
   open,
   onOpenChange,
   onSubmit,
@@ -31,17 +39,11 @@ export function EpisodeDialog({
   const t = useTranslations("episode");
   const tc = useTranslations("common");
   const [title, setTitle] = useState(defaultValues?.title || "");
-  const [description, setDescription] = useState(defaultValues?.description || "");
+  const [description, setDescription] = useState(
+    defaultValues?.description || "",
+  );
   const [keywords, setKeywords] = useState(defaultValues?.keywords || "");
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(defaultValues?.title || "");
-      setDescription(defaultValues?.description || "");
-      setKeywords(defaultValues?.keywords || "");
-    }
-  }, [open, defaultValues?.title, defaultValues?.description, defaultValues?.keywords]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

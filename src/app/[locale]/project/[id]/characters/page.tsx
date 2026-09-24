@@ -1,12 +1,14 @@
 "use client";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useEffect, useState, useMemo, useCallback, use } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { Users, ArrowLeft, Loader2, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api-fetch";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
+import { apiFetch } from "@/lib/api-fetch";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
+import { use, useMemo } from "react";
 import { toast } from "sonner";
 
 interface Character {
@@ -27,6 +29,9 @@ interface Episode {
   sequence: number;
 }
 
+const EMPTY_CHARACTERS: Character[] = [];
+const EMPTY_EPISODES: Episode[] = [];
+
 export default function CharactersPage({
   params,
 }: {
@@ -38,27 +43,23 @@ export default function CharactersPage({
   const tc = useTranslations("common");
   const tChar = useTranslations("character");
 
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    const [chars, eps] = await Promise.all([
-      apiFetch(`/api/projects/${projectId}/characters`).then((r) => r.json()),
-      apiFetch(`/api/projects/${projectId}/episodes`).then((r) => r.json()),
+  const {
+    data,
+    isLoading: loading,
+    mutate: fetchData,
+  } = useSWR(["project-characters", projectId], async ([, id]) => {
+    const [characters, episodes] = await Promise.all([
+      fetchJson<Character[]>(`/api/projects/${id}/characters`),
+      fetchJson<Episode[]>(`/api/projects/${id}/episodes`),
     ]);
-    setCharacters(chars);
-    setEpisodes(eps);
-    setLoading(false);
-  }, [projectId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    return { characters, episodes };
+  });
+  const characters = data?.characters ?? EMPTY_CHARACTERS;
+  const episodes = data?.episodes ?? EMPTY_EPISODES;
 
   const mainCharacters = useMemo(
     () => characters.filter((c) => c.scope === "main"),
-    [characters]
+    [characters],
   );
 
   const guestByEpisode = useMemo(() => {
@@ -83,7 +84,7 @@ export default function CharactersPage({
 
   const guestCount = useMemo(
     () => characters.filter((c) => c.scope === "guest").length,
-    [characters]
+    [characters],
   );
 
   async function handlePromote(characterId: string) {

@@ -3,12 +3,16 @@ import { db } from "@/lib/db";
 import { agentBindings, agents } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { id as genId } from "@/lib/id";
+import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params;
+  if (!(await assertProjectOwnership(request, projectId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const bindings = await db
     .select({
       id: agentBindings.id,
@@ -28,12 +32,25 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: projectId } = await params;
+  const project = await assertProjectOwnership(request, projectId);
+  if (!project)
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = (await request.json()) as {
     category: string;
     agentId: string | null;
   };
 
-  const validCategories = ["script_outline", "script_generate", "script_parse", "character_extract", "shot_split", "keyframe_prompts", "video_prompts", "ref_image_prompts", "ref_video_prompts"];
+  const validCategories = [
+    "script_outline",
+    "script_generate",
+    "script_parse",
+    "character_extract",
+    "shot_split",
+    "keyframe_prompts",
+    "video_prompts",
+    "ref_image_prompts",
+    "ref_video_prompts",
+  ];
   if (!validCategories.includes(body.category)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
@@ -44,11 +61,22 @@ export async function PUT(
       .where(
         and(
           eq(agentBindings.projectId, projectId),
-          eq(agentBindings.category, body.category as typeof agentBindings.$inferInsert.category),
+          eq(
+            agentBindings.category,
+            body.category as typeof agentBindings.$inferInsert.category,
+          ),
         ),
       );
     return NextResponse.json({ ok: true });
   }
+
+  const agent = db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(eq(agents.id, body.agentId), eq(agents.userId, project.userId)))
+    .get();
+  if (!agent)
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 });
 
   const [existing] = await db
     .select()
@@ -56,7 +84,10 @@ export async function PUT(
     .where(
       and(
         eq(agentBindings.projectId, projectId),
-        eq(agentBindings.category, body.category as typeof agentBindings.$inferInsert.category),
+        eq(
+          agentBindings.category,
+          body.category as typeof agentBindings.$inferInsert.category,
+        ),
       ),
     );
 

@@ -22,6 +22,7 @@ export function createLanguageModel(config: ProviderConfig): LanguageModel {
     case "gemini": {
       const provider = createGoogleGenerativeAI({
         apiKey: config.apiKey,
+        baseURL: config.baseUrl || undefined,
       });
       return provider(config.modelId);
     }

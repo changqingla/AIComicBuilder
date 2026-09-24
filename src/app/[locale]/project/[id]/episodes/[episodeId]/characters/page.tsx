@@ -1,7 +1,9 @@
 "use client";
+import { useParams } from "next/navigation";
 
 import { useState } from "react";
-import { useProjectStore } from "@/stores/project-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+
 import { useModelStore } from "@/stores/model-store";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
@@ -16,35 +18,39 @@ import { AgentPicker } from "@/components/agent-picker";
 import { toast } from "sonner";
 
 export default function EpisodeCharactersPage() {
+  const { episodeId } = useParams<{ episodeId: string }>();
   const t = useTranslations();
-  const { project, fetchProject } = useProjectStore();
+  const { episode, fetchEpisode } = useEpisodeEditorStore();
   const getModelConfig = useModelStore((s) => s.getModelConfig);
   const [extracting, setExtracting] = useState(false);
   const [generatingImages, setGeneratingImages] = useState(false);
   const textGuard = useModelGuard("text");
   const imageGuard = useModelGuard("image");
 
-  if (!project) return null;
+  if (!episode) return null;
 
-  const hasCharactersWithoutImages = project.characters.some(
-    (c) => !c.referenceImage
+  const hasCharactersWithoutImages = episode.characters.some(
+    (c) => !c.referenceImage,
   );
 
   async function handleExtractCharacters() {
-    if (!project) return;
-    if (!textGuard()) return;
+    if (!episode) return;
+    if (!textGuard("character_extract", episode.projectId)) return;
     setExtracting(true);
 
     try {
-      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "character_extract",
-          modelConfig: getModelConfig(),
-          episodeId: useProjectStore.getState().currentEpisodeId,
-        }),
-      });
+      const response = await apiFetch(
+        `/api/projects/${episode.projectId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "character_extract",
+            modelConfig: getModelConfig(),
+            episodeId: episodeId,
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Character extract failed");
@@ -57,26 +63,31 @@ export default function EpisodeCharactersPage() {
     }
 
     setExtracting(false);
-    fetchProject(project.id, useProjectStore.getState().currentEpisodeId!);
+    fetchEpisode(episode.projectId, episodeId!);
   }
 
   async function handleBatchGenerateImages() {
-    if (!project) return;
+    if (!episode) return;
     if (!imageGuard()) return;
     setGeneratingImages(true);
 
     try {
-      const response = await apiFetch(`/api/projects/${project.id}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "batch_character_image",
-          modelConfig: getModelConfig(),
-          episodeId: useProjectStore.getState().currentEpisodeId,
-        }),
-      });
+      const response = await apiFetch(
+        `/api/projects/${episode.projectId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "batch_character_image",
+            modelConfig: getModelConfig(),
+            episodeId: episodeId,
+          }),
+        },
+      );
 
-      const data = await response.json() as { results: Array<{ status: string }> };
+      const data = (await response.json()) as {
+        results: Array<{ status: string }>;
+      };
       if (data.results?.some((r) => r.status === "error")) {
         toast.warning(t("common.batchPartialFailed"));
       }
@@ -86,7 +97,7 @@ export default function EpisodeCharactersPage() {
     }
 
     setGeneratingImages(false);
-    fetchProject(project.id, useProjectStore.getState().currentEpisodeId!);
+    fetchEpisode(episode.projectId, episodeId!);
   }
 
   return (
@@ -101,12 +112,15 @@ export default function EpisodeCharactersPage() {
               {t("project.characters")}
             </h2>
             <p className="text-xs text-[--text-muted]">
-              {project.characters.length} characters
+              {episode.characters.length} characters
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AgentPicker projectId={project.id} category="character_extract" />
+          <AgentPicker
+            projectId={episode.projectId}
+            category="character_extract"
+          />
           <InlineModelPicker capability="text" />
           <Button
             onClick={handleExtractCharacters}
@@ -119,9 +133,11 @@ export default function EpisodeCharactersPage() {
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            {extracting ? t("common.generating") : t("project.extractCharacters")}
+            {extracting
+              ? t("common.generating")
+              : t("project.extractCharacters")}
           </Button>
-          {project.characters.length > 0 && hasCharactersWithoutImages && (
+          {episode.characters.length > 0 && hasCharactersWithoutImages && (
             <>
               <InlineModelPicker capability="image" />
               <Button
@@ -141,11 +157,14 @@ export default function EpisodeCharactersPage() {
               </Button>
             </>
           )}
-          <PromptEditButton promptKeys="character_extract" projectId={project.id} />
+          <PromptEditButton
+            promptKeys="character_extract"
+            projectId={episode.projectId}
+          />
         </div>
       </div>
 
-      {project.characters.length === 0 ? (
+      {episode.characters.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-24">
           <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10">
             <Users className="h-7 w-7 text-primary" />
@@ -159,46 +178,52 @@ export default function EpisodeCharactersPage() {
         </div>
       ) : (
         <>
-        {project.characters.length >= 2 && (
-          <div className="mb-4">
-            <CharacterRelations
-              projectId={project.id}
-              characters={project.characters.map((c) => ({ id: c.id, name: c.name }))}
-            />
+          {episode.characters.length >= 2 && (
+            <div className="mb-4">
+              <CharacterRelations
+                projectId={episode.projectId}
+                characters={episode.characters.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                }))}
+              />
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {episode.characters.map((char) => (
+              <CharacterCard
+                key={char.id}
+                id={char.id}
+                projectId={episode.projectId}
+                name={char.name}
+                description={char.description}
+                visualHint={char.visualHint ?? null}
+                referenceImage={char.referenceImage}
+                referenceImageHistory={char.referenceImageHistory}
+                onUpdate={() => fetchEpisode(episode.projectId, episodeId!)}
+                batchGenerating={generatingImages}
+                scope={char.scope}
+                onPromote={
+                  char.scope === "guest"
+                    ? async () => {
+                        await apiFetch(
+                          `/api/projects/${episode.projectId}/characters/${char.id}`,
+                          {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              scope: "main",
+                              episodeId: null,
+                            }),
+                          },
+                        );
+                        fetchEpisode(episode.projectId, episodeId!);
+                      }
+                    : undefined
+                }
+              />
+            ))}
           </div>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {project.characters.map((char) => (
-            <CharacterCard
-              key={char.id}
-              id={char.id}
-              projectId={project.id}
-              name={char.name}
-              description={char.description}
-              visualHint={char.visualHint ?? null}
-              referenceImage={char.referenceImage}
-              referenceImageHistory={char.referenceImageHistory}
-              onUpdate={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)}
-              batchGenerating={generatingImages}
-              scope={char.scope}
-              onPromote={
-                char.scope === "guest"
-                  ? async () => {
-                      await apiFetch(
-                        `/api/projects/${project.id}/characters/${char.id}`,
-                        {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ scope: "main", episodeId: null }),
-                        }
-                      );
-                      fetchProject(project.id, useProjectStore.getState().currentEpisodeId!);
-                    }
-                  : undefined
-              }
-            />
-          ))}
-        </div>
         </>
       )}
     </div>

@@ -1,7 +1,7 @@
-import type { AIProvider, TextOptions, ImageOptions } from "../types";
+import { id as genId } from "@/lib/id";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type { AIProvider, ImageOptions } from "../types";
 
 // ── Model family detection ──────────────────────────────────────────────────
 
@@ -103,30 +103,24 @@ export class DashScopeImageProvider implements AIProvider {
     model?: string;
     uploadDir?: string;
   }) {
-    this.apiKey =
-      params?.apiKey || process.env.DASHSCOPE_API_KEY || "";
+    this.apiKey = params?.apiKey || process.env.DASHSCOPE_API_KEY || "";
     this.baseUrl = (
       params?.baseUrl ||
       process.env.DASHSCOPE_BASE_URL ||
       "https://dashscope.aliyuncs.com/api/v1"
     ).replace(/\/+$/, "");
     this.model =
-      params?.model || process.env.DASHSCOPE_IMAGE_MODEL || "qwen-image-2.0-pro";
-    this.uploadDir =
-      params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
+      params?.model ||
+      process.env.DASHSCOPE_IMAGE_MODEL ||
+      "qwen-image-2.0-pro";
+    this.uploadDir = params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
 
-  async generateText(
-    _prompt: string,
-    _options?: TextOptions,
-  ): Promise<string> {
+  async generateText(): Promise<string> {
     throw new Error("DashScope image models do not support text generation");
   }
 
-  async generateImage(
-    prompt: string,
-    options?: ImageOptions,
-  ): Promise<string> {
+  async generateImage(prompt: string, options?: ImageOptions): Promise<string> {
     const model = options?.model || this.model;
     const family = getModelFamily(model);
     const size = resolveSize(family, options?.size, options?.aspectRatio);
@@ -192,8 +186,7 @@ export class DashScopeImageProvider implements AIProvider {
       );
     }
 
-    const imageUrl =
-      json.output?.choices?.[0]?.message?.content?.[0]?.image;
+    const imageUrl = json.output?.choices?.[0]?.message?.content?.[0]?.image;
     if (!imageUrl) {
       throw new Error(
         `DashScope image: no image URL in response: ${JSON.stringify(json)}`,

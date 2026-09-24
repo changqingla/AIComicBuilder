@@ -60,8 +60,8 @@ AI 驱动的漫剧生成器 — 从剧本到动画视频的全自动流水线。
 
 ### 环境要求
 
-- Node.js 18+
-- pnpm
+- Node.js 24.15（使用 `nvm use` 读取仓库中的版本）
+- pnpm 10.11（使用 `corepack enable`，版本由 `package.json` 固定）
 - FFmpeg（视频合成功能需要）
 
 ### 安装
@@ -73,7 +73,7 @@ pnpm install
 ### 初始化数据库
 
 ```bash
-pnpm drizzle-kit push
+# 启动应用时自动执行 Drizzle 迁移，不要用 schema push 替代迁移历史。
 ```
 
 ### 启动
@@ -161,10 +161,8 @@ src/
 │   ├── [locale]/                # i18n 路由
 │   │   ├── (dashboard)/         # 项目列表
 │   │   ├── project/[id]/        # 项目编辑器
-│   │   │   ├── script/          # 剧本编辑
-│   │   │   ├── characters/      # 角色管理
-│   │   │   ├── storyboard/      # 分镜面板
-│   │   │   └── preview/         # 预览 & 合成
+│   │   │   ├── characters/      # 项目角色管理
+│   │   │   └── episodes/[episodeId]/ # 分集剧本、角色、分镜与预览
 │   │   └── settings/            # 模型配置
 │   └── api/                     # API 路由
 ├── components/
@@ -173,7 +171,7 @@ src/
 │   └── settings/                # 设置组件
 ├── lib/
 │   ├── ai/                      # AI 供应商 & Prompt
-│   ├── pipeline/                # 生成流水线
+│   ├── generation/              # 共用生成业务函数
 │   ├── db/                      # 数据库 Schema
 │   └── video/                   # FFmpeg 处理
 └── stores/                      # Zustand 状态管理
@@ -181,11 +179,27 @@ src/
 
 ## 数据模型
 
-- **Project** — 项目（剧本、状态）
+- **Project / Episode** — 项目设定与分集剧本、状态
 - **Character** — 角色（名称、描述、参考图）
-- **Shot** — 镜头（序号、提示词、时长、首尾帧、视频）
+- **StoryboardVersion / Shot** — 分镜版本与镜头元数据
+- **ShotAsset** — 首尾帧、参考图、视频及各自历史版本
 - **Dialogue** — 对白（角色、文本、音频）
-- **Task** — 后台任务队列
+
+## 开发与维护
+
+仅维护当前软件接口和数据模型，不保留旧接口包装或运行时数据格式转换。分镜与素材的历史版本属于创作功能，继续保留。数据库通过一次性的 Drizzle 迁移升级；升级前备份数据库与上传目录。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm lint --max-warnings 0
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+测试需要 FFmpeg / FFprobe，并自动创建、清理临时数据库。真实 AI 服务在测试中使用固定响应，不消耗账户额度。日常修改按影响执行相关检查，涉及依赖或整体架构时运行完整检查。代码格式使用 Prettier，可执行 `pnpm exec prettier --write <文件>`。
+
+生成业务集中在 `src/lib/generation/`，单项和批量入口共用实现。项目元数据与分集编辑状态分开；素材只读写 `shot_assets`。分镜页只组合视图与选择状态，生成流程位于 `src/hooks/use-storyboard-generation.ts`；卡片与抽屉共用 `src/components/editor/shot-editor/` 中的编辑组件。当前生成通过请求执行，不提供持久后台队列或重启恢复。详细说明见 [架构审查与整改记录](docs/architecture-review-2026-09-24.md)。
 
 ## 界面截图
 

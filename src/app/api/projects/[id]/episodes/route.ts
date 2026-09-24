@@ -1,6 +1,13 @@
+import { selectAsset } from "@/lib/shot-assets";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { projects, episodes, shots, characters, episodeCharacters } from "@/lib/db/schema";
+import {
+  projects,
+  episodes,
+  shots,
+  characters,
+  episodeCharacters,
+} from "@/lib/db/schema";
 import { eq, asc, and, max, isNotNull, inArray } from "drizzle-orm";
 import { id as genId } from "@/lib/id";
 import { getUserIdFromRequest } from "@/lib/get-user-id";
@@ -15,7 +22,7 @@ async function resolveProject(id: string, userId: string) {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const userId = getUserIdFromRequest(request);
@@ -41,19 +48,19 @@ export async function GET(
         .select({ id: shots.id })
         .from(shots)
         .where(eq(shots.episodeId, ep.id));
-      const { loadShotLegacyViewsBatch } = await import("@/lib/shot-asset-utils");
-      const legacy = await loadShotLegacyViewsBatch(epShots.map((s) => s.id));
+      const { loadShotAssetsBatch } = await import("@/lib/shot-asset-utils");
+      const assetsByShot = await loadShotAssetsBatch(epShots.map((s) => s.id));
 
       const frameSet = new Set<string>();
       const isReference = ep.generationMode === "reference";
       for (const s of epShots) {
-        const view = legacy.get(s.id);
+        const view = assetsByShot.get(s.id);
         if (!view) continue;
-        if (isReference) {
-          if (view.sceneRefFrame) frameSet.add(view.sceneRefFrame);
-        } else {
-          if (view.firstFrame) frameSet.add(view.firstFrame);
-          if (view.lastFrame) frameSet.add(view.lastFrame);
+        for (const type of isReference
+          ? (["reference"] as const)
+          : (["first_frame", "last_frame"] as const)) {
+          const fileUrl = selectAsset(view, type)?.fileUrl;
+          if (fileUrl) frameSet.add(fileUrl);
         }
       }
 
@@ -74,15 +81,18 @@ export async function GET(
           .from(characters)
           .where(
             and(
-              inArray(characters.id, linkedCharIds.map((r) => r.characterId)),
-              isNotNull(characters.referenceImage)
-            )
+              inArray(
+                characters.id,
+                linkedCharIds.map((r) => r.characterId),
+              ),
+              isNotNull(characters.referenceImage),
+            ),
           );
         charUrls = charImages.map((c) => c.referenceImage!).filter(Boolean);
       }
 
       return { ...ep, previewImages: charUrls };
-    })
+    }),
   );
 
   return NextResponse.json(enriched);
@@ -90,7 +100,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const userId = getUserIdFromRequest(request);
@@ -100,7 +110,11 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = (await request.json()) as { title: string; description?: string; keywords?: string };
+  const body = (await request.json()) as {
+    title: string;
+    description?: string;
+    keywords?: string;
+  };
 
   // Get the max sequence number for this project
   const [result] = await db

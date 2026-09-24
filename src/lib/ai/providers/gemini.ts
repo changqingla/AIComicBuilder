@@ -1,21 +1,28 @@
+import { id as genId } from "@/lib/id";
 import { GoogleGenAI } from "@google/genai";
-import type { AIProvider, TextOptions, ImageOptions } from "../types";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type { AIProvider, ImageOptions, TextOptions } from "../types";
 
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
   private defaultModel: string;
   private uploadDir: string;
 
-  constructor(params?: { apiKey?: string; baseUrl?: string; model?: string; uploadDir?: string; }) {
+  constructor(params?: {
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+    uploadDir?: string;
+  }) {
     const options: ConstructorParameters<typeof GoogleGenAI>[0] = {
       apiKey: params?.apiKey || process.env.GEMINI_API_KEY || "",
     };
     if (params?.baseUrl) {
       // Strip trailing path segments like /v1, /v1beta — SDK appends /v1beta automatically
-      const baseUrl = params.baseUrl.replace(/\/+$/, "").replace(/\/v\d[^/]*$/, "");
+      const baseUrl = params.baseUrl
+        .replace(/\/+$/, "")
+        .replace(/\/v\d[^/]*$/, "");
       options.httpOptions = { baseUrl };
     }
     this.client = new GoogleGenAI(options);
@@ -26,7 +33,8 @@ export class GeminiProvider implements AIProvider {
   async generateText(prompt: string, options?: TextOptions): Promise<string> {
     const model = options?.model || this.defaultModel;
 
-    type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+    type Part =
+      { text: string } | { inlineData: { mimeType: string; data: string } };
     const parts: Part[] = [];
 
     if (options?.images?.length) {
@@ -39,7 +47,9 @@ export class GeminiProvider implements AIProvider {
             const mimeType = ext === ".png" ? "image/png" : "image/jpeg";
             parts.push({ inlineData: { mimeType, data } });
           }
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
     }
     parts.push({ text: prompt });
@@ -60,7 +70,9 @@ export class GeminiProvider implements AIProvider {
     const model = options?.model || this.defaultModel;
 
     // Build multimodal parts: reference images + text prompt
-    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+    const parts: Array<
+      { text: string } | { inlineData: { mimeType: string; data: string } }
+    > = [];
 
     // Attach reference images (character sheets, first frame, etc.)
     if (options?.referenceImages?.length) {
@@ -85,7 +97,9 @@ export class GeminiProvider implements AIProvider {
         }
       }
       if (imgIndex > 0) {
-        parts.push({ text: `\n[END OF REFERENCE IMAGES — ${imgIndex} character sheets total]
+        parts.push({
+          text:
+            `\n[END OF REFERENCE IMAGES — ${imgIndex} character sheets total]
 CRITICAL CHARACTER CONSISTENCY RULES:
 - Each reference image is a CHARACTER SHEET (turnaround view) showing FRONT, THREE-QUARTER, SIDE PROFILE, and BACK views
 - The character's NAME is printed at the bottom of each reference sheet — use it to match characters in the scene
@@ -94,7 +108,8 @@ CRITICAL CHARACTER CONSISTENCY RULES:
 - If a character's reference shows specific accessories (帽子, 佩刀, 发簪), they MUST appear in the generated frame
 - Art style must match the reference images exactly
 
-` + prompt });
+` + prompt,
+        });
       } else {
         parts.push({ text: prompt });
       }

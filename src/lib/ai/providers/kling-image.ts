@@ -1,14 +1,16 @@
-import type { AIProvider, TextOptions, ImageOptions } from "../types";
+import { id as genId } from "@/lib/id";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { id as genId } from "@/lib/id";
+import type { AIProvider, ImageOptions } from "../types";
 
 function generateKlingToken(accessKey: string, secretKey: string): string {
   const now = Math.floor(Date.now() / 1000);
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const header = Buffer.from(
+    JSON.stringify({ alg: "HS256", typ: "JWT" }),
+  ).toString("base64url");
   const payload = Buffer.from(
-    JSON.stringify({ iss: accessKey, exp: now + 1800, nbf: now - 5 })
+    JSON.stringify({ iss: accessKey, exp: now + 1800, nbf: now - 5 }),
   ).toString("base64url");
   const signature = crypto
     .createHmac("sha256", secretKey)
@@ -48,7 +50,10 @@ export class KlingImageProvider implements AIProvider {
   }) {
     this.apiKey = params?.apiKey || process.env.KLING_ACCESS_KEY || "";
     this.secretKey = params?.secretKey || process.env.KLING_SECRET_KEY || "";
-    this.baseUrl = (params?.baseUrl || "https://api.klingai.com").replace(/\/+$/, "");
+    this.baseUrl = (params?.baseUrl || "https://api.klingai.com").replace(
+      /\/+$/,
+      "",
+    );
     this.model = params?.model || "kling-v1";
     this.uploadDir = params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
@@ -60,7 +65,7 @@ export class KlingImageProvider implements AIProvider {
     return `Bearer ${this.apiKey}`;
   }
 
-  async generateText(_prompt: string, _options?: TextOptions): Promise<string> {
+  async generateText(): Promise<string> {
     throw new Error("Kling does not support text generation");
   }
 
@@ -84,7 +89,9 @@ export class KlingImageProvider implements AIProvider {
       throw new Error(`Kling image submit failed: ${submitRes.status}`);
     }
 
-    const submitJson = (await submitRes.json()) as KlingResponse<{ task_id: string }>;
+    const submitJson = (await submitRes.json()) as KlingResponse<{
+      task_id: string;
+    }>;
     if (submitJson.code !== 0) {
       throw new Error(`Kling image error: ${submitJson.message}`);
     }
@@ -115,9 +122,12 @@ export class KlingImageProvider implements AIProvider {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, 5_000));
 
-      const res = await fetch(`${this.baseUrl}/v1/images/generations/${taskId}`, {
-        headers: { Authorization: this.getAuthHeader() },
-      });
+      const res = await fetch(
+        `${this.baseUrl}/v1/images/generations/${taskId}`,
+        {
+          headers: { Authorization: this.getAuthHeader() },
+        },
+      );
 
       if (!res.ok) {
         throw new Error(`Kling image poll failed: ${res.status}`);

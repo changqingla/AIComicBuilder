@@ -1,3 +1,8 @@
+import {
+  buildTimeline,
+  transitionOverlap,
+  type TransitionType,
+} from "./timeline";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "node:fs";
 import path from "node:path";
@@ -5,24 +10,19 @@ import { id as genId } from "@/lib/id";
 
 const uploadDir = process.env.UPLOAD_DIR || "./uploads";
 
-type TransitionType = "cut" | "dissolve" | "fade_in" | "fade_out" | "wipeleft" | "slideright" | "circleopen";
-
-const DEFAULT_XFADE_DURATION = 0.5;
-
 interface SubtitleEntry {
   text: string;
-  shotSequence: number;
-  dialogueSequence: number;  // 0-based index within the shot
-  dialogueCount: number;     // total dialogues in this shot
-  startRatio?: number;       // 0-1, when dialogue starts relative to shot duration
-  endRatio?: number;         // 0-1, when dialogue ends relative to shot duration
+  shotIndex: number;
+  dialogueSequence: number; // 0-based index within the shot
+  dialogueCount: number; // total dialogues in this shot
+  startRatio?: number; // 0-1, when dialogue starts relative to shot duration
+  endRatio?: number; // 0-1, when dialogue ends relative to shot duration
 }
 
 interface AssembleParams {
   videoPaths: string[];
   subtitles: SubtitleEntry[];
   projectId: string;
-  shotDurations: number[];
   transitions?: TransitionType[]; // transition between shot[i] and shot[i+1], length = videoPaths.length - 1
   titleCard?: { text: string; duration: number };
   creditsCard?: { text: string; duration: number };
@@ -39,9 +39,13 @@ export async function generateTitleCard(
   text: string,
   duration: number,
   outputDir: string,
-  options?: { fontSize?: number; bgColor?: string; textColor?: string }
+  options?: { fontSize?: number; bgColor?: string; textColor?: string },
 ): Promise<string> {
-  const { fontSize = 48, bgColor = "black", textColor = "white" } = options || {};
+  const {
+    fontSize = 48,
+    bgColor = "black",
+    textColor = "white",
+  } = options || {};
   const cardPath = path.resolve(outputDir, `title-${genId()}.mp4`);
 
   await new Promise<void>((resolve, reject) => {
@@ -51,44 +55,43 @@ export async function generateTitleCard(
       .outputOptions([
         "-vf",
         `drawtext=text='${text.replace(/'/g, "'\\''")}':fontsize=${fontSize}:fontcolor=${textColor}:x=(w-text_w)/2:y=(h-text_h)/2`,
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
-        "-t", String(duration),
-        "-pix_fmt", "yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-t",
+        String(duration),
+        "-pix_fmt",
+        "yuv420p",
       ])
       .output(cardPath)
       .on("end", () => resolve())
-      .on("error", (err) => reject(new Error(`Title card generation failed: ${err.message}`)))
+      .on("error", (err) =>
+        reject(new Error(`Title card generation failed: ${err.message}`)),
+      )
       .run();
   });
 
   return cardPath;
 }
 
-function generateSrtFile(
+export function generateSrtFile(
   subtitles: SubtitleEntry[],
-  shotDurations: number[],
-  outputPath: string
+  timeline: { start: number; duration: number }[],
+  outputPath: string,
 ): string {
   const srtPath = outputPath.replace(/\.mp4$/, ".srt");
-
-  const shotStartTimes: number[] = [];
-  let cumulative = 0;
-  for (const duration of shotDurations) {
-    shotStartTimes.push(cumulative);
-    cumulative += duration;
-  }
 
   const srtEntries: string[] = [];
   let index = 1;
 
   for (const sub of subtitles) {
-    const shotIdx = sub.shotSequence - 1;
-    if (shotIdx < 0 || shotIdx >= shotDurations.length) continue;
-
-    const shotStart = shotStartTimes[shotIdx];
-    const shotDur = shotDurations[shotIdx];
+    const clip = timeline[sub.shotIndex];
+    if (!clip) throw new Error(`Missing subtitle clip: ${sub.shotIndex}`);
+    const shotStart = clip.start;
+    const shotDur = clip.duration;
 
     let startTime: number;
     let endTime: number;
@@ -105,7 +108,7 @@ function generateSrtFile(
     }
 
     srtEntries.push(
-      `${index}\n${formatSrtTime(startTime)} --> ${formatSrtTime(endTime)}\n${sub.text}\n`
+      `${index}\n${formatSrtTime(startTime)} --> ${formatSrtTime(endTime)}\n${sub.text}\n`,
     );
     index++;
   }
@@ -133,18 +136,33 @@ function mapTransitionName(t: TransitionType): string {
   return t;
 }
 
-function probeClip(videoPath: string): Promise<{ duration: number; hasAudio: boolean }> {
+function probeClip(
+  videoPath: string,
+): Promise<{
+  duration: number;
+  hasAudio: boolean;
+  width: number;
+  height: number;
+}> {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(path.resolve(videoPath), (err, metadata) => {
       if (err) return reject(err);
-      const video = metadata.streams.find((stream) => stream.codec_type === "video");
+      const video = metadata.streams.find(
+        (stream) => stream.codec_type === "video",
+      );
       const duration = Number(video?.duration ?? metadata.format.duration);
       if (!Number.isFinite(duration) || duration <= 0) {
-        return reject(new Error(`Cannot determine video duration: ${videoPath}`));
+        return reject(
+          new Error(`Cannot determine video duration: ${videoPath}`),
+        );
       }
       resolve({
         duration,
-        hasAudio: metadata.streams.some((stream) => stream.codec_type === "audio"),
+        width: video!.width!,
+        height: video!.height!,
+        hasAudio: metadata.streams.some(
+          (stream) => stream.codec_type === "audio",
+        ),
       });
     });
   });
@@ -157,8 +175,7 @@ async function concatWithTransitions(
   videoPaths: string[],
   transitions: TransitionType[],
   outputPath: string,
-  projectId: string,
-  outputDir: string,
+  clips: Awaited<ReturnType<typeof probeClip>>[],
 ): Promise<void> {
   // Single video: just copy
   if (videoPaths.length === 1) {
@@ -166,34 +183,6 @@ async function concatWithTransitions(
     return;
   }
 
-  // All cuts: use fast concat demuxer
-  const allCuts = transitions.every((t) => t === "cut");
-  if (allCuts) {
-    const concatListPath = path.resolve(outputDir, `${projectId}-concat.txt`);
-    const concatContent = videoPaths
-      .map((p) => `file '${path.resolve(p)}'`)
-      .join("\n");
-    fs.writeFileSync(concatListPath, concatContent);
-
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg()
-        .input(concatListPath)
-        .inputOptions(["-f", "concat", "-safe", "0"])
-        .outputOptions(["-c", "copy"])
-        .output(outputPath)
-        .on("end", () => {
-          fs.unlinkSync(concatListPath);
-          resolve();
-        })
-        .on("error", (err) => {
-          reject(new Error(`FFmpeg concat failed: ${err.message}`));
-        })
-        .run();
-    });
-    return;
-  }
-
-  const clips = await Promise.all(videoPaths.map(probeClip));
   const hasAudio = clips.some((clip) => clip.hasAudio);
   const cmd = ffmpeg();
   for (const vp of videoPaths) {
@@ -202,7 +191,9 @@ async function concatWithTransitions(
 
   const filterParts: string[] = [];
   clips.forEach((_, i) => {
-    filterParts.push(`[${i}:v]settb=AVTB,setpts=PTS-STARTPTS[video${i}]`);
+    filterParts.push(
+      `[${i}:v]scale=${clips[0].width}:${clips[0].height}:force_original_aspect_ratio=decrease,pad=${clips[0].width}:${clips[0].height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,settb=AVTB,setpts=PTS-STARTPTS[video${i}]`,
+    );
   });
 
   // Give each clip an audio track of the same duration as its video.
@@ -222,24 +213,30 @@ async function concatWithTransitions(
 
   for (let i = 0; i < transitions.length; i++) {
     const t = transitions[i];
-    const transitionDuration = t === "cut" ? 0 : DEFAULT_XFADE_DURATION;
+    const transitionDuration = transitionOverlap(
+      clips[i].duration,
+      clips[i + 1].duration,
+      t,
+    );
     cumulativeOffset += clips[i].duration - transitionDuration;
     const outLabel = i < transitions.length - 1 ? `v${i}` : "vout";
-    const videoTransition = t === "cut"
-      ? "concat=n=2:v=1:a=0"
-      : `xfade=transition=${mapTransitionName(t)}:duration=${transitionDuration}:offset=${cumulativeOffset.toFixed(3)}`;
+    const videoTransition =
+      t === "cut"
+        ? "concat=n=2:v=1:a=0"
+        : `xfade=transition=${mapTransitionName(t)}:duration=${transitionDuration}:offset=${cumulativeOffset.toFixed(3)}`;
 
     filterParts.push(
-      `[${prevLabel}][video${i + 1}]${videoTransition}[${outLabel}]`
+      `[${prevLabel}][video${i + 1}]${videoTransition}[${outLabel}]`,
     );
 
     if (hasAudio) {
       const outAudioLabel = i < transitions.length - 1 ? `a${i}` : "aout";
-      const audioTransition = t === "cut"
-        ? "concat=n=2:v=0:a=1"
-        : `acrossfade=d=${transitionDuration}:c1=tri:c2=tri`;
+      const audioTransition =
+        t === "cut"
+          ? "concat=n=2:v=0:a=1"
+          : `acrossfade=d=${transitionDuration}:c1=tri:c2=tri`;
       filterParts.push(
-        `[${prevAudioLabel}][audio${i + 1}]${audioTransition}[${outAudioLabel}]`
+        `[${prevAudioLabel}][audio${i + 1}]${audioTransition}[${outAudioLabel}]`,
       );
       prevAudioLabel = outAudioLabel;
     }
@@ -253,9 +250,12 @@ async function concatWithTransitions(
     cmd
       .complexFilter(complexFilter, hasAudio ? ["vout", "aout"] : "vout")
       .outputOptions([
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
         ...(hasAudio ? ["-c:a", "aac", "-shortest"] : ["-an"]),
       ])
       .output(outputPath)
@@ -267,10 +267,14 @@ async function concatWithTransitions(
   });
 }
 
-export async function assembleVideo(params: AssembleParams): Promise<AssembleResult> {
+export async function assembleVideo(
+  params: AssembleParams,
+): Promise<AssembleResult> {
   const { subtitles, projectId } = params;
   const allPaths = [...params.videoPaths];
-  const allDurations = [...params.shotDurations];
+  const transitions: TransitionType[] = params.videoPaths
+    .slice(1)
+    .map((_, index) => params.transitions?.[index] ?? "cut");
 
   const outputDir = path.resolve(uploadDir, "videos");
   fs.mkdirSync(outputDir, { recursive: true });
@@ -280,10 +284,10 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
     const titlePath = await generateTitleCard(
       params.titleCard.text,
       params.titleCard.duration,
-      outputDir
+      outputDir,
     );
     allPaths.unshift(titlePath);
-    allDurations.unshift(params.titleCard.duration);
+    transitions.unshift("cut");
   }
 
   // Append credits card if specified
@@ -291,25 +295,41 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
     const creditsPath = await generateTitleCard(
       params.creditsCard.text,
       params.creditsCard.duration,
-      outputDir
+      outputDir,
     );
     allPaths.push(creditsPath);
-    allDurations.push(params.creditsCard.duration);
+    transitions.push("cut");
   }
 
-  const transitions: TransitionType[] = params.transitions
-    ?? new Array(Math.max(allPaths.length - 1, 0)).fill("cut");
+  const clips = await Promise.all(allPaths.map(probeClip));
+  const timeline = buildTimeline(
+    clips.map((clip) => clip.duration),
+    transitions,
+  );
 
-  const concatOutputPath = path.resolve(outputDir, `${projectId}-concat-${genId()}.mp4`);
-  const outputPath = path.resolve(outputDir, `${projectId}-final-${genId()}.mp4`);
+  const concatOutputPath = path.resolve(
+    outputDir,
+    `${projectId}-concat-${genId()}.mp4`,
+  );
+  const outputPath = path.resolve(
+    outputDir,
+    `${projectId}-final-${genId()}.mp4`,
+  );
 
   // Step 1: Concatenate video clips (with transitions)
-  await concatWithTransitions(allPaths, transitions, concatOutputPath, projectId, outputDir);
+  await concatWithTransitions(allPaths, transitions, concatOutputPath, clips);
 
   // Step 2: Burn in subtitles if any
   let srtPath: string | undefined;
   if (subtitles.length > 0) {
-    srtPath = generateSrtFile(subtitles, allDurations, outputPath);
+    srtPath = generateSrtFile(
+      subtitles.map((subtitle) => ({
+        ...subtitle,
+        shotIndex: subtitle.shotIndex + (params.titleCard ? 1 : 0),
+      })),
+      timeline,
+      outputPath,
+    );
     const escapedSrtPath = escapeSubtitlePath(path.resolve(srtPath));
 
     try {
@@ -318,11 +338,16 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
           .input(concatOutputPath)
           .outputOptions([
             "-y",
-            "-vf", `subtitles='${escapedSrtPath}'`,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "23",
-            "-c:a", "aac",
+            "-vf",
+            `subtitles='${escapedSrtPath}'`,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "23",
+            "-c:a",
+            "aac",
           ])
           .output(outputPath)
           .on("end", () => {
@@ -337,7 +362,9 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
       });
     } catch (err) {
       // Fallback: skip subtitle burn, use concat output directly
-      console.warn(`[FFmpeg] Subtitle burn failed, using concat output: ${err}`);
+      console.warn(
+        `[FFmpeg] Subtitle burn failed, using concat output: ${err}`,
+      );
       fs.renameSync(concatOutputPath, outputPath);
     }
   } else {
@@ -349,19 +376,30 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
   if (params.bgmPath && fs.existsSync(path.resolve(params.bgmPath))) {
     const bgmOutputPath = outputPath.replace(/\.mp4$/, `-bgm.mp4`);
     const vol = params.bgmVolume ?? 0.3;
+    const outputClip = await probeClip(outputPath);
 
     try {
       await new Promise<void>((resolve, reject) => {
         ffmpeg()
           .input(outputPath)
           .input(path.resolve(params.bgmPath!))
+          .inputOptions(["-stream_loop", "-1"])
+          .complexFilter(
+            outputClip.hasAudio
+              ? `[1:a]volume=${vol}[music];[0:a][music]amix=inputs=2:duration=first:normalize=0[audio]`
+              : `[1:a]volume=${vol}[audio]`,
+          )
           .outputOptions([
-            "-map", "0:v",
-            "-map", "1:a",
-            "-c:v", "copy",
-            "-c:a", "aac",
-            "-af", `volume=${vol}`,
-            "-shortest",
+            "-map",
+            "0:v",
+            "-map",
+            "[audio]",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-t",
+            String(outputClip.duration),
           ])
           .output(bgmOutputPath)
           .on("end", () => {
@@ -377,7 +415,7 @@ export async function assembleVideo(params: AssembleParams): Promise<AssembleRes
     }
   }
 
-  // Return relative paths for uploadUrl compatibility
+  // Store paths relative to the application directory.
   return {
     videoPath: path.relative(process.cwd(), outputPath),
     srtPath: srtPath ? path.relative(process.cwd(), srtPath) : undefined,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, use } from "react";
-import { useProjectStore } from "@/stores/project-store";
+import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+
 import { ProjectNav } from "@/components/editor/project-nav";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -15,13 +16,26 @@ export default function EpisodeLayout({
 }) {
   const { id, episodeId } = use(params);
   const t = useTranslations("common");
-  const { project, loading, fetchProject } = useProjectStore();
+  const { episode, loading, error, openEpisode } = useEpisodeEditorStore();
 
   useEffect(() => {
-    fetchProject(id, episodeId);
-  }, [id, episodeId, fetchProject]);
+    openEpisode(id, episodeId);
+  }, [id, episodeId, openEpisode]);
 
-  if (loading || !project) {
+  if (error)
+    return (
+      <div role="alert" className="space-y-3 p-6">
+        <p>{error}</p>
+        <button
+          onClick={() => openEpisode(id, episodeId)}
+          className="text-primary underline"
+        >
+          {t("retry")}
+        </button>
+      </div>
+    );
+
+  if (loading || !episode || episode.id !== episodeId) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -34,7 +48,9 @@ export default function EpisodeLayout({
     <div className="flex flex-1">
       <ProjectNav projectId={id} episodeId={episodeId} />
       <main className="flex-1 bg-[--surface] p-6 pb-24 lg:pb-6 min-w-0">
-        {children}
+        <div key={episodeId} className="min-w-0">
+          {children}
+        </div>
       </main>
     </div>
   );

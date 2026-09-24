@@ -1,15 +1,16 @@
+import { selectAsset } from "@/lib/shot-assets";
 import { db } from "@/lib/db";
 import { shots } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { checkContinuity } from "@/lib/pipeline/continuity-check";
+import { checkContinuity } from "@/lib/video/continuity";
 import { resolveAIProvider } from "@/lib/ai/provider-factory";
-import { loadShotLegacyViewsBatch } from "@/lib/shot-asset-utils";
+import { loadShotAssetsBatch } from "@/lib/shot-asset-utils";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   if (!(await assertProjectOwnership(req, id))) {
@@ -23,18 +24,23 @@ export async function POST(
     .where(eq(shots.projectId, id))
     .orderBy(asc(shots.sequence));
 
-  const legacy = await loadShotLegacyViewsBatch(allShots.map((s) => s.id));
+  const assetsByShot = await loadShotAssetsBatch(allShots.map((s) => s.id));
 
   const shotsWithFrames = allShots
     .map((s) => ({
       sequence: s.sequence,
-      firstFrame: legacy.get(s.id)?.firstFrame ?? null,
-      lastFrame: legacy.get(s.id)?.lastFrame ?? null,
+      firstFrame:
+        selectAsset(assetsByShot.get(s.id), "first_frame")?.fileUrl ?? null,
+      lastFrame:
+        selectAsset(assetsByShot.get(s.id), "last_frame")?.fileUrl ?? null,
     }))
     .filter((s) => s.lastFrame && s.firstFrame);
 
   if (shotsWithFrames.length < 2) {
-    return NextResponse.json({ results: [], message: "Need at least 2 shots with frames" });
+    return NextResponse.json({
+      results: [],
+      message: "Need at least 2 shots with frames",
+    });
   }
 
   const provider = resolveAIProvider(body.modelConfig);
@@ -54,7 +60,7 @@ export async function POST(
       const result = await checkContinuity(
         provider,
         current.lastFrame,
-        next.firstFrame
+        next.firstFrame,
       );
       results.push({
         shotASequence: current.sequence,
