@@ -1,4 +1,5 @@
 import { z } from "zod";
+import pMap from "p-map";
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { createLanguageModel, extractJSON } from "@/lib/ai/ai-sdk";
@@ -90,14 +91,14 @@ export async function POST(
     `开始角色提取，共 ${chunks.length} 块`,
   );
 
-  // Concurrent extraction from all chunks
   let chunkResults: Array<{
     chars: ExtractedChar[];
     rels: ExtractedRelation[];
   }>;
   try {
-    chunkResults = await Promise.all(
-      chunks.map(async (chunk, idx) => {
+    chunkResults = await pMap(
+      chunks,
+      async (chunk, idx) => {
         await addImportLog(
           projectId,
           2,
@@ -137,7 +138,8 @@ export async function POST(
           });
           return parseResult(retry.text);
         }
-      }),
+      },
+      { concurrency: 3 },
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

@@ -12,21 +12,12 @@ import {
 } from "@/lib/db/schema";
 import { id } from "@/lib/id";
 import { addImportLog } from "@/lib/import-utils";
+import { importedEpisodesSchema } from "@/lib/import-schemas";
 
 export const maxDuration = 60;
 
 const importSchema = z.object({
-  episodes: z
-    .array(
-      z.object({
-        title: z.string().trim().min(1),
-        description: z.string(),
-        keywords: z.string(),
-        idea: z.string(),
-        characters: z.array(z.string()).optional(),
-      }),
-    )
-    .min(1),
+  episodes: importedEpisodesSchema,
   characters: z.array(
     z.object({
       name: z.string().trim().min(1),

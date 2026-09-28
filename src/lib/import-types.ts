@@ -1,3 +1,6 @@
+import type { z } from "zod";
+import type { importedEpisodeSchema } from "./import-schemas";
+
 export interface ImportedCharacter {
   name: string;
   frequency: number;
@@ -6,13 +9,7 @@ export interface ImportedCharacter {
   scope: "main" | "guest";
 }
 
-export interface ImportedEpisode {
-  title: string;
-  description: string;
-  keywords: string;
-  idea: string;
-  characters?: string[];
-}
+export type ImportedEpisode = z.infer<typeof importedEpisodeSchema>;
 
 export interface ImportedRelationship {
   characterA: string;
