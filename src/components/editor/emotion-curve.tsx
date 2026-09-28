@@ -12,10 +12,11 @@ interface EmotionCurveProps {
   scores: EmotionScore[];
 }
 
+const padding = { top: 10, right: 10, bottom: 20, left: 30 };
+
 export function EmotionCurve({ scores }: EmotionCurveProps) {
   const width = 600;
   const height = 100;
-  const padding = { top: 10, right: 10, bottom: 20, left: 30 };
 
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
@@ -24,7 +25,8 @@ export function EmotionCurve({ scores }: EmotionCurveProps) {
     if (scores.length === 0) return "";
     return scores
       .map((s, i) => {
-        const x = padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
+        const x =
+          padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
         const y = padding.top + plotHeight - (s.tension / 100) * plotHeight;
         return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
       })
@@ -35,7 +37,8 @@ export function EmotionCurve({ scores }: EmotionCurveProps) {
     if (scores.length === 0) return "";
     return scores
       .map((s, i) => {
-        const x = padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
+        const x =
+          padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
         const y = padding.top + plotHeight - (s.emotion / 100) * plotHeight;
         return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
       })
@@ -93,7 +96,8 @@ export function EmotionCurve({ scores }: EmotionCurveProps) {
 
         {/* Shot markers on x-axis */}
         {scores.map((s, i) => {
-          const x = padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
+          const x =
+            padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
           return (
             <text
               key={i}
@@ -113,11 +117,18 @@ export function EmotionCurve({ scores }: EmotionCurveProps) {
         <path d={tensionPath} fill="none" stroke="#ef4444" strokeWidth={2} />
 
         {/* Emotion line (blue) */}
-        <path d={emotionPath} fill="none" stroke="#3b82f6" strokeWidth={1.5} strokeDasharray="4 2" />
+        <path
+          d={emotionPath}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={1.5}
+          strokeDasharray="4 2"
+        />
 
         {/* Tension dots */}
         {scores.map((s, i) => {
-          const x = padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
+          const x =
+            padding.left + (i / Math.max(1, scores.length - 1)) * plotWidth;
           const y = padding.top + plotHeight - (s.tension / 100) * plotHeight;
           return <circle key={i} cx={x} cy={y} r={2.5} fill="#ef4444" />;
         })}

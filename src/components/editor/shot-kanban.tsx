@@ -1,34 +1,32 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Loader2, ImageIcon, VideoIcon, Sparkles, CheckCircle2 } from "lucide-react";
+import {
+  Loader2,
+  ImageIcon,
+  VideoIcon,
+  Sparkles,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadUrl } from "@/lib/utils/upload-url";
+import type { StoryboardGeneration } from "@/hooks/use-storyboard-generation";
+import { type Shot } from "@/lib/editor-types";
 import {
-  type Shot,
   getFirstFrameUrl,
   getLastFrameUrl,
   getSceneRefFrameUrl,
   getKeyframeVideoUrl,
   getReferenceVideoUrl,
-} from "@/stores/project-store";
+} from "@/lib/shot-assets";
 
 type KanbanShot = Shot;
 
 interface ShotKanbanProps {
   shots: KanbanShot[];
   generationMode: "keyframe" | "reference";
-  anyGenerating: boolean;
+  workflow: StoryboardGeneration;
   onOpenDrawer: (id: string) => void;
-  onBatchFrames: () => void;
-  onBatchSceneFrames: () => void;
-  onBatchVideoPrompts: () => void;
-  onBatchVideos: () => void;
-  onBatchReferenceVideos: () => void;
-  generatingFrames: boolean;
-  generatingSceneFrames: boolean;
-  generatingVideoPrompts: boolean;
-  generatingVideos: boolean;
 }
 
 interface KanbanColumn {
@@ -44,11 +42,14 @@ interface KanbanColumn {
 
 function classifyShot(shot: KanbanShot, mode: "keyframe" | "reference") {
   // In reference mode, only sceneRefFrame counts as "has frame"
-  const hasFrame = mode === "reference"
-    ? !!getSceneRefFrameUrl(shot)
-    : !!(getFirstFrameUrl(shot) || getLastFrameUrl(shot));
+  const hasFrame =
+    mode === "reference"
+      ? !!getSceneRefFrameUrl(shot)
+      : !!(getFirstFrameUrl(shot) || getLastFrameUrl(shot));
   const hasVideoPrompt = !!shot.videoPrompt;
-  const hasVideo = !!(mode === "reference" ? getReferenceVideoUrl(shot) : getKeyframeVideoUrl(shot));
+  const hasVideo = !!(mode === "reference"
+    ? getReferenceVideoUrl(shot)
+    : getKeyframeVideoUrl(shot));
   if (!hasFrame) return "frames";
   if (!hasVideoPrompt) return "prompt";
   if (!hasVideo) return "video";
@@ -58,29 +59,31 @@ function classifyShot(shot: KanbanShot, mode: "keyframe" | "reference") {
 export function ShotKanban({
   shots,
   generationMode,
-  anyGenerating,
+  workflow,
   onOpenDrawer,
-  onBatchFrames,
-  onBatchSceneFrames,
-  onBatchVideoPrompts,
-  onBatchVideos,
-  onBatchReferenceVideos,
-  generatingFrames,
-  generatingSceneFrames,
-  generatingVideoPrompts,
-  generatingVideos,
 }: ShotKanbanProps) {
   const t = useTranslations("project");
   const tCommon = useTranslations("common");
 
-  const frameShots = shots.filter((s) => classifyShot(s, generationMode) === "frames");
-  const promptShots = shots.filter((s) => classifyShot(s, generationMode) === "prompt");
-  const videoShots = shots.filter((s) => classifyShot(s, generationMode) === "video");
-  const doneShots = shots.filter((s) => classifyShot(s, generationMode) === "done");
+  const frameShots = shots.filter(
+    (s) => classifyShot(s, generationMode) === "frames",
+  );
+  const promptShots = shots.filter(
+    (s) => classifyShot(s, generationMode) === "prompt",
+  );
+  const videoShots = shots.filter(
+    (s) => classifyShot(s, generationMode) === "video",
+  );
+  const doneShots = shots.filter(
+    (s) => classifyShot(s, generationMode) === "done",
+  );
 
-  const framesGenerating = generationMode === "reference" ? generatingSceneFrames : generatingFrames;
-  const framesAction = generationMode === "reference" ? onBatchSceneFrames : onBatchFrames;
-  const videosAction = generationMode === "reference" ? onBatchReferenceVideos : onBatchVideos;
+  const anyGenerating = workflow.busy;
+  const {
+    frames: framesGenerating,
+    videoPrompts: generatingVideoPrompts,
+    videos: generatingVideos,
+  } = workflow.generating;
 
   const columns: KanbanColumn[] = [
     {
@@ -89,7 +92,7 @@ export function ShotKanban({
       color: "text-amber-700",
       headerBg: "bg-amber-50 border-amber-200",
       shots: frameShots,
-      batchAction: framesAction,
+      batchAction: () => workflow.generateFrames(),
       isGenerating: framesGenerating,
       icon: <ImageIcon className="h-3.5 w-3.5" />,
     },
@@ -99,7 +102,7 @@ export function ShotKanban({
       color: "text-violet-700",
       headerBg: "bg-violet-50 border-violet-200",
       shots: promptShots,
-      batchAction: onBatchVideoPrompts,
+      batchAction: () => workflow.generateVideoPrompts(),
       isGenerating: generatingVideoPrompts,
       icon: <Sparkles className="h-3.5 w-3.5" />,
     },
@@ -109,7 +112,7 @@ export function ShotKanban({
       color: "text-pink-700",
       headerBg: "bg-pink-50 border-pink-200",
       shots: videoShots,
-      batchAction: videosAction,
+      batchAction: () => workflow.generateVideos(),
       isGenerating: generatingVideos,
       icon: <VideoIcon className="h-3.5 w-3.5" />,
     },
@@ -126,14 +129,21 @@ export function ShotKanban({
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {columns.map((col) => (
-        <div key={col.key} className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white overflow-hidden">
+        <div
+          key={col.key}
+          className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white overflow-hidden"
+        >
           {/* Column header */}
-          <div className={`flex items-center gap-2 border-b px-3 py-2 ${col.headerBg}`}>
+          <div
+            className={`flex items-center gap-2 border-b px-3 py-2 ${col.headerBg}`}
+          >
             <span className={col.color}>{col.icon}</span>
             <span className={`flex-1 text-[12px] font-semibold ${col.color}`}>
               {t(col.labelKey as Parameters<typeof t>[0])}
             </span>
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${col.headerBg} ${col.color} border`}>
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${col.headerBg} ${col.color} border`}
+            >
               {col.shots.length}
             </span>
           </div>
@@ -148,14 +158,16 @@ export function ShotKanban({
                 onClick={col.batchAction}
                 disabled={anyGenerating}
               >
-                {col.isGenerating
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : col.icon
-                }
+                {col.isGenerating ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  col.icon
+                )}
                 {col.isGenerating
                   ? tCommon("generating")
-                  : t("kanbanBatchGenerate", { count: col.shots.length } as never)
-                }
+                  : t("kanbanBatchGenerate", {
+                      count: col.shots.length,
+                    } as never)}
               </Button>
             </div>
           )}
@@ -168,7 +180,10 @@ export function ShotKanban({
               </div>
             ) : (
               col.shots.map((shot) => {
-                const thumb = getFirstFrameUrl(shot) || getSceneRefFrameUrl(shot) || getLastFrameUrl(shot);
+                const thumb =
+                  getFirstFrameUrl(shot) ||
+                  getSceneRefFrameUrl(shot) ||
+                  getLastFrameUrl(shot);
                 return (
                   <div
                     key={shot.id}
@@ -176,12 +191,21 @@ export function ShotKanban({
                     onClick={() => onOpenDrawer(shot.id)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDrawer(shot.id); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpenDrawer(shot.id);
+                      }
+                    }}
                   >
                     {/* Thumbnail */}
                     <div className="h-8 w-11 flex-shrink-0 overflow-hidden rounded-md border border-[--border-subtle] bg-[--surface]">
                       {thumb ? (
-                        <img src={uploadUrl(thumb)} alt={`Shot ${shot.sequence}`} className="h-full w-full object-cover" />
+                        <img
+                          src={uploadUrl(thumb)}
+                          alt={`Shot ${shot.sequence}`}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
                           <ImageIcon className="h-3 w-3 text-[--text-muted]" />
@@ -190,8 +214,12 @@ export function ShotKanban({
                     </div>
                     {/* Text */}
                     <div className="min-w-0 flex-1">
-                      <div className="text-[10px] font-mono font-bold text-primary">#{shot.sequence}</div>
-                      <div className="truncate text-[11px] text-[--text-secondary]">{shot.prompt}</div>
+                      <div className="text-[10px] font-mono font-bold text-primary">
+                        #{shot.sequence}
+                      </div>
+                      <div className="truncate text-[11px] text-[--text-secondary]">
+                        {shot.prompt}
+                      </div>
                     </div>
                   </div>
                 );

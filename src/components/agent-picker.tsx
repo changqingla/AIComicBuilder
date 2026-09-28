@@ -12,7 +12,8 @@ interface AgentPickerProps {
 
 export function AgentPicker({ projectId, category }: AgentPickerProps) {
   const t = useTranslations("settings");
-  const { agents, bindings, fetchAgents, fetchBindings, setBinding } = useAgentStore();
+  const { agents, bindingsByProject, fetchAgents, fetchBindings, setBinding } =
+    useAgentStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -24,15 +25,20 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
   const availableAgents = agents.filter((a) => a.category === category);
-  const currentBinding = bindings.find((b) => b.category === category);
-  const selectedAgent = availableAgents.find((a) => a.id === currentBinding?.agentId);
+  const currentBinding = (bindingsByProject[projectId] ?? []).find(
+    (b) => b.category === category,
+  );
+  const selectedAgent = availableAgents.find(
+    (a) => a.id === currentBinding?.agentId,
+  );
 
   return (
     <div className="relative" ref={ref}>
@@ -48,14 +54,19 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
         <span className="max-w-[80px] truncate">
           {selectedAgent ? selectedAgent.name : t("defaultAgent")}
         </span>
-        <ChevronDown className={`h-2.5 w-2.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-2.5 w-2.5 transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-[--border-subtle] bg-white p-1 shadow-lg shadow-black/8 animate-in fade-in slide-in-from-top-1 duration-150">
           {/* Default option */}
           <button
-            onClick={() => { setBinding(projectId, category, null); setOpen(false); }}
+            onClick={() => {
+              setBinding(projectId, category, null);
+              setOpen(false);
+            }}
             className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
               !selectedAgent
                 ? "bg-[--surface] text-[--text-primary] font-medium"
@@ -78,16 +89,23 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
             return (
               <button
                 key={agent.id}
-                onClick={() => { setBinding(projectId, category, agent.id); setOpen(false); }}
+                onClick={() => {
+                  setBinding(projectId, category, agent.id);
+                  setOpen(false);
+                }}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                   isSelected
                     ? "bg-primary/5 text-primary font-medium"
                     : "text-[--text-secondary] hover:bg-[--surface]"
                 }`}
               >
-                <div className={`flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${
-                  isSelected ? "bg-primary/10 text-primary" : "bg-[--surface] text-[--text-muted]"
-                }`}>
+                <div
+                  className={`flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "bg-[--surface] text-[--text-muted]"
+                  }`}
+                >
                   {agent.name[0]?.toUpperCase()}
                 </div>
                 <span className="flex-1 truncate">{agent.name}</span>

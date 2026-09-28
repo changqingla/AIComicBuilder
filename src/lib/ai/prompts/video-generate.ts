@@ -43,11 +43,16 @@ function getLabels(lang: "zh" | "en") {
       };
 }
 
-function buildCharacterLine(characters?: CharacterRef[], lang: "zh" | "en" = "zh"): string | null {
+function buildCharacterLine(
+  characters?: CharacterRef[],
+  lang: "zh" | "en" = "zh",
+): string | null {
   const withHints = (characters ?? []).filter((c) => c.visualHint);
   if (!withHints.length) return null;
   const L = getLabels(lang);
-  return withHints.map((c) => `${c.name}${L.paren.open}${c.visualHint}${L.paren.close}`).join(L.separator);
+  return withHints
+    .map((c) => `${c.name}${L.paren.open}${c.visualHint}${L.paren.close}`)
+    .join(L.separator);
 }
 
 /**
@@ -57,7 +62,7 @@ function resolveSlot(
   slotContents: Record<string, string> | undefined,
   promptKey: string,
   slotKey: string,
-  hardcodedFallback: string
+  hardcodedFallback: string,
 ): string {
   if (slotContents && slotKey in slotContents) return slotContents[slotKey];
   const def = getPromptDefinition(promptKey);
@@ -78,7 +83,12 @@ export function buildReferenceVideoPrompt(params: {
   cameraDirection: string;
   duration?: number;
   characters?: CharacterRef[];
-  dialogues?: Array<{ characterName: string; text: string; offscreen?: boolean; visualHint?: string }>;
+  dialogues?: Array<{
+    characterName: string;
+    text: string;
+    offscreen?: boolean;
+    visualHint?: string;
+  }>;
   slotContents?: Record<string, string>;
 }): string {
   const lang = detectLanguage(params.videoScript);
@@ -107,21 +117,33 @@ export function buildReferenceVideoPrompt(params: {
       params.slotContents,
       "ref_video_generate",
       "dialogue_format",
-      ""
+      "",
     );
 
     // Extract labels from the slot content, or use lang-aware defaults
-    const defaultOnScreen = lang === "zh" ? "【对白口型】" : "[Dialogue Lip Sync]";
-    const defaultOffScreen = lang === "zh" ? "【画外音】" : "[Off-screen Voice]";
-    const onScreenLabel = extractLabel(dialogueFormatText, "画内对白", defaultOnScreen);
-    const offScreenLabel = extractLabel(dialogueFormatText, "画外旁白", defaultOffScreen);
+    const defaultOnScreen =
+      lang === "zh" ? "【对白口型】" : "[Dialogue Lip Sync]";
+    const defaultOffScreen =
+      lang === "zh" ? "【画外音】" : "[Off-screen Voice]";
+    const onScreenLabel = extractLabel(
+      dialogueFormatText,
+      "画内对白",
+      defaultOnScreen,
+    );
+    const offScreenLabel = extractLabel(
+      dialogueFormatText,
+      "画外旁白",
+      defaultOffScreen,
+    );
 
     lines.push(``);
     for (const d of params.dialogues) {
       if (d.offscreen) {
         lines.push(`${offScreenLabel}${d.characterName}: "${d.text}"`);
       } else {
-        const label = d.visualHint ? `${d.characterName}${L.paren.open}${d.visualHint}${L.paren.close}` : d.characterName;
+        const label = d.visualHint
+          ? `${d.characterName}${L.paren.open}${d.visualHint}${L.paren.close}`
+          : d.characterName;
         lines.push(`${onScreenLabel}${label}: "${d.text}"`);
       }
     }
@@ -135,10 +157,14 @@ export function buildVideoPrompt(params: {
   cameraDirection: string;
   startFrameDesc?: string;
   endFrameDesc?: string;
-  sceneDescription?: string;       // kept for call-site compatibility, not used in output
   duration?: number;
   characters?: CharacterRef[];
-  dialogues?: Array<{ characterName: string; text: string; offscreen?: boolean; visualHint?: string }>;
+  dialogues?: Array<{
+    characterName: string;
+    text: string;
+    offscreen?: boolean;
+    visualHint?: string;
+  }>;
   slotContents?: Record<string, string>;
 }): string {
   const lang = detectLanguage(params.videoScript);
@@ -157,14 +183,15 @@ export function buildVideoPrompt(params: {
   }
 
   // Interpolation header from slot or registry default
-  const defaultInterpolation = lang === "zh"
-    ? "从起始帧到结束帧进行平滑插值。"
-    : "Smoothly interpolate from the opening frame to the closing frame.";
+  const defaultInterpolation =
+    lang === "zh"
+      ? "从起始帧到结束帧进行平滑插值。"
+      : "Smoothly interpolate from the opening frame to the closing frame.";
   const interpolationHeader = resolveSlot(
     params.slotContents,
     "video_generate",
     "interpolation_header",
-    defaultInterpolation
+    defaultInterpolation,
   );
   lines.push(interpolationHeader);
   lines.push(``);
@@ -182,16 +209,27 @@ export function buildVideoPrompt(params: {
       params.slotContents,
       "video_generate",
       "frame_anchors",
-      ""
+      "",
     );
 
     // Extract anchor header and labels from slot content, or use lang-aware defaults
     const defaultAnchorHeader = lang === "zh" ? "[帧锚点]" : "[FRAME ANCHORS]";
     const defaultOpeningLabel = lang === "zh" ? "起始帧：" : "Opening frame:";
     const defaultClosingLabel = lang === "zh" ? "结束帧：" : "Closing frame:";
-    const anchorHeader = extractAnchorHeader(frameAnchorsText, defaultAnchorHeader);
-    const openingLabel = extractFrameLabel(frameAnchorsText, "首帧", defaultOpeningLabel);
-    const closingLabel = extractFrameLabel(frameAnchorsText, "尾帧", defaultClosingLabel);
+    const anchorHeader = extractAnchorHeader(
+      frameAnchorsText,
+      defaultAnchorHeader,
+    );
+    const openingLabel = extractFrameLabel(
+      frameAnchorsText,
+      "首帧",
+      defaultOpeningLabel,
+    );
+    const closingLabel = extractFrameLabel(
+      frameAnchorsText,
+      "尾帧",
+      defaultClosingLabel,
+    );
 
     lines.push(``);
     lines.push(anchorHeader);
@@ -205,20 +243,32 @@ export function buildVideoPrompt(params: {
       params.slotContents,
       "video_generate",
       "dialogue_format",
-      ""
+      "",
     );
 
-    const defaultOnScreen = lang === "zh" ? "【对白口型】" : "[Dialogue Lip Sync]";
-    const defaultOffScreen = lang === "zh" ? "【画外音】" : "[Off-screen Voice]";
-    const onScreenLabel = extractLabel(dialogueFormatText, "画内对白", defaultOnScreen);
-    const offScreenLabel = extractLabel(dialogueFormatText, "画外旁白", defaultOffScreen);
+    const defaultOnScreen =
+      lang === "zh" ? "【对白口型】" : "[Dialogue Lip Sync]";
+    const defaultOffScreen =
+      lang === "zh" ? "【画外音】" : "[Off-screen Voice]";
+    const onScreenLabel = extractLabel(
+      dialogueFormatText,
+      "画内对白",
+      defaultOnScreen,
+    );
+    const offScreenLabel = extractLabel(
+      dialogueFormatText,
+      "画外旁白",
+      defaultOffScreen,
+    );
 
     lines.push(``);
     for (const d of params.dialogues) {
       if (d.offscreen) {
         lines.push(`${offScreenLabel}${d.characterName}: "${d.text}"`);
       } else {
-        const label = d.visualHint ? `${d.characterName}${L.paren.open}${d.visualHint}${L.paren.close}` : d.characterName;
+        const label = d.visualHint
+          ? `${d.characterName}${L.paren.open}${d.visualHint}${L.paren.close}`
+          : d.characterName;
         lines.push(`${onScreenLabel}${label}: "${d.text}"`);
       }
     }
@@ -235,7 +285,7 @@ export function buildVideoPrompt(params: {
 function extractLabel(
   slotText: string,
   _lineHint: string,
-  fallback: string
+  fallback: string,
 ): string {
   if (!slotText) return fallback;
   // Match patterns like 【对白口型】 or 【画外音】 from the slot content
@@ -262,7 +312,11 @@ function extractAnchorHeader(slotText: string, fallback: string): string {
 /**
  * Extract frame label (e.g. "Opening frame:" or "首帧：") from slot text.
  */
-function extractFrameLabel(slotText: string, lineHint: string, fallback: string): string {
+function extractFrameLabel(
+  slotText: string,
+  lineHint: string,
+  fallback: string,
+): string {
   if (!slotText) return fallback;
   const lines = slotText.split("\n");
   for (const line of lines) {

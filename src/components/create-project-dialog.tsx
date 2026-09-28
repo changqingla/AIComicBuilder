@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
 import { Plus, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
 
 export function CreateProjectDialog() {
@@ -29,24 +30,28 @@ export function CreateProjectDialog() {
     if (!title.trim()) return;
     setLoading(true);
 
-    const res = await apiFetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-
-    const project = await res.json();
-    setOpen(false);
-    setTitle("");
-    setLoading(false);
-    router.push(`/${locale}/project/${project.id}/script`);
+    try {
+      const res = await apiFetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const project = await res.json();
+      setOpen(false);
+      setTitle("");
+      router.push(`/${locale}/project/${project.id}/episodes`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t("common.saveFailed"),
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<Button size="sm" className="gap-1.5" />}
-      >
+      <DialogTrigger render={<Button size="sm" className="gap-1.5" />}>
         <Plus className="h-3.5 w-3.5" />
         {t("dashboard.newProject")}
       </DialogTrigger>

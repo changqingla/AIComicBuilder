@@ -1,13 +1,10 @@
 import { getUserId } from "./fingerprint";
+import { ApiError } from "./api-error";
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function apiFetch(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
   const userId = getUserId();
   const headers = new Headers(options.headers);
   if (userId) headers.set("x-user-id", userId);
@@ -21,4 +18,8 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     throw new ApiError(response.status, message);
   }
   return response;
+}
+
+export async function fetchJson<T>(url: string): Promise<T> {
+  return (await apiFetch(url)).json();
 }

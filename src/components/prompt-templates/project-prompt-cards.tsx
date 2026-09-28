@@ -1,12 +1,16 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { useDraft } from "@/hooks/use-draft";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useEffect, useState, useCallback } from "react";
-import { apiFetch } from "@/lib/api-fetch";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Loader2, Edit, RotateCcw, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-fetch";
+import { Edit, Loader2, RotateCcw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -86,52 +90,42 @@ interface ProjectPromptCardsProps {
   projectId: string;
 }
 
+const EMPTY_OVERRIDES: ProjectPromptTemplate[] = [];
+
 export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
   const locale = useLocale();
+  const router = useRouter();
   const t = useTranslations("promptTemplates");
 
-  const [registry, setRegistry] = useState<RegistryEntry[]>([]);
-  const [overrides, setOverrides] = useState<ProjectPromptTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [enabled, setEnabled] = useState(false);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
-
-  // Fetch registry + project overrides + project settings on mount
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [regResp, overResp, projResp] = await Promise.all([
-        apiFetch("/api/prompt-templates/registry"),
-        apiFetch(`/api/projects/${projectId}/prompt-templates`),
-        apiFetch(`/api/projects/${projectId}`),
+  const { data, isLoading: loading } = useSWR(
+    ["project-prompts", projectId],
+    async ([, id]) => {
+      const [registry, overrides, project] = await Promise.all([
+        fetchJson<RegistryEntry[]>("/api/prompt-templates/registry"),
+        fetchJson<ProjectPromptTemplate[]>(
+          `/api/projects/${id}/prompt-templates`,
+        ),
+        fetchJson<{ useProjectPrompts: boolean }>(`/api/projects/${id}`),
       ]);
-      const regData: RegistryEntry[] = await regResp.json();
-      const overData: ProjectPromptTemplate[] = await overResp.json();
-      const projData = await projResp.json();
-      setRegistry(regData);
-      setOverrides(overData);
-      setEnabled(!!projData.useProjectPrompts);
-    } catch {
-      toast.error("Load failed");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+      return { registry, overrides, enabled: !!project.useProjectPrompts };
+    },
+    { revalidateOnFocus: false, onError: () => toast.error("Load failed") },
+  );
+  const registry = data?.registry ?? [];
+  const [overrides, setOverrides] = useDraft(
+    data?.overrides ?? EMPTY_OVERRIDES,
+  );
+  const [enabled, setEnabled] = useDraft(data?.enabled ?? false);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
   // Compute per-prompt stats
   function getPromptStats(entry: RegistryEntry) {
-    const promptOverrides = overrides.filter(
-      (o) => o.promptKey === entry.key
-    );
+    const promptOverrides = overrides.filter((o) => o.promptKey === entry.key);
     const hasOverride = promptOverrides.length > 0;
     const editableSlots = entry.slots.filter((s) => s.editable);
     const modifiedSlotKeys = new Set(promptOverrides.map((o) => o.slotKey));
     const modifiedCount = editableSlots.filter((s) =>
-      modifiedSlotKeys.has(s.key)
+      modifiedSlotKeys.has(s.key),
     ).length;
     return { hasOverride, totalSlots: editableSlots.length, modifiedCount };
   }
@@ -152,8 +146,8 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
           promptKeys.map((pk) =>
             apiFetch(`/api/projects/${projectId}/prompt-templates/${pk}`, {
               method: "DELETE",
-            })
-          )
+            }),
+          ),
         );
         setOverrides([]);
         toast.success(t("editor.resetSuccess"));
@@ -169,13 +163,13 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
     try {
       const resp = await apiFetch(
         `/api/projects/${projectId}/prompt-templates/${promptKey}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!resp.ok && resp.status !== 204) {
         throw new Error("Delete failed");
       }
       const overResp = await apiFetch(
-        `/api/projects/${projectId}/prompt-templates`
+        `/api/projects/${projectId}/prompt-templates`,
       );
       const overData: ProjectPromptTemplate[] = await overResp.json();
       setOverrides(overData);
@@ -245,7 +239,10 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
                         {t(tKey(entry.nameKey) as Parameters<typeof t>[0])}
                       </span>
                       {hasOverride ? (
-                        <Badge variant="success" className="shrink-0 text-[10px] px-1.5 py-0">
+                        <Badge
+                          variant="success"
+                          className="shrink-0 text-[10px] px-1.5 py-0"
+                        >
                           {t("editor.overridden")}
                         </Badge>
                       ) : (
@@ -272,7 +269,9 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
                     size="sm"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => { window.location.href = editUrl; }}
+                    onClick={() => {
+                      router.push(editUrl);
+                    }}
                   >
                     <Edit className="h-3.5 w-3.5" />
                     {t("editor.edit")}
@@ -299,7 +298,6 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
           })}
         </div>
       )}
-
     </div>
   );
 }

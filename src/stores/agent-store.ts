@@ -15,16 +15,20 @@ interface AgentInfo {
 
 interface AgentStore {
   agents: AgentInfo[];
-  bindings: AgentBinding[];
+  bindingsByProject: Record<string, AgentBinding[]>;
   loading: boolean;
   fetchAgents: () => Promise<void>;
   fetchBindings: (projectId: string) => Promise<void>;
-  setBinding: (projectId: string, category: string, agentId: string | null) => Promise<void>;
+  setBinding: (
+    projectId: string,
+    category: string,
+    agentId: string | null,
+  ) => Promise<void>;
 }
 
 export const useAgentStore = create<AgentStore>((set, get) => ({
   agents: [],
-  bindings: [],
+  bindingsByProject: {},
   loading: false,
 
   fetchAgents: async () => {
@@ -38,13 +42,24 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     set({ loading: true });
     const res = await apiFetch(`/api/projects/${projectId}/agent-bindings`);
     if (res.ok) {
-      set({ bindings: await res.json(), loading: false });
+      const bindings: AgentBinding[] = await res.json();
+      set((state) => ({
+        bindingsByProject: {
+          ...state.bindingsByProject,
+          [projectId]: bindings,
+        },
+        loading: false,
+      }));
     } else {
       set({ loading: false });
     }
   },
 
-  setBinding: async (projectId: string, category: string, agentId: string | null) => {
+  setBinding: async (
+    projectId: string,
+    category: string,
+    agentId: string | null,
+  ) => {
     await apiFetch(`/api/projects/${projectId}/agent-bindings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

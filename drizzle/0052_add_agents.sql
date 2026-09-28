@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS agents (
   category TEXT NOT NULL,
   app_id TEXT NOT NULL,
   api_key TEXT NOT NULL,
+  platform TEXT NOT NULL DEFAULT 'bailian',
   description TEXT DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL

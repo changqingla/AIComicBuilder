@@ -1,3 +1,5 @@
+import { EventSourceParserStream } from "eventsource-parser/stream";
+
 // src/lib/ai/agent-caller.ts
 // Multi-platform agent caller: Bailian, Dify, Coze
 
@@ -11,7 +13,10 @@ interface AgentConfig {
 
 // ── Unified streaming caller ────────────────────────────────────────
 // Returns a ReadableStream of text chunks (decoded). Throws on error.
-export async function callAgentStream(config: AgentConfig, prompt: string): Promise<ReadableStream<Uint8Array>> {
+export async function callAgentStream(
+  config: AgentConfig,
+  prompt: string,
+): Promise<ReadableStream<Uint8Array>> {
   switch (config.platform) {
     case "bailian":
       return callBailianAgentStream(config, prompt);
@@ -52,52 +57,29 @@ async function callBailianAgentStream(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`百炼智能体请求失败: ${res.status} ${errText.slice(0, 300)}`);
+    throw new Error(
+      `百炼智能体请求失败: ${res.status} ${errText.slice(0, 300)}`,
+    );
   }
   if (!res.body) throw new Error("百炼智能体返回为空");
 
-  // Parse SSE stream and re-emit raw text deltas
-  return new ReadableStream({
-    async start(controller) {
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      const encoder = new TextEncoder();
-      let buffer = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const dataStr = line.slice(5).trim();
-            if (!dataStr) continue;
-            try {
-              const json = JSON.parse(dataStr);
-              if (json.code) {
-                controller.error(new Error(`百炼智能体错误 [${json.code}]: ${json.message ?? "unknown"}`));
-                return;
-              }
-              let chunk = json.output?.text ?? "";
-              // 解包 result wrapper
-              try {
-                const wrapper = JSON.parse(chunk);
-                if (wrapper && typeof wrapper === "object" && "result" in wrapper && typeof wrapper.result === "string") {
-                  chunk = wrapper.result;
-                }
-              } catch { /* not wrapped */ }
-              if (chunk) controller.enqueue(encoder.encode(chunk));
-            } catch { /* skip malformed line */ }
-          }
-        }
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
-    },
-  });
+  const encoder = new TextEncoder();
+  return res.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream())
+    .pipeThrough(
+      new TransformStream({
+        transform(message, controller) {
+          const event = JSON.parse(message.data) as BailianResponse;
+          if (event.code)
+            throw new Error(
+              `百炼智能体错误 [${event.code}]: ${event.message ?? "unknown"}`,
+            );
+          if (event.output?.text)
+            controller.enqueue(encoder.encode(event.output.text));
+        },
+      }),
+    );
 }
 
 async function callDifyAgentStream(
@@ -122,52 +104,59 @@ async function callDifyAgentStream(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Dify 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`);
+    throw new Error(
+      `Dify 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`,
+    );
   }
   if (!res.body) throw new Error("Dify 工作流返回为空");
 
-  return new ReadableStream({
-    async start(controller) {
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      const encoder = new TextEncoder();
-      let buffer = "";
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const dataStr = line.slice(5).trim();
-            if (!dataStr) continue;
-            try {
-              const json = JSON.parse(dataStr);
-              const event = json.event;
-              if (event === "text_chunk" && json.data?.text) {
-                controller.enqueue(encoder.encode(json.data.text));
-              } else if (event === "node_finished" && json.data?.outputs) {
-                // For workflows that don't use text_chunk, emit final output once
-                const out = json.data.outputs;
-                const txt = out.text || out.result || out.output;
-                if (typeof txt === "string") controller.enqueue(encoder.encode(txt));
-              }
-            } catch { /* skip */ }
+  let streamedText = false;
+  const encoder = new TextEncoder();
+  return res.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream())
+    .pipeThrough(
+      new TransformStream({
+        transform(message, controller) {
+          const event = JSON.parse(message.data) as {
+            event: string;
+            message?: string;
+            data?: {
+              text?: string;
+              status?: string;
+              error?: string;
+              outputs?: Record<string, unknown>;
+            };
+          };
+          if (
+            event.event === "error" ||
+            (event.event === "workflow_finished" &&
+              event.data?.status !== "succeeded")
+          ) {
+            throw new Error(
+              event.data?.error || event.message || "Dify 工作流执行失败",
+            );
           }
-        }
-        controller.close();
-      } catch (err) {
-        controller.error(err);
-      }
-    },
-  });
+          if (event.event === "text_chunk" && event.data?.text) {
+            streamedText = true;
+            controller.enqueue(encoder.encode(event.data.text));
+          } else if (event.event === "workflow_finished" && !streamedText) {
+            const outputs = event.data?.outputs;
+            const text = outputs?.text ?? outputs?.result ?? outputs?.output;
+            if (typeof text === "string")
+              controller.enqueue(encoder.encode(text));
+          }
+        },
+      }),
+    );
 }
 
 // ── Unified non-streaming caller ────────────────────────────────────
 
-export async function callAgent(config: AgentConfig, prompt: string): Promise<string> {
+export async function callAgent(
+  config: AgentConfig,
+  prompt: string,
+): Promise<string> {
   switch (config.platform) {
     case "bailian":
       return callBailianAgent(config, prompt);
@@ -179,7 +168,6 @@ export async function callAgent(config: AgentConfig, prompt: string): Promise<st
       throw new Error(`不支持的智能体平台: ${config.platform}`);
   }
 }
-
 
 // ── 百炼 (DashScope) ────────────────────────────────────────────────
 
@@ -210,13 +198,17 @@ export async function callBailianAgent(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`百炼智能体请求失败: ${res.status} ${errText.slice(0, 300)}`);
+    throw new Error(
+      `百炼智能体请求失败: ${res.status} ${errText.slice(0, 300)}`,
+    );
   }
 
   const json = (await res.json()) as BailianResponse;
 
   if (json.code) {
-    throw new Error(`百炼智能体错误 [${json.code}]: ${json.message ?? "unknown"}`);
+    throw new Error(
+      `百炼智能体错误 [${json.code}]: ${json.message ?? "unknown"}`,
+    );
   }
 
   const rawText = json.output?.text;
@@ -228,7 +220,12 @@ export async function callBailianAgent(
   // 百炼 Agent 的工作流模式会将结果包在 {"result": "..."} 中，需要解包
   try {
     const wrapper = JSON.parse(text);
-    if (wrapper && typeof wrapper === "object" && "result" in wrapper && typeof wrapper.result === "string") {
+    if (
+      wrapper &&
+      typeof wrapper === "object" &&
+      "result" in wrapper &&
+      typeof wrapper.result === "string"
+    ) {
       text = wrapper.result;
     }
   } catch {
@@ -278,7 +275,9 @@ async function callDifyAgent(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Dify 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`);
+    throw new Error(
+      `Dify 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`,
+    );
   }
 
   const json = (await res.json()) as DifyResponse;
@@ -297,7 +296,11 @@ async function callDifyAgent(
     throw new Error("Dify 工作流返回为空");
   }
 
-  const text = outputs.result || outputs.text || outputs.output || Object.values(outputs)[0];
+  const text =
+    outputs.result ||
+    outputs.text ||
+    outputs.output ||
+    Object.values(outputs)[0];
   if (!text) {
     throw new Error(`Dify 工作流输出为空: ${JSON.stringify(outputs)}`);
   }
@@ -338,7 +341,9 @@ async function callCozeAgent(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Coze 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`);
+    throw new Error(
+      `Coze 工作流请求失败: ${res.status} ${errText.slice(0, 300)}`,
+    );
   }
 
   const json = (await res.json()) as CozeResponse;
@@ -362,142 +367,13 @@ async function callCozeAgent(
   return json.data;
 }
 
-// ── JSON 提取 ───────────────────────────────────────────────────────
-
-function extractJSON(text: string): string {
-  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (codeBlockMatch) return codeBlockMatch[1].trim();
-
-  const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-  if (jsonMatch) return jsonMatch[1].trim();
-
-  return text.trim();
-}
-
-// ── Schema 校验 ─────────────────────────────────────────────────────
-
-export type AgentCategory = "script_outline" | "script_generate" | "script_parse" | "character_extract" | "shot_split" | "keyframe_prompts" | "video_prompts" | "ref_image_prompts" | "ref_video_prompts";
-
-export function validateAgentOutput(category: AgentCategory, rawText: string): unknown {
-  const jsonStr = extractJSON(rawText);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error(
-      `智能体返回的内容不是有效 JSON。请修改智能体的输出格式。\n原始返回: ${rawText.slice(0, 500)}`,
-    );
-  }
-
-  console.log(`[AgentValidate] category=${category}, parsed keys:`, typeof parsed === 'object' && parsed ? Object.keys(parsed as Record<string, unknown>) : typeof parsed);
-  console.log(`[AgentValidate] rawText (first 1000):`, rawText.slice(0, 1000));
-
-  switch (category) {
-    case "script_outline":
-    case "script_generate":
-      // Both return free-form text — wrap in {outline}/{script} loosely
-      return validateScriptOutline(parsed);
-    case "script_parse":
-      return validateScriptParse(parsed);
-    case "character_extract":
-      return validateCharacterExtract(parsed);
-    case "shot_split":
-      return validateShotSplit(parsed);
-    case "keyframe_prompts":
-    case "video_prompts":
-    case "ref_image_prompts":
-    case "ref_video_prompts":
-      return parsed;
-  }
-}
-
-function assertField(obj: Record<string, unknown>, field: string, type: string, context: string) {
-  if (!(field in obj) || obj[field] === undefined || obj[field] === null) {
-    throw new Error(`智能体输出缺少必填字段 "${field}"（${context}）`);
-  }
-  if (type === "string" && typeof obj[field] !== "string") {
-    throw new Error(`智能体输出字段 "${field}" 应为字符串类型（${context}）`);
-  }
-  if (type === "number" && typeof obj[field] !== "number") {
-    throw new Error(`智能体输出字段 "${field}" 应为数字类型（${context}）`);
-  }
-  if (type === "array" && !Array.isArray(obj[field])) {
-    throw new Error(`智能体输出字段 "${field}" 应为数组类型（${context}）`);
-  }
-}
-
-function validateScriptOutline(parsed: unknown): { outline: string } {
-  if (typeof parsed === "string") {
-    return { outline: parsed };
-  }
-  const obj = parsed as Record<string, unknown>;
-  assertField(obj, "outline", "string", "script_outline");
-  return { outline: obj.outline as string };
-}
-
-function validateScriptParse(parsed: unknown): unknown {
-  const obj = parsed as Record<string, unknown>;
-  assertField(obj, "title", "string", "script_parse");
-  assertField(obj, "synopsis", "string", "script_parse");
-  assertField(obj, "scenes", "array", "script_parse");
-  const scenes = obj.scenes as Array<Record<string, unknown>>;
-  for (let i = 0; i < scenes.length; i++) {
-    const s = scenes[i];
-    assertField(s, "sceneNumber", "number", `script_parse.scenes[${i}]`);
-    assertField(s, "setting", "string", `script_parse.scenes[${i}]`);
-    assertField(s, "description", "string", `script_parse.scenes[${i}]`);
-  }
-  return parsed;
-}
-
-function validateCharacterExtract(parsed: unknown): unknown {
-  if (Array.isArray(parsed)) {
-    for (let i = 0; i < parsed.length; i++) {
-      const c = parsed[i] as Record<string, unknown>;
-      assertField(c, "name", "string", `character[${i}]`);
-      assertField(c, "description", "string", `character[${i}]`);
-    }
-    return { characters: parsed };
-  }
-
-  const obj = parsed as Record<string, unknown>;
-  assertField(obj, "characters", "array", "character_extract");
-  const chars = obj.characters as Array<Record<string, unknown>>;
-  for (let i = 0; i < chars.length; i++) {
-    assertField(chars[i], "name", "string", `characters[${i}]`);
-    assertField(chars[i], "description", "string", `characters[${i}]`);
-  }
-  return parsed;
-}
-
-function validateShotSplit(parsed: unknown): unknown {
-  if (!Array.isArray(parsed)) {
-    throw new Error("智能体输出 shot_split 应为数组类型");
-  }
-  if (parsed.length === 0) return parsed;
-
-  const first = parsed[0] as Record<string, unknown>;
-
-  // Format A: 按场景分组 [{ sceneTitle, shots: [...] }]
-  if ("sceneTitle" in first && "shots" in first) {
-    for (let i = 0; i < parsed.length; i++) {
-      const scene = parsed[i] as Record<string, unknown>;
-      assertField(scene, "sceneTitle", "string", `scene[${i}]`);
-      assertField(scene, "shots", "array", `scene[${i}]`);
-      const shots = scene.shots as Array<Record<string, unknown>>;
-      for (let j = 0; j < shots.length; j++) {
-        assertField(shots[j], "sequence", "number", `scene[${i}].shots[${j}]`);
-      }
-    }
-    return parsed;
-  }
-
-  // Format B: 扁平数组 [{ sequence, prompt/startFrame, ... }] — 智能体常见输出
-  // 校验每个 shot 有 sequence 字段即可
-  for (let i = 0; i < parsed.length; i++) {
-    const shot = parsed[i] as Record<string, unknown>;
-    assertField(shot, "sequence", "number", `shot[${i}]`);
-  }
-  // 包装成 Format A 以便下游统一处理
-  return [{ sceneTitle: "Scene 1", sceneDescription: "", lighting: "", colorPalette: "", shots: parsed }];
-}
+export type AgentCategory =
+  | "script_outline"
+  | "script_generate"
+  | "script_parse"
+  | "character_extract"
+  | "shot_split"
+  | "keyframe_prompts"
+  | "video_prompts"
+  | "ref_image_prompts"
+  | "ref_video_prompts";

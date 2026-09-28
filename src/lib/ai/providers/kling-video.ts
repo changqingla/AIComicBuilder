@@ -1,14 +1,20 @@
-import type { VideoProvider, VideoGenerateParams, VideoGenerateResult } from "../types";
+import { id as genId } from "@/lib/id";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { id as genId } from "@/lib/id";
+import type {
+  VideoGenerateParams,
+  VideoGenerateResult,
+  VideoProvider,
+} from "../types";
 
 function generateKlingToken(accessKey: string, secretKey: string): string {
   const now = Math.floor(Date.now() / 1000);
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const header = Buffer.from(
+    JSON.stringify({ alg: "HS256", typ: "JWT" }),
+  ).toString("base64url");
   const payload = Buffer.from(
-    JSON.stringify({ iss: accessKey, exp: now + 1800, nbf: now - 5 })
+    JSON.stringify({ iss: accessKey, exp: now + 1800, nbf: now - 5 }),
   ).toString("base64url");
   const signature = crypto
     .createHmac("sha256", secretKey)
@@ -23,7 +29,6 @@ interface KlingResponse<T> {
   data: T;
 }
 
-
 interface KlingTaskData {
   task_id: string;
   task_status: "submitted" | "processing" | "succeed" | "failed";
@@ -32,7 +37,6 @@ interface KlingTaskData {
     videos?: { url: string }[];
   };
 }
-
 
 function toBase64(filePath: string): string {
   let data: Buffer;
@@ -71,8 +75,15 @@ export class KlingVideoProvider implements VideoProvider {
     uploadDir?: string;
   }) {
     this.apiKey = (params?.apiKey || process.env.KLING_ACCESS_KEY || "").trim();
-    this.secretKey = (params?.secretKey || process.env.KLING_SECRET_KEY || "").trim();
-    this.baseUrl = (params?.baseUrl || "https://api.klingai.com").replace(/\/+$/, "");
+    this.secretKey = (
+      params?.secretKey ||
+      process.env.KLING_SECRET_KEY ||
+      ""
+    ).trim();
+    this.baseUrl = (params?.baseUrl || "https://api.klingai.com").replace(
+      /\/+$/,
+      "",
+    );
     this.model = params?.model || "kling-v1";
     this.uploadDir = params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
@@ -91,7 +102,9 @@ export class KlingVideoProvider implements VideoProvider {
     return duration <= 5 ? 5 : 10;
   }
 
-  async generateVideo(params: VideoGenerateParams): Promise<VideoGenerateResult> {
+  async generateVideo(
+    params: VideoGenerateParams,
+  ): Promise<VideoGenerateResult> {
     const duration = this.mapDuration(params.duration);
     const aspectRatio = params.ratio;
 
@@ -103,7 +116,7 @@ export class KlingVideoProvider implements VideoProvider {
       const tailImageData = toBase64(params.lastFrame!);
 
       console.log(
-        `[Kling Video] image2video: model=${this.model}, duration=${duration}s, ratio=${aspectRatio}`
+        `[Kling Video] image2video: model=${this.model}, duration=${duration}s, ratio=${aspectRatio}`,
       );
 
       const submitRes = await fetch(`${this.baseUrl}/v1/videos/image2video`, {
@@ -125,22 +138,25 @@ export class KlingVideoProvider implements VideoProvider {
 
       if (!submitRes.ok) {
         const errBody = await submitRes.text().catch(() => "");
-        throw new Error(`Kling image2video submit failed: ${submitRes.status} ${errBody}`);
+        throw new Error(
+          `Kling image2video submit failed: ${submitRes.status} ${errBody}`,
+        );
       }
 
-      const submitJson = (await submitRes.json()) as KlingResponse<{ task_id: string }>;
+      const submitJson = (await submitRes.json()) as KlingResponse<{
+        task_id: string;
+      }>;
       if (submitJson.code !== 0) {
         throw new Error(`Kling image2video error: ${submitJson.message}`);
       }
       taskId = submitJson.data.task_id;
       console.log(`[Kling Video] image2video task submitted: ${taskId}`);
-
     } else {
       // ── Reference image mode: text2video with initial image ──
       const refImage = await toBase64FromPathOrUrl(params.initialImage!);
 
       console.log(
-        `[Kling Video] text2video: model=${this.model}, duration=${duration}s, ratio=${aspectRatio}`
+        `[Kling Video] text2video: model=${this.model}, duration=${duration}s, ratio=${aspectRatio}`,
       );
 
       let submitRes = await fetch(`${this.baseUrl}/v1/videos/text2video`, {
@@ -161,7 +177,9 @@ export class KlingVideoProvider implements VideoProvider {
       // Fallback: if reference_image is unsupported (400/422), retry without it
       if (submitRes.status === 400 || submitRes.status === 422) {
         const fallbackBody = await submitRes.text().catch(() => "");
-        console.warn(`[Kling Video] text2video reference_image rejected (${submitRes.status}: ${fallbackBody}), retrying without ref images`);
+        console.warn(
+          `[Kling Video] text2video reference_image rejected (${submitRes.status}: ${fallbackBody}), retrying without ref images`,
+        );
         submitRes = await fetch(`${this.baseUrl}/v1/videos/text2video`, {
           method: "POST",
           headers: {
@@ -179,10 +197,14 @@ export class KlingVideoProvider implements VideoProvider {
 
       if (!submitRes.ok) {
         const errBody = await submitRes.text().catch(() => "");
-        throw new Error(`Kling text2video submit failed: ${submitRes.status} ${errBody}`);
+        throw new Error(
+          `Kling text2video submit failed: ${submitRes.status} ${errBody}`,
+        );
       }
 
-      const submitJson = (await submitRes.json()) as KlingResponse<{ task_id: string }>;
+      const submitJson = (await submitRes.json()) as KlingResponse<{
+        task_id: string;
+      }>;
       if (submitJson.code !== 0) {
         throw new Error(`Kling text2video error: ${submitJson.message}`);
       }
@@ -208,7 +230,7 @@ export class KlingVideoProvider implements VideoProvider {
 
   private async pollForResult(
     taskId: string,
-    taskType: "image2video" | "text2video"
+    taskType: "image2video" | "text2video",
   ): Promise<string> {
     const maxAttempts = 120;
 
@@ -217,7 +239,7 @@ export class KlingVideoProvider implements VideoProvider {
 
       const res = await fetch(
         `${this.baseUrl}/v1/videos/${taskType}/${taskId}`,
-        { headers: { Authorization: this.getAuthHeader() } }
+        { headers: { Authorization: this.getAuthHeader() } },
       );
 
       if (!res.ok) {

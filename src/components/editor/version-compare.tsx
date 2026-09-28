@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { fetchJson } from "@/lib/api-fetch";
+import { getFirstFrameUrl } from "@/lib/shot-assets";
+import { uploadUrl } from "@/lib/utils/upload-url";
+import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useTranslations } from "next-intl";
-
-interface Shot {
-  id: string;
-  sequence: number;
-  firstFrame?: string | null;
-  lastFrame?: string | null;
-  prompt?: string;
-  duration: number;
-}
+import { useState } from "react";
+import useSWR from "swr";
 
 interface Version {
   id: string;
@@ -20,23 +16,32 @@ interface Version {
 
 interface VersionCompareProps {
   versions: Version[];
-  currentVersionId: string | null;
-  onVersionChange: (versionId: string) => void;
-  getShotsForVersion: (versionId: string) => Shot[];
+  projectId: string;
+  episodeId: string;
 }
 
 export function VersionCompare({
   versions,
-  currentVersionId,
-  onVersionChange,
-  getShotsForVersion,
+  projectId,
+  episodeId,
 }: VersionCompareProps) {
   const t = useTranslations();
   const [versionAId, setVersionAId] = useState(versions[0]?.id || "");
   const [versionBId, setVersionBId] = useState(versions[1]?.id || "");
 
-  const shotsA = useMemo(() => getShotsForVersion(versionAId), [versionAId, getShotsForVersion]);
-  const shotsB = useMemo(() => getShotsForVersion(versionBId), [versionBId, getShotsForVersion]);
+  const url = `/api/projects/${projectId}/episodes/${episodeId}`;
+  const { data: versionA, error: errorA } = useSWR<EpisodeDetail>(
+    versionAId ? `${url}?versionId=${versionAId}` : null,
+    fetchJson,
+  );
+  const { data: versionB, error: errorB } = useSWR<EpisodeDetail>(
+    versionBId ? `${url}?versionId=${versionBId}` : null,
+    fetchJson,
+  );
+  const shotsA = versionA?.shots ?? [];
+  const shotsB = versionB?.shots ?? [];
+  if (errorA || errorB) return <p role="alert">{String(errorA || errorB)}</p>;
+  if (!versionA || !versionB) return <p>{t("common.loading")}</p>;
 
   const maxLen = Math.max(shotsA.length, shotsB.length);
 
@@ -89,14 +94,18 @@ export function VersionCompare({
           const shotA = shotsA[i];
           const shotB = shotsB[i];
           return (
-            <div key={i} className="grid grid-cols-2 gap-4 rounded-lg border p-3">
+            <div
+              key={i}
+              className="grid grid-cols-2 gap-4 rounded-lg border p-3"
+            >
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {t("shot.shot")} {i + 1} — v{versions.find((v) => v.id === versionAId)?.versionNum}
+                  {t("shot.shot")} {i + 1} — v
+                  {versions.find((v) => v.id === versionAId)?.versionNum}
                 </span>
-                {shotA?.firstFrame ? (
+                {shotA && getFirstFrameUrl(shotA) ? (
                   <img
-                    src={shotA.firstFrame}
+                    src={uploadUrl(getFirstFrameUrl(shotA)!)}
                     alt={`Shot ${i + 1} version A`}
                     className="w-full rounded aspect-video object-cover"
                   />
@@ -106,16 +115,19 @@ export function VersionCompare({
                   </div>
                 )}
                 {shotA?.prompt && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{shotA.prompt}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {shotA.prompt}
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {t("shot.shot")} {i + 1} — v{versions.find((v) => v.id === versionBId)?.versionNum}
+                  {t("shot.shot")} {i + 1} — v
+                  {versions.find((v) => v.id === versionBId)?.versionNum}
                 </span>
-                {shotB?.firstFrame ? (
+                {shotB && getFirstFrameUrl(shotB) ? (
                   <img
-                    src={shotB.firstFrame}
+                    src={uploadUrl(getFirstFrameUrl(shotB)!)}
                     alt={`Shot ${i + 1} version B`}
                     className="w-full rounded aspect-video object-cover"
                   />
@@ -125,7 +137,9 @@ export function VersionCompare({
                   </div>
                 )}
                 {shotB?.prompt && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{shotB.prompt}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {shotB.prompt}
+                  </p>
                 )}
               </div>
             </div>

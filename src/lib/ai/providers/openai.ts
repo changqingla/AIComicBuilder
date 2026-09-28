@@ -1,15 +1,20 @@
-import OpenAI from "openai";
-import type { AIProvider, TextOptions, ImageOptions } from "../types";
+import { id as genId } from "@/lib/id";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import OpenAI from "openai";
+import type { AIProvider, ImageOptions, TextOptions } from "../types";
 
 export class OpenAIProvider implements AIProvider {
   private client: OpenAI;
   private defaultModel: string;
   private uploadDir: string;
 
-  constructor(params?: { apiKey?: string; baseURL?: string; model?: string; uploadDir?: string; }) {
+  constructor(params?: {
+    apiKey?: string;
+    baseURL?: string;
+    model?: string;
+    uploadDir?: string;
+  }) {
     this.client = new OpenAI({
       apiKey: params?.apiKey || process.env.OPENAI_API_KEY,
       baseURL: params?.baseURL || process.env.OPENAI_BASE_URL,
@@ -33,9 +38,14 @@ export class OpenAIProvider implements AIProvider {
             const data = fs.readFileSync(resolved).toString("base64");
             const ext = path.extname(resolved).toLowerCase();
             const mimeType = ext === ".png" ? "image/png" : "image/jpeg";
-            content.push({ type: "image_url", image_url: { url: `data:${mimeType};base64,${data}` } });
+            content.push({
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${data}` },
+            });
           }
-        } catch { /* skip unreadable */ }
+        } catch {
+          /* skip unreadable */
+        }
       }
       content.push({ type: "text", text: prompt });
       messages.push({ role: "user", content });
@@ -62,14 +72,21 @@ export class OpenAIProvider implements AIProvider {
     if (!isDallE) {
       if (options?.size) compatParams.size = options.size;
       if (options?.aspectRatio) compatParams.aspect_ratio = options.aspectRatio;
-      if (!options?.size && !options?.aspectRatio) compatParams.aspect_ratio = "16:9";
+      if (!options?.size && !options?.aspectRatio)
+        compatParams.aspect_ratio = "16:9";
     }
 
-    const response = await ((this.client.images.generate as unknown) as (params: Record<string, unknown>) => Promise<OpenAI.ImagesResponse>)({
+    const response = await (
+      this.client.images.generate as unknown as (
+        params: Record<string, unknown>,
+      ) => Promise<OpenAI.ImagesResponse>
+    )({
       model,
       prompt,
       ...(isDallE && {
-        size: (["1024x1024", "1792x1024", "1024x1792"].includes(options?.size ?? "")
+        size: (["1024x1024", "1792x1024", "1024x1792"].includes(
+          options?.size ?? "",
+        )
           ? options!.size
           : "1792x1024") as "1024x1024" | "1792x1024" | "1024x1792",
         quality: (options?.quality as "standard" | "hd") || "standard",
@@ -78,11 +95,18 @@ export class OpenAIProvider implements AIProvider {
       n: 1,
     });
 
-    const imageUrl = response.data?.[0]?.url;
-    if (!imageUrl) throw new Error("No image URL returned from OpenAI");
-
-    const imageResponse = await fetch(imageUrl);
-    const buffer = Buffer.from(await imageResponse.arrayBuffer());
+    const image = response.data?.[0];
+    let buffer: Buffer;
+    if (image?.b64_json) {
+      buffer = Buffer.from(image.b64_json, "base64");
+    } else if (image?.url) {
+      const response = await fetch(image.url);
+      if (!response.ok)
+        throw new Error(`Image download failed: ${response.status}`);
+      buffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      throw new Error("No image data returned from provider");
+    }
     const filename = `${genId()}.png`;
     const dir = path.join(this.uploadDir, "frames");
     fs.mkdirSync(dir, { recursive: true });

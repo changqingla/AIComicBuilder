@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -13,7 +19,9 @@ export const projects = sqliteTable("projects", {
     .notNull()
     .default("draft"),
   finalVideoUrl: text("final_video_url"),
-  generationMode: text('generation_mode', { enum: ['keyframe', 'reference'] }).notNull().default('keyframe'),
+  generationMode: text("generation_mode", { enum: ["keyframe", "reference"] })
+    .notNull()
+    .default("keyframe"),
   useProjectPrompts: integer("use_project_prompts").notNull().default(0),
   colorPalette: text("color_palette").default(""),
   worldSetting: text("world_setting").default(""),
@@ -70,7 +78,9 @@ export const characters = sqliteTable("characters", {
   visualHint: text("visual_hint").default(""),
   referenceImage: text("reference_image"),
   referenceImageHistory: text("reference_image_history").default("[]"),
-  scope: text("scope", { enum: ["main", "guest"] }).notNull().default("main"),
+  scope: text("scope", { enum: ["main", "guest"] })
+    .notNull()
+    .default("main"),
   performanceStyle: text("performance_style").default(""),
   heightCm: integer("height_cm").default(0),
   bodyType: text("body_type").default("average"),
@@ -140,41 +150,55 @@ export const scenes = sqliteTable("scenes", {
  * Two modes coexist freely on the same shot — they live in different rows
  * with different `type` values and never collide.
  */
-export const shotAssets = sqliteTable("shot_assets", {
-  id: text("id").primaryKey(),
-  shotId: text("shot_id")
-    .notNull()
-    .references(() => shots.id, { onDelete: "cascade" }),
-  type: text("type", {
-    enum: [
-      "first_frame",
-      "last_frame",
-      "reference",
-      "keyframe_video",
-      "reference_video",
-    ],
-  }).notNull(),
-  sequenceInType: integer("sequence_in_type").notNull().default(0),
-  assetVersion: integer("asset_version").notNull().default(1),
-  isActive: integer("is_active").notNull().default(1),
-  prompt: text("prompt").notNull().default(""),
-  fileUrl: text("file_url"),
-  status: text("status", {
-    enum: ["pending", "generating", "completed", "failed"],
-  })
-    .notNull()
-    .default("pending"),
-  characters: text("characters"), // JSON array
-  modelProvider: text("model_provider"),
-  modelId: text("model_id"),
-  meta: text("meta"), // JSON
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const shotAssets = sqliteTable(
+  "shot_assets",
+  {
+    id: text("id").primaryKey(),
+    shotId: text("shot_id")
+      .notNull()
+      .references(() => shots.id, { onDelete: "cascade" }),
+    type: text("type", {
+      enum: [
+        "first_frame",
+        "last_frame",
+        "reference",
+        "keyframe_video",
+        "reference_video",
+      ],
+    }).notNull(),
+    sequenceInType: integer("sequence_in_type").notNull().default(0),
+    assetVersion: integer("asset_version").notNull().default(1),
+    isActive: integer("is_active").notNull().default(1),
+    prompt: text("prompt").notNull().default(""),
+    fileUrl: text("file_url"),
+    status: text("status", {
+      enum: ["pending", "generating", "completed", "failed"],
+    })
+      .notNull()
+      .default("pending"),
+    characters: text("characters"), // JSON array
+    modelProvider: text("model_provider"),
+    modelId: text("model_id"),
+    meta: text("meta"), // JSON
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("shot_assets_slot_version").on(
+      table.shotId,
+      table.type,
+      table.sequenceInType,
+      table.assetVersion,
+    ),
+    uniqueIndex("shot_assets_active_slot")
+      .on(table.shotId, table.type, table.sequenceInType)
+      .where(sql`${table.isActive} = 1`),
+  ],
+);
 
 export const shots = sqliteTable("shots", {
   id: text("id").primaryKey(),
@@ -247,7 +271,9 @@ export const promptTemplates = sqliteTable("prompt_templates", {
   userId: text("user_id").notNull(),
   promptKey: text("prompt_key").notNull(),
   slotKey: text("slot_key"),
-  scope: text("scope", { enum: ["global", "project"] }).notNull().default("global"),
+  scope: text("scope", { enum: ["global", "project"] })
+    .notNull()
+    .default("global"),
   projectId: text("project_id"),
   content: text("content").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })
@@ -354,52 +380,28 @@ export const promptAbTests = sqliteTable("prompt_ab_tests", {
     .$defaultFn(() => new Date()),
 });
 
-export const tasks = sqliteTable("tasks", {
-  id: text("id").primaryKey(),
-  projectId: text("project_id").references(() => projects.id, {
-    onDelete: "cascade",
-  }),
-  type: text("type", {
-    enum: [
-      "script_outline",
-      "script_parse",
-      "character_extract",
-      "character_image",
-      "shot_split",
-      "frame_generate",
-      "video_generate",
-      "video_assemble",
-    ],
-  }).notNull(),
-  status: text("status", {
-    enum: ["pending", "running", "completed", "failed"],
-  })
-    .notNull()
-    .default("pending"),
-  payload: text("payload", { mode: "json" }),
-  result: text("result", { mode: "json" }),
-  error: text("error"),
-  retries: integer("retries").notNull().default(0),
-  maxRetries: integer("max_retries").notNull().default(3),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
-  episodeId: text("episode_id").references(() => episodes.id, {
-    onDelete: "cascade",
-  }),
-});
-
 export const agents = sqliteTable("agents", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().default(""),
   name: text("name").notNull(),
   category: text("category", {
-    enum: ["script_outline", "script_generate", "script_parse", "character_extract", "shot_split", "keyframe_prompts", "video_prompts", "ref_image_prompts", "ref_video_prompts"],
+    enum: [
+      "script_outline",
+      "script_generate",
+      "script_parse",
+      "character_extract",
+      "shot_split",
+      "keyframe_prompts",
+      "video_prompts",
+      "ref_image_prompts",
+      "ref_video_prompts",
+    ],
   }).notNull(),
   platform: text("platform", {
     enum: ["bailian", "dify", "coze"],
-  }).notNull().default("bailian"),
+  })
+    .notNull()
+    .default("bailian"),
   appId: text("app_id").notNull(),
   apiKey: text("api_key").notNull(),
   description: text("description").default(""),
@@ -417,7 +419,19 @@ export const agentBindings = sqliteTable("agent_bindings", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   category: text("category", {
-    enum: ["script_outline", "script_generate", "script_parse", "character_extract", "shot_split", "keyframe_prompts", "video_prompts", "ref_image_prompts", "ref_video_prompts"],
+    enum: [
+      "script_outline",
+      "script_generate",
+      "script_parse",
+      "character_extract",
+      "shot_split",
+      "keyframe_prompts",
+      "video_prompts",
+      "ref_image_prompts",
+      "ref_video_prompts",
+    ],
   }).notNull(),
-  agentId: text("agent_id").references(() => agents.id, { onDelete: "set null" }),
+  agentId: text("agent_id").references(() => agents.id, {
+    onDelete: "set null",
+  }),
 });

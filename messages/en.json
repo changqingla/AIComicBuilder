@@ -1,5 +1,6 @@
 {
   "common": {
+    "saveFailed": "Failed to save. Please try again.",
     "appName": "AI Comic Builder",
     "create": "Create",
     "save": "Save",
@@ -187,6 +188,7 @@
     "shot": "Shot"
   },
   "storyboard": {
+    "generateKeyframePrompts": "Generate keyframe prompts",
     "stale": "Outdated",
     "regenerateStale": "Regenerate outdated shots",
     "batchRefImages": "Batch Generate Ref Images",

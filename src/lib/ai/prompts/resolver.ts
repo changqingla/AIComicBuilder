@@ -14,7 +14,8 @@ interface ResolveOptions {
  */
 export async function resolvePrompt(
   promptKey: string,
-  options: ResolveOptions
+  options: ResolveOptions,
+  params?: Record<string, unknown>,
 ): Promise<string> {
   const def = getPromptDefinition(promptKey);
   if (!def) {
@@ -31,13 +32,13 @@ export async function resolvePrompt(
       and(
         eq(promptTemplates.userId, options.userId),
         eq(promptTemplates.promptKey, promptKey),
-        isNull(promptTemplates.slotKey)
-      )
+        isNull(promptTemplates.slotKey),
+      ),
     );
 
   // Find project-level full override, then global
   const projectFull = fullOverrides.find(
-    (o) => o.scope === "project" && o.projectId === options.projectId
+    (o) => o.scope === "project" && o.projectId === options.projectId,
   );
   const globalFull = fullOverrides.find((o) => o.scope === "global");
 
@@ -55,8 +56,8 @@ export async function resolvePrompt(
     .where(
       and(
         eq(promptTemplates.userId, options.userId),
-        eq(promptTemplates.promptKey, promptKey)
-      )
+        eq(promptTemplates.promptKey, promptKey),
+      ),
     );
 
   for (const slotKey of Object.keys(slotContents)) {
@@ -66,7 +67,7 @@ export async function resolvePrompt(
         (o) =>
           o.slotKey === slotKey &&
           o.scope === "project" &&
-          o.projectId === options.projectId
+          o.projectId === options.projectId,
       );
       if (projectSlot) {
         slotContents[slotKey] = projectSlot.content;
@@ -75,14 +76,14 @@ export async function resolvePrompt(
     }
     // Global slot override
     const globalSlot = slotOverrides.find(
-      (o) => o.slotKey === slotKey && o.scope === "global"
+      (o) => o.slotKey === slotKey && o.scope === "global",
     );
     if (globalSlot) {
       slotContents[slotKey] = globalSlot.content;
     }
   }
 
-  return def.buildFullPrompt(slotContents);
+  return def.buildFullPrompt(slotContents, params);
 }
 
 /**
@@ -91,7 +92,7 @@ export async function resolvePrompt(
  */
 export async function resolveSlotContents(
   promptKey: string,
-  options: ResolveOptions
+  options: ResolveOptions,
 ): Promise<Record<string, string>> {
   const def = getPromptDefinition(promptKey);
   if (!def) {
@@ -106,8 +107,8 @@ export async function resolveSlotContents(
     .where(
       and(
         eq(promptTemplates.userId, options.userId),
-        eq(promptTemplates.promptKey, promptKey)
-      )
+        eq(promptTemplates.promptKey, promptKey),
+      ),
     );
 
   for (const slotKey of Object.keys(slotContents)) {
@@ -116,7 +117,7 @@ export async function resolveSlotContents(
         (o) =>
           o.slotKey === slotKey &&
           o.scope === "project" &&
-          o.projectId === options.projectId
+          o.projectId === options.projectId,
       );
       if (projectSlot) {
         slotContents[slotKey] = projectSlot.content;
@@ -124,7 +125,7 @@ export async function resolveSlotContents(
       }
     }
     const globalSlot = overrides.find(
-      (o) => o.slotKey === slotKey && o.scope === "global"
+      (o) => o.slotKey === slotKey && o.scope === "global",
     );
     if (globalSlot) {
       slotContents[slotKey] = globalSlot.content;

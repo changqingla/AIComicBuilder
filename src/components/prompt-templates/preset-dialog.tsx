@@ -1,18 +1,20 @@
 "use client";
+import { fetchJson } from "@/lib/api-fetch";
+import useSWR from "swr";
 
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-fetch";
-import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { usePromptTemplateStore } from "@/stores/prompt-template-store";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface Preset {
   id: string;
@@ -30,34 +32,31 @@ interface PresetDialogProps {
   promptKey: string;
 }
 
-export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProps) {
+export function PresetDialog({
+  open,
+  onOpenChange,
+  promptKey,
+}: PresetDialogProps) {
   const t = useTranslations("promptTemplates.presets");
   const store = usePromptTemplateStore();
   const { registry, getSlotContent, setServerOverrides } = store;
 
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    data: presets = [],
+    isLoading: loading,
+    mutate: setPresets,
+  } = useSWR(
+    open ? ["presets", promptKey] : null,
+    async ([, key]) =>
+      (await fetchJson<Preset[]>("/api/prompt-presets")).filter(
+        (preset) => preset.promptKey === key,
+      ),
+    { onError: () => toast.error("Failed to load presets") },
+  );
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // Fetch presets when dialog opens
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    apiFetch("/api/prompt-presets")
-      .then((r) => r.json())
-      .then((data: Preset[]) => {
-        // Filter to only presets matching the current promptKey
-        const filtered = data.filter((p) => p.promptKey === promptKey);
-        setPresets(filtered);
-      })
-      .catch(() => {
-        toast.error("Failed to load presets");
-      })
-      .finally(() => setLoading(false));
-  }, [open, promptKey]);
 
   const refreshOverrides = async () => {
     const resp = await apiFetch("/api/prompt-templates");
@@ -91,7 +90,7 @@ export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProp
         method: "DELETE",
       });
       if (!resp.ok) throw new Error("Delete failed");
-      setPresets((prev) => prev.filter((p) => p.id !== preset.id));
+      setPresets((prev = []) => prev.filter((p) => p.id !== preset.id));
       toast.success(t("deleteSuccess"));
     } catch {
       toast.error("Failed to delete preset");
@@ -122,7 +121,7 @@ export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProp
       });
       if (!resp.ok) throw new Error("Save failed");
       const newPreset = await resp.json();
-      setPresets((prev) => [...prev, { ...newPreset, isBuiltIn: false }]);
+      setPresets((prev = []) => [...prev, { ...newPreset, isBuiltIn: false }]);
       setSaveName("");
       toast.success(t("saveSuccess"));
     } catch {
@@ -201,7 +200,9 @@ export function PresetDialog({ open, onOpenChange, promptKey }: PresetDialogProp
                   {t("userCreated")}
                 </div>
                 {userPresets.length === 0 ? (
-                  <p className="text-sm text-[--text-muted] py-1">{t("noUserPresets")}</p>
+                  <p className="text-sm text-[--text-muted] py-1">
+                    {t("noUserPresets")}
+                  </p>
                 ) : (
                   userPresets.map((preset) => (
                     <PresetCard

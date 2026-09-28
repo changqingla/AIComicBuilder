@@ -5,3 +5,5 @@ data
 uploads
 *.md
 docs
+playwright-report
+test-results

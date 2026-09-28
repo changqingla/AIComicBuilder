@@ -1,7 +1,11 @@
-import type { VideoProvider, VideoGenerateParams, VideoGenerateResult } from "../types";
+import { id as genId } from "@/lib/id";
 import fs from "node:fs";
 import path from "node:path";
-import { id as genId } from "@/lib/id";
+import type {
+  VideoGenerateParams,
+  VideoGenerateResult,
+  VideoProvider,
+} from "../types";
 
 function toDataUrl(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase().replace(".", "");
@@ -18,7 +22,10 @@ function toDataUrl(filePath: string): string {
 }
 
 function toImageUrl(imagePathOrUrl: string): string {
-  if (imagePathOrUrl.startsWith("http://") || imagePathOrUrl.startsWith("https://")) {
+  if (
+    imagePathOrUrl.startsWith("http://") ||
+    imagePathOrUrl.startsWith("https://")
+  ) {
     return imagePathOrUrl;
   }
   return toDataUrl(imagePathOrUrl);
@@ -47,20 +54,31 @@ export class UCloudSeedanceProvider implements VideoProvider {
     uploadDir?: string;
   }) {
     this.apiKey = params?.apiKey || "";
-    this.baseUrl = (
-      params?.baseUrl || "https://api.modelverse.cn"
-    ).replace(/\/+$/, "");
+    this.baseUrl = (params?.baseUrl || "https://api.modelverse.cn").replace(
+      /\/+$/,
+      "",
+    );
     this.model = params?.model || "doubao-seedance-1-5-pro-251215";
     this.uploadDir = params?.uploadDir || process.env.UPLOAD_DIR || "./uploads";
   }
 
-  async generateVideo(params: VideoGenerateParams): Promise<VideoGenerateResult> {
-    const body = "firstFrame" in params
-      ? this.buildKeyframeBody(params as VideoGenerateParams & { firstFrame: string; lastFrame: string })
-      : this.buildReferenceBody(params as VideoGenerateParams & { initialImage: string });
+  async generateVideo(
+    params: VideoGenerateParams,
+  ): Promise<VideoGenerateResult> {
+    const body =
+      "firstFrame" in params
+        ? this.buildKeyframeBody(
+            params as VideoGenerateParams & {
+              firstFrame: string;
+              lastFrame: string;
+            },
+          )
+        : this.buildReferenceBody(
+            params as VideoGenerateParams & { initialImage: string },
+          );
 
     console.log(
-      `[UCloudSeedance] Submitting task: model=${this.model}, duration=${(body.parameters as Record<string, unknown>)?.duration}`
+      `[UCloudSeedance] Submitting task: model=${this.model}, duration=${(body.parameters as Record<string, unknown>)?.duration}`,
     );
 
     const submitResponse = await fetch(`${this.baseUrl}/v1/tasks/submit`, {
@@ -74,7 +92,9 @@ export class UCloudSeedanceProvider implements VideoProvider {
 
     if (!submitResponse.ok) {
       const errText = await submitResponse.text();
-      throw new Error(`UCloudSeedance submit failed: ${submitResponse.status} ${errText}`);
+      throw new Error(
+        `UCloudSeedance submit failed: ${submitResponse.status} ${errText}`,
+      );
     }
 
     const submitResult = (await submitResponse.json()) as {
@@ -82,7 +102,9 @@ export class UCloudSeedanceProvider implements VideoProvider {
     };
     const taskId = submitResult.output?.task_id;
     if (!taskId) {
-      throw new Error(`UCloudSeedance: no task_id in response: ${JSON.stringify(submitResult)}`);
+      throw new Error(
+        `UCloudSeedance: no task_id in response: ${JSON.stringify(submitResult)}`,
+      );
     }
     console.log(`[UCloudSeedance] Task submitted: ${taskId}`);
 
@@ -100,7 +122,7 @@ export class UCloudSeedanceProvider implements VideoProvider {
   }
 
   private buildKeyframeBody(
-    params: VideoGenerateParams & { firstFrame: string; lastFrame: string }
+    params: VideoGenerateParams & { firstFrame: string; lastFrame: string },
   ): Record<string, unknown> {
     const isSeedance2 = this.model.includes("seedance-2");
     return {
@@ -131,7 +153,7 @@ export class UCloudSeedanceProvider implements VideoProvider {
   }
 
   private buildReferenceBody(
-    params: VideoGenerateParams & { initialImage: string }
+    params: VideoGenerateParams & { initialImage: string },
   ): Record<string, unknown> {
     const isSeedance2 = this.model.includes("seedance-2");
 
@@ -184,11 +206,13 @@ export class UCloudSeedanceProvider implements VideoProvider {
 
       const res = await fetch(
         `${this.baseUrl}/v1/tasks/status?task_id=${encodeURIComponent(taskId)}`,
-        { headers: { Authorization: this.apiKey } }
+        { headers: { Authorization: this.apiKey } },
       );
 
       if (!res.ok) {
-        console.warn(`[UCloudSeedance] Poll ${i + 1}: HTTP ${res.status}, retrying…`);
+        console.warn(
+          `[UCloudSeedance] Poll ${i + 1}: HTTP ${res.status}, retrying…`,
+        );
         continue;
       }
 
@@ -208,7 +232,7 @@ export class UCloudSeedanceProvider implements VideoProvider {
         const urls = result.output?.urls;
         if (!urls || urls.length === 0) {
           throw new Error(
-            `UCloudSeedance: Success but no urls in response: ${JSON.stringify(result)}`
+            `UCloudSeedance: Success but no urls in response: ${JSON.stringify(result)}`,
           );
         }
         return urls[0];
@@ -216,7 +240,7 @@ export class UCloudSeedanceProvider implements VideoProvider {
 
       if (status === "Failure" || status === "Expired") {
         throw new Error(
-          `UCloudSeedance generation ${status.toLowerCase()}: ${result.output?.error_message ?? "unknown error"}`
+          `UCloudSeedance generation ${status.toLowerCase()}: ${result.output?.error_message ?? "unknown error"}`,
         );
       }
 

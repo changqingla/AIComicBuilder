@@ -1,1 +1,1 @@
-ALTER TABLE agents ADD COLUMN platform TEXT NOT NULL DEFAULT 'bailian';
+CREATE INDEX IF NOT EXISTS idx_agents_user_platform ON agents(user_id, platform);
