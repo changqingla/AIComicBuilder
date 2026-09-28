@@ -26,9 +26,10 @@ const promptResultsSchema = z
   )
   .length(1);
 
-export async function handleSingleVideoPrompt(input: GenerationInput) {
+export async function handleSingleVideoPrompt(
+  input: GenerationInput<"single_video_prompt">,
+) {
   const { projectId, userId, payload, modelConfig } = input;
-  if (!payload?.shotId) throw new ApiError(400, "shotId required");
   const shot = db
     .select()
     .from(shots)
@@ -180,6 +181,15 @@ export async function handleSingleVideoPrompt(input: GenerationInput) {
   return { shotId: shot.id, videoPrompt, status: "ok" };
 }
 
-export async function handleBatchVideoPrompt(input: GenerationInput) {
-  return runShotBatch(input, handleSingleVideoPrompt);
+export async function handleBatchVideoPrompt(
+  input: GenerationInput<"batch_video_prompt">,
+) {
+  return runShotBatch(input, (shotId, episodeId) =>
+    handleSingleVideoPrompt({
+      ...input,
+      action: "single_video_prompt",
+      episodeId,
+      payload: { ...input.payload, shotId },
+    }),
+  );
 }

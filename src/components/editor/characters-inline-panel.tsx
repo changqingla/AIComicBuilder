@@ -1,8 +1,9 @@
 "use client";
 
+import { requestGeneration } from "@/lib/generation/client";
+
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { useModelGuard } from "@/hooks/use-model-guard";
-import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore, type ModelRef } from "@/stores/model-store";
 import { ChevronDown, ChevronUp, Loader2, Sparkles, Users } from "lucide-react";
@@ -79,17 +80,13 @@ export function CharactersInlinePanel({
     if (!imageGuard()) return;
     setGeneratingId(characterId);
     try {
-      await apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "single_character_image",
-          payload: { characterId },
-          modelConfig: {
-            ...getModelConfig(),
-            image: resolveImageRef(imageModelRef),
-          },
-        }),
+      await requestGeneration(projectId, {
+        action: "single_character_image",
+        payload: { characterId },
+        modelConfig: {
+          ...getModelConfig(),
+          image: resolveImageRef(imageModelRef),
+        },
       });
       onUpdate();
     } catch (err) {

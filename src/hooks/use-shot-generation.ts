@@ -1,10 +1,11 @@
 "use client";
 
+import { requestGeneration } from "@/lib/generation/client";
+
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useModelGuard } from "@/hooks/use-model-guard";
-import { apiFetch } from "@/lib/api-fetch";
 import type { ShotAsset } from "@/lib/shot-assets";
 import { useModelStore } from "@/stores/model-store";
 import type { ShotEditorProps } from "@/components/editor/shot-editor/types";
@@ -49,33 +50,32 @@ export function useShotGeneration({
     if (step === "text" && !textGuard()) return;
     const actions = {
       text: "single_shot_rewrite",
-      frames: asset
-        ? "single_ref_image_generate"
-        : reference
-          ? "single_ref_image_generate_all"
-          : "single_frame_generate",
+      frames: reference
+        ? "single_ref_image_generate_all"
+        : "single_frame_generate",
       prompt: "single_video_prompt",
       video: reference ? "single_reference_video" : "single_video_generate",
-    };
+    } as const;
     running.current = true;
     setPending(step);
     try {
       if (!(await flushAutosaves())) return;
-      await apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: actions[step],
-          modelConfig,
-          payload: {
-            shotId: shot.id,
-            versionId: versionId ?? undefined,
-            ratio: videoRatio,
-            refImageId: asset?.id,
-            overwrite: true,
-          },
-        }),
-      });
+      const payload = {
+        shotId: shot.id,
+        versionId: versionId ?? undefined,
+        ratio: videoRatio,
+        overwrite: true,
+      };
+      await requestGeneration(
+        projectId,
+        step === "frames" && asset
+          ? {
+              action: "single_ref_image_generate",
+              modelConfig,
+              payload: { ...payload, refImageId: asset.id },
+            }
+          : { action: actions[step], modelConfig, payload },
+      );
       await onUpdate();
     } catch (error) {
       toast.error(

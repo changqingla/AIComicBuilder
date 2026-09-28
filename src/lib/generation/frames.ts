@@ -18,19 +18,27 @@ import type { GenerationInput } from "@/lib/generation/request";
 import { getActiveAsset, insertAssetVersion } from "@/lib/shot-asset-utils";
 import { eq } from "drizzle-orm";
 
-export async function handleBatchFrameGenerate(input: GenerationInput) {
-  return runShotBatch(input, handleSingleFrameGenerate, [
-    "first_frame",
-    "last_frame",
-  ]);
+export async function handleBatchFrameGenerate(
+  input: GenerationInput<"batch_frame_generate">,
+) {
+  return runShotBatch(
+    input,
+    (shotId, episodeId) =>
+      handleSingleFrameGenerate({
+        ...input,
+        action: "single_frame_generate",
+        episodeId,
+        payload: { ...input.payload, shotId },
+      }),
+    ["first_frame", "last_frame"],
+  );
 }
 
-export async function handleSingleFrameGenerate(input: GenerationInput) {
+export async function handleSingleFrameGenerate(
+  input: GenerationInput<"single_frame_generate">,
+) {
   const { projectId, userId, payload, modelConfig, episodeId } = input;
-  const shotId = payload?.shotId as string;
-  if (!shotId) {
-    throw new ApiError(400, "No shotId provided");
-  }
+  const shotId = payload.shotId;
   if (!modelConfig?.image) {
     throw new ApiError(400, "No image model configured");
   }
@@ -75,7 +83,7 @@ export async function handleSingleFrameGenerate(input: GenerationInput) {
   );
 
   const ai = resolveImageProvider(modelConfig, versionedUploadDir);
-  const imageOpts = ratioToImageOpts(payload?.ratio as string | undefined);
+  const imageOpts = ratioToImageOpts(payload.ratio);
 
   const frameFirstSlots = await resolveSlotContents("frame_generate_first", {
     userId,

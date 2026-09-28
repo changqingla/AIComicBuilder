@@ -5,13 +5,7 @@ import { resolvePrompt } from "@/lib/ai/prompts/resolver";
 import { resolveImageProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
-import {
-  characters,
-  episodeCharacters,
-  episodes,
-  projects,
-  shots,
-} from "@/lib/db/schema";
+import { characters, episodes, projects, shots } from "@/lib/db/schema";
 import {
   characterExtractionSchema,
   saveExtractedCharacters,
@@ -20,14 +14,18 @@ import {
   callProjectAgent,
   extractErrorMessage,
   findBoundAgent,
+  getEpisodeCharacters,
 } from "@/lib/generation/common";
 import type { GenerationInput } from "@/lib/generation/request";
 import { loadShotAssetsBatch, patchAsset } from "@/lib/shot-asset-utils";
 import { selectReferences } from "@/lib/shot-assets";
 import { generateText } from "ai";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import pMap from "p-map";
 
-export async function handleCharacterExtract(input: GenerationInput) {
+export async function handleCharacterExtract(
+  input: GenerationInput<"character_extract">,
+) {
   const { projectId, userId, modelConfig, episodeId } = input;
   let script: string | null = null;
 
@@ -85,12 +83,11 @@ export async function handleCharacterExtract(input: GenerationInput) {
   return { characters: result.characters };
 }
 
-export async function handleSingleCharacterImage(input: GenerationInput) {
+export async function handleSingleCharacterImage(
+  input: GenerationInput<"single_character_image">,
+) {
   const { payload, modelConfig } = input;
-  const characterId = payload?.characterId as string;
-  if (!characterId) {
-    throw new ApiError(400, "No characterId provided");
-  }
+  const characterId = payload.characterId;
 
   if (!modelConfig?.image) {
     throw new ApiError(400, "No image model configured");
@@ -179,82 +176,31 @@ export async function handleSingleCharacterImage(input: GenerationInput) {
   }
 }
 
-export async function handleBatchCharacterImage(input: GenerationInput) {
+export async function handleBatchCharacterImage(
+  input: GenerationInput<"batch_character_image">,
+) {
   const { projectId, modelConfig, episodeId } = input;
   if (!modelConfig?.image) {
     throw new ApiError(400, "No image model configured");
   }
 
-  let allCharacters: (typeof characters.$inferSelect)[];
-  if (episodeId) {
-    const linkedIds = await db
-      .select({ characterId: episodeCharacters.characterId })
-      .from(episodeCharacters)
-      .where(eq(episodeCharacters.episodeId, episodeId));
-    allCharacters =
-      linkedIds.length > 0
-        ? await db
-            .select()
-            .from(characters)
-            .where(
-              inArray(
-                characters.id,
-                linkedIds.map((r) => r.characterId),
-              ),
-            )
-        : [];
-  } else {
-    allCharacters = await db
-      .select()
-      .from(characters)
-      .where(eq(characters.projectId, projectId));
-  }
+  const allCharacters = await getEpisodeCharacters(projectId, episodeId);
 
   const needImages = allCharacters.filter((c) => !c.referenceImage);
   if (needImages.length === 0) {
     return { results: [], message: "All characters already have images" };
   }
 
-  const ai = resolveImageProvider(modelConfig);
-
-  const results = await Promise.all(
-    needImages.map(async (character) => {
+  const results = await pMap(
+    needImages,
+    async (character) => {
       try {
-        const prompt = buildCharacterTurnaroundPrompt(
-          character.description || character.name,
-          character.name,
-        );
-        const imagePath = await ai.generateImage(prompt, {
-          size: "2560x1440",
-          aspectRatio: "16:9",
-          quality: "hd",
+        const result = await handleSingleCharacterImage({
+          ...input,
+          action: "single_character_image",
+          payload: { characterId: character.id },
         });
-
-        // Append to history
-        let history: string[] = [];
-        try {
-          history = JSON.parse(character.referenceImageHistory || "[]");
-        } catch {}
-        if (
-          character.referenceImage &&
-          !history.includes(character.referenceImage)
-        )
-          history.push(character.referenceImage);
-        if (!history.includes(imagePath)) history.push(imagePath);
-
-        await db
-          .update(characters)
-          .set({
-            referenceImage: imagePath,
-            referenceImageHistory: JSON.stringify(history),
-          })
-          .where(eq(characters.id, character.id));
-        return {
-          characterId: character.id,
-          name: character.name,
-          imagePath,
-          status: "ok",
-        };
+        return { ...result, name: character.name };
       } catch (err) {
         console.error(
           `[BatchCharacterImage] Error for ${character.name}:`,
@@ -267,7 +213,8 @@ export async function handleBatchCharacterImage(input: GenerationInput) {
           error: extractErrorMessage(err),
         };
       }
-    }),
+    },
+    { concurrency: 3 },
   );
 
   return { results };

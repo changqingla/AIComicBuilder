@@ -1,9 +1,10 @@
 "use client";
+
+import { requestGeneration } from "@/lib/generation/client";
 import useSWR from "swr";
 import { useDraft } from "@/hooks/use-draft";
 
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api-fetch";
 import {
   getFirstFrameUrl,
   getKeyframeVideoUrl,
@@ -85,21 +86,14 @@ export default function EpisodePreviewPage() {
     if (!episode || loadingVersion) return;
     setAssembling(true);
     try {
-      const res = await apiFetch(
-        `/api/projects/${episode.projectId}/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "video_assemble",
-            payload: {
-              versionId: episode.versionId ?? undefined,
-              generationMode: previewMode,
-            },
-            episodeId: episodeId,
-          }),
+      const res = await requestGeneration(episode.projectId, {
+        action: "video_assemble",
+        payload: {
+          versionId: episode.versionId ?? undefined,
+          generationMode: previewMode,
         },
-      );
+        episodeId: episodeId,
+      });
       await res.json();
     } catch (err) {
       console.error("Video assemble error:", err);

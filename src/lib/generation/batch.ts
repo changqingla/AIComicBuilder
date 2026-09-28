@@ -4,11 +4,14 @@ import { loadShotAssetsBatch } from "@/lib/shot-asset-utils";
 import { selectAsset, type ShotAssetType } from "@/lib/shot-assets";
 import { and, asc, eq } from "drizzle-orm";
 import pMap from "p-map";
-import type { GenerationInput } from "./request";
+import type { GenerationInput, BatchShotAction } from "./request";
 
 export async function runShotBatch(
-  input: GenerationInput,
-  generate: (input: GenerationInput) => Promise<{ status?: string }>,
+  input: GenerationInput<BatchShotAction>,
+  generate: (
+    shotId: string,
+    episodeId?: string,
+  ) => Promise<{ status?: string }>,
   completedTypes: ShotAssetType[] = [],
 ) {
   const { projectId, episodeId, payload } = input;
@@ -38,11 +41,7 @@ export async function runShotBatch(
         return { ...identity, status: "skipped" as const };
       }
       try {
-        const result = await generate({
-          ...input,
-          episodeId: shot.episodeId ?? undefined,
-          payload: { ...payload, shotId: shot.id },
-        });
+        const result = await generate(shot.id, shot.episodeId ?? undefined);
         return {
           ...identity,
           status:

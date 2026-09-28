@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 import {
   generationRequestSchema,
-  hasGenerationAccess,
+  type GenerationInput,
+  type GenerationAction,
 } from "@/lib/generation/request";
+import { hasGenerationAccess } from "@/lib/generation/access";
 import { ApiError } from "@/lib/api-error";
 import {
   handleScriptOutlineAction,
@@ -46,7 +48,9 @@ import { handleAiOptimizeText } from "@/lib/generation/optimize";
 
 export const maxDuration = 300;
 
-const handlers = {
+const handlers: {
+  [A in GenerationAction]: (input: GenerationInput<A>) => Promise<unknown>;
+} = {
   script_outline: handleScriptOutlineAction,
   script_generate: handleScriptGenerate,
   script_parse: handleScriptParseStream,
@@ -72,6 +76,13 @@ const handlers = {
   single_ref_image_generate_all: handleSingleShotRefImageGenerateAll,
 };
 
+function dispatch<A extends GenerationAction>(
+  action: A,
+  input: GenerationInput<A>,
+) {
+  return handlers[action](input);
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -91,7 +102,7 @@ export async function POST(
   if (!hasGenerationAccess(projectId, parsed.data))
     return NextResponse.json({ error: "Resource not found" }, { status: 404 });
   try {
-    const result = await handlers[parsed.data.action]({
+    const result = await dispatch(parsed.data.action, {
       ...parsed.data,
       projectId,
       userId: project.userId,

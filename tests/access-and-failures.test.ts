@@ -150,6 +150,38 @@ test("unknown generation actions are rejected instead of enqueued", async () => 
   ).toBeUndefined();
 });
 
+test.each([
+  { action: "single_frame_generate", payload: {} },
+  { action: "single_character_image", payload: { characterId: 42 } },
+  { action: "single_ref_image_generate", payload: { shotId: "s-a" } },
+  { action: "batch_video_generate", payload: { overwrite: "false" } },
+  {
+    action: "single_video_generate",
+    payload: { shotId: "s-a", ratio: "invalid" },
+  },
+  { action: "video_assemble", payload: { generationMode: "invalid" } },
+  { action: "script_generate", payload: { idea: "   " } },
+  {
+    action: "ai_optimize_text",
+    payload: {
+      originalText: "Text",
+      instruction: "Improve",
+      images: "image.png",
+    },
+  },
+])(
+  "invalid parameters are rejected before generation: $action",
+  async (body) => {
+    const before = db.select().from(shots).all();
+    const calls = vi.mocked(generateText).mock.calls.length;
+    expect(
+      (await generate(request({ ...body, modelConfig }), routeParams)).status,
+    ).toBe(400);
+    expect(db.select().from(shots).all()).toEqual(before);
+    expect(generateText).toHaveBeenCalledTimes(calls);
+  },
+);
+
 test("binding reads and writes require ownership of the project and agent", async () => {
   expect(
     (await getBindings(request(null, "", "GET"), routeParams)).status,

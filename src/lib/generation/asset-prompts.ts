@@ -43,7 +43,9 @@ const referenceSchema = z.array(
   }),
 );
 
-export async function handleGenerateAssetPrompts(input: GenerationInput) {
+export async function handleGenerateAssetPrompts(
+  input: GenerationInput<"generate_keyframe_prompts" | "generate_ref_prompts">,
+) {
   const { projectId, userId, episodeId, payload, modelConfig } = input;
   const reference = input.action === "generate_ref_prompts";
   const category = reference ? "ref_image_prompts" : "keyframe_prompts";

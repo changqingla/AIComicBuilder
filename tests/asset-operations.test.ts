@@ -96,12 +96,22 @@ test("single and batch generation append history; failure preserves existing fra
   image
     .mockResolvedValueOnce("first-batch.png")
     .mockResolvedValueOnce("last-batch.png");
-  expect((await handleBatchFrameGenerate(input)).results[0].status).toBe("ok");
+  expect(
+    (
+      await handleBatchFrameGenerate({
+        ...input,
+        action: "batch_frame_generate",
+      })
+    ).results[0].status,
+  ).toBe("ok");
   expect(await getAssetHistory("s", "first_frame")).toHaveLength(4);
   image
     .mockResolvedValueOnce("unused-first.png")
     .mockRejectedValueOnce(new Error("Provider unavailable"));
-  const failed = await handleBatchFrameGenerate(input);
+  const failed = await handleBatchFrameGenerate({
+    ...input,
+    action: "batch_frame_generate",
+  });
   expect(failed.results[0]).toMatchObject({
     shotId: "s",
     sequence: 3,

@@ -15,7 +15,9 @@ import { selectAsset } from "@/lib/shot-assets";
 import { assembleVideo } from "@/lib/video/ffmpeg";
 import { and, asc, desc, eq } from "drizzle-orm";
 
-export async function handleVideoAssemble(input: GenerationInput) {
+export async function handleVideoAssemble(
+  input: GenerationInput<"video_assemble">,
+) {
   const { projectId, payload, episodeId } = input;
   let generationModeValue: string = "keyframe";
   if (episodeId) {
@@ -32,7 +34,7 @@ export async function handleVideoAssemble(input: GenerationInput) {
     generationModeValue = project?.generationMode ?? "keyframe";
   }
 
-  let versionId = payload?.versionId as string | undefined;
+  let versionId = payload?.versionId;
 
   // If no versionId provided, fall back to the latest version for this project/episode
   if (!versionId) {

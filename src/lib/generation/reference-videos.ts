@@ -17,12 +17,11 @@ import { insertAssetVersion, loadShotAssets } from "@/lib/shot-asset-utils";
 import { selectAsset, selectReferences } from "@/lib/shot-assets";
 import { asc, eq } from "drizzle-orm";
 
-export async function handleSingleReferenceVideo(input: GenerationInput) {
+export async function handleSingleReferenceVideo(
+  input: GenerationInput<"single_reference_video">,
+) {
   const { projectId, userId, payload, modelConfig } = input;
-  const shotId = payload?.shotId as string | undefined;
-  if (!shotId) {
-    throw new ApiError(400, "No shotId provided");
-  }
+  const shotId = payload.shotId;
   if (!modelConfig?.video) {
     throw new ApiError(400, "No video model configured");
   }
@@ -94,7 +93,7 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
     };
   });
 
-  const ratio = (payload?.ratio as string) || "16:9";
+  const ratio = payload.ratio || "16:9";
   const refVideoSlots = await resolveSlotContents("ref_video_generate", {
     userId,
     projectId,
@@ -202,6 +201,18 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
   }
 }
 
-export async function handleBatchReferenceVideo(input: GenerationInput) {
-  return runShotBatch(input, handleSingleReferenceVideo, ["reference_video"]);
+export async function handleBatchReferenceVideo(
+  input: GenerationInput<"batch_reference_video">,
+) {
+  return runShotBatch(
+    input,
+    (shotId, episodeId) =>
+      handleSingleReferenceVideo({
+        ...input,
+        action: "single_reference_video",
+        episodeId,
+        payload: { ...input.payload, shotId },
+      }),
+    ["reference_video"],
+  );
 }

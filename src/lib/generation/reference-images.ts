@@ -9,14 +9,13 @@ import { runShotBatch } from "./batch";
 import { getVersionedUploadDir, ratioToImageOpts } from "./common";
 import type { GenerationInput } from "./request";
 
-export async function handleSingleRefImageGenerate(input: GenerationInput) {
+export async function handleSingleRefImageGenerate(
+  input: GenerationInput<"single_ref_image_generate">,
+) {
   const { payload, modelConfig } = input;
-  const shotId = payload?.shotId as string;
-  const refImageId = payload?.refImageId as string;
+  const shotId = payload.shotId;
+  const refImageId = payload.refImageId;
 
-  if (!shotId || !refImageId) {
-    throw new ApiError(400, "Missing shotId or refImageId");
-  }
   if (!modelConfig?.image) {
     throw new ApiError(400, "No image model configured");
   }
@@ -40,7 +39,7 @@ export async function handleSingleRefImageGenerate(input: GenerationInput) {
     `[SingleRefImage] Shot ${shot.sequence}: generating scene-only ref image "${refImageId}"`,
   );
 
-  const ratio = (payload?.ratio as string) || "16:9";
+  const ratio = payload.ratio || "16:9";
   const imgOpts = ratioToImageOpts(ratio);
   const imageProvider = resolveImageProvider(
     modelConfig,
@@ -71,10 +70,9 @@ export async function handleSingleRefImageGenerate(input: GenerationInput) {
 }
 
 export async function handleSingleShotRefImageGenerateAll(
-  input: GenerationInput,
+  input: GenerationInput<"single_ref_image_generate_all">,
 ) {
   const shotId = input.payload?.shotId;
-  if (!shotId) throw new ApiError(400, "No shotId provided");
   const refs = selectReferences(await loadShotAssets(shotId)).filter(
     (asset) =>
       asset.prompt.trim() &&
@@ -87,6 +85,7 @@ export async function handleSingleShotRefImageGenerateAll(
     // A failed image is reported as a failed shot; completed versions are retained for retry.
     await handleSingleRefImageGenerate({
       ...input,
+      action: "single_ref_image_generate",
       payload: { ...input.payload, refImageId: asset.id },
     });
     results.push(asset.id);
@@ -98,6 +97,15 @@ export async function handleSingleShotRefImageGenerateAll(
   };
 }
 
-export async function handleBatchSceneFrame(input: GenerationInput) {
-  return runShotBatch(input, handleSingleShotRefImageGenerateAll);
+export async function handleBatchSceneFrame(
+  input: GenerationInput<"batch_scene_frame">,
+) {
+  return runShotBatch(input, (shotId, episodeId) =>
+    handleSingleShotRefImageGenerateAll({
+      ...input,
+      action: "single_ref_image_generate_all",
+      episodeId,
+      payload: { ...input.payload, shotId },
+    }),
+  );
 }

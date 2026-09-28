@@ -1,12 +1,13 @@
 "use client";
 
+import { requestGeneration } from "@/lib/generation/client";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useFlushAutosaves } from "@/components/editor/autosave-provider";
 import { useBatchGeneration } from "./use-batch-generation";
 import { useModelGuard } from "./use-model-guard";
-import { apiFetch } from "@/lib/api-fetch";
 import {
   getFirstFramePrompt,
   getLastFramePrompt,
@@ -40,17 +41,24 @@ export function useStoryboardGeneration(
   });
   const fetchEpisode = useEpisodeEditorStore((s) => s.fetchEpisode);
 
-  function request(action: string, selectedVersion?: string | null) {
-    return apiFetch(`/api/projects/${episode.projectId}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action,
-        episodeId: episode.id,
-        modelConfig: useModelStore.getState().getModelConfig(),
-        payload: { versionId: selectedVersion ?? undefined },
-      }),
-    });
+  function request(
+    action: "shot_split" | "generate_ref_prompts" | "generate_keyframe_prompts",
+    selectedVersion?: string | null,
+  ) {
+    const context = {
+      episodeId: episode.id,
+      modelConfig: useModelStore.getState().getModelConfig(),
+    };
+    return requestGeneration(
+      episode.projectId,
+      action === "shot_split"
+        ? { ...context, action }
+        : {
+            ...context,
+            action,
+            payload: { versionId: selectedVersion ?? undefined },
+          },
+    );
   }
   function report(error: unknown) {
     toast.error(

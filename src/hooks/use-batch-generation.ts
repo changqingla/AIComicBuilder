@@ -1,9 +1,10 @@
 "use client";
 
+import { requestGeneration } from "@/lib/generation/client";
+
 import { useState } from "react";
 import pMap from "p-map";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/api-fetch";
 import { useModelStore } from "@/stores/model-store";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 import { useFlushAutosaves } from "@/components/editor/autosave-provider";
@@ -58,22 +59,19 @@ export function useBatchGeneration(scope: {
     };
     const { projectId, episodeId, versionId, ratio } = requestScope;
     const modelConfig = useModelStore.getState().getModelConfig();
-    const send = (action: string, shotId?: string) =>
-      apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          episodeId,
-          modelConfig,
-          payload: {
-            ratio,
-            overwrite,
-            versionId: versionId ?? undefined,
-            shotId,
-          },
-        }),
-      });
+    const options = { ratio, overwrite, versionId: versionId ?? undefined };
+    const send = (shotId?: string) =>
+      requestGeneration(
+        projectId,
+        shotId
+          ? {
+              action: singleActions[action],
+              episodeId,
+              modelConfig,
+              payload: { ...options, shotId },
+            }
+          : { action, episodeId, modelConfig, payload: options },
+      );
     setActive({ action, overwrite });
     setProgress({
       total: retry?.shotIds.length ?? requestScope.total,
@@ -88,7 +86,7 @@ export function useBatchGeneration(scope: {
             async (shotId): Promise<Result> => {
               let result: Result;
               try {
-                await send(singleActions[action], shotId);
+                await send(shotId);
                 result = { shotId, status: "ok" };
               } catch (error) {
                 result = { shotId, status: "error", error: String(error) };
@@ -109,7 +107,7 @@ export function useBatchGeneration(scope: {
             },
             { concurrency: 3 },
           )
-        : (await (await send(action)).json()).results;
+        : (await (await send()).json()).results;
       const errors = results.filter((result) => result.status === "error");
       setFailed(
         errors.length

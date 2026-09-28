@@ -4,15 +4,12 @@ import { ApiError } from "@/lib/api-error";
 import type { GenerationInput } from "@/lib/generation/request";
 import { generateText } from "ai";
 
-export async function handleAiOptimizeText(input: GenerationInput) {
+export async function handleAiOptimizeText(
+  input: GenerationInput<"ai_optimize_text">,
+) {
   const { payload, modelConfig } = input;
-  const originalText = payload?.originalText as string;
-  const instruction = payload?.instruction as string;
-  const images = (payload?.images as string[] | undefined) || [];
+  const { originalText, instruction, images = [] } = payload;
 
-  if (!originalText || !instruction) {
-    throw new ApiError(400, "Missing originalText or instruction");
-  }
   if (!modelConfig?.text) {
     throw new ApiError(400, "No text model configured");
   }

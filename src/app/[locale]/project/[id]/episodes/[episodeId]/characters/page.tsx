@@ -1,4 +1,6 @@
 "use client";
+
+import { requestGeneration } from "@/lib/generation/client";
 import { useParams } from "next/navigation";
 
 import { useState } from "react";
@@ -39,18 +41,11 @@ export default function EpisodeCharactersPage() {
     setExtracting(true);
 
     try {
-      const response = await apiFetch(
-        `/api/projects/${episode.projectId}/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "character_extract",
-            modelConfig: getModelConfig(),
-            episodeId: episodeId,
-          }),
-        },
-      );
+      const response = await requestGeneration(episode.projectId, {
+        action: "character_extract",
+        modelConfig: getModelConfig(),
+        episodeId: episodeId,
+      });
 
       if (!response.ok) {
         throw new Error("Character extract failed");
@@ -72,18 +67,11 @@ export default function EpisodeCharactersPage() {
     setGeneratingImages(true);
 
     try {
-      const response = await apiFetch(
-        `/api/projects/${episode.projectId}/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "batch_character_image",
-            modelConfig: getModelConfig(),
-            episodeId: episodeId,
-          }),
-        },
-      );
+      const response = await requestGeneration(episode.projectId, {
+        action: "batch_character_image",
+        modelConfig: getModelConfig(),
+        episodeId: episodeId,
+      });
 
       const data = (await response.json()) as {
         results: Array<{ status: string }>;

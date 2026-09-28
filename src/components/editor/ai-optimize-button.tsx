@@ -1,5 +1,7 @@
 "use client";
 
+import { requestGeneration } from "@/lib/generation/client";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useModelStore } from "@/stores/model-store";
 import { useModelGuard } from "@/hooks/use-model-guard";
-import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -77,7 +78,8 @@ export function AiOptimizeButton({
   const textGuard = useModelGuard("text");
 
   const defaultInstruction = fieldLabel
-    ? DEFAULT_INSTRUCTIONS[fieldLabel] ?? "优化这段内容，使其更具体、更有画面感"
+    ? (DEFAULT_INSTRUCTIONS[fieldLabel] ??
+      "优化这段内容，使其更具体、更有画面感")
     : "优化这段内容，使其更具体、更有画面感";
 
   function handleOpen() {
@@ -93,18 +95,14 @@ export function AiOptimizeButton({
     if (!textGuard()) return;
     setOptimizing(true);
     try {
-      const resp = await apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "ai_optimize_text",
-          payload: {
-            originalText: value,
-            instruction,
-            images: images && images.length > 0 ? images : undefined,
-          },
-          modelConfig: getModelConfig(),
-        }),
+      const resp = await requestGeneration(projectId, {
+        action: "ai_optimize_text",
+        payload: {
+          originalText: value,
+          instruction,
+          images: images && images.length > 0 ? images : undefined,
+        },
+        modelConfig: getModelConfig(),
       });
       const data = await resp.json();
       if (data.optimizedText) {
@@ -153,16 +151,31 @@ export function AiOptimizeButton({
                 {t("shot.aiOptimizeOriginal")}
               </p>
               <div className="max-h-32 overflow-y-auto rounded-lg bg-[--surface] px-3 py-2 text-xs text-[--text-secondary]">
-                {value.slice(0, 300)}{value.length > 300 ? "…" : ""}
+                {value.slice(0, 300)}
+                {value.length > 300 ? "…" : ""}
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+              >
                 {t("common.cancel")}
               </Button>
-              <Button size="sm" onClick={handleOptimize} disabled={optimizing || !instruction.trim()}>
-                {optimizing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {optimizing ? t("common.generating") : t("shot.aiOptimizeConfirm")}
+              <Button
+                size="sm"
+                onClick={handleOptimize}
+                disabled={optimizing || !instruction.trim()}
+              >
+                {optimizing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {optimizing
+                  ? t("common.generating")
+                  : t("shot.aiOptimizeConfirm")}
               </Button>
             </div>
           </div>

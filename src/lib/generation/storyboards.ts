@@ -50,7 +50,7 @@ const shotResultSchema = z
   )
   .min(1);
 
-export async function handleShotSplit(input: GenerationInput) {
+export async function handleShotSplit(input: GenerationInput<"shot_split">) {
   const { projectId, userId, modelConfig, episodeId } = input;
   const project = db
     .select()
@@ -263,12 +263,11 @@ export function splitScriptByScenes(
   return chunks;
 }
 
-export async function handleSingleShotRewrite(input: GenerationInput) {
+export async function handleSingleShotRewrite(
+  input: GenerationInput<"single_shot_rewrite">,
+) {
   const { projectId, payload, modelConfig, episodeId } = input;
-  const shotId = payload?.shotId as string;
-  if (!shotId) {
-    throw new ApiError(400, "No shotId provided");
-  }
+  const shotId = payload.shotId;
   if (!modelConfig?.text) {
     throw new ApiError(400, "No text model configured");
   }

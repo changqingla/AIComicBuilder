@@ -1,4 +1,6 @@
 "use client";
+
+import { requestGeneration } from "@/lib/generation/client";
 import { useDraft } from "@/hooks/use-draft";
 
 import { InlineModelPicker } from "@/components/editor/model-selector";
@@ -107,17 +109,13 @@ export function CharacterCard({
     if (!imageGuard()) return;
     setGenerating(true);
     try {
-      const response = await apiFetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "single_character_image",
-          payload: { characterId: id },
-          modelConfig: {
-            ...getModelConfig(),
-            image: resolveImageRef(imageModelRef),
-          },
-        }),
+      const response = await requestGeneration(projectId, {
+        action: "single_character_image",
+        payload: { characterId: id },
+        modelConfig: {
+          ...getModelConfig(),
+          image: resolveImageRef(imageModelRef),
+        },
       });
       await response.json();
     } catch (err) {

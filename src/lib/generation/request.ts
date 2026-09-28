@@ -1,146 +1,102 @@
-import { db } from "@/lib/db";
-import {
-  characters,
-  episodes,
-  shotAssets,
-  shots,
-  storyboardVersions,
-} from "@/lib/db/schema";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-export const generationRequestSchema = z.object({
-  action: z.enum([
-    "script_outline",
-    "script_generate",
-    "script_parse",
-    "character_extract",
-    "single_character_image",
-    "batch_character_image",
-    "shot_split",
-    "generate_keyframe_prompts",
-    "single_shot_rewrite",
-    "batch_frame_generate",
-    "single_frame_generate",
-    "single_video_generate",
-    "batch_video_generate",
-    "batch_scene_frame",
-    "single_reference_video",
-    "batch_reference_video",
-    "single_video_prompt",
-    "batch_video_prompt",
-    "ai_optimize_text",
-    "video_assemble",
-    "single_ref_image_generate",
-    "generate_ref_prompts",
-    "single_ref_image_generate_all",
-  ]),
-  episodeId: z.string().min(1).optional(),
-  payload: z
-    .object({
-      shotId: z.string().min(1).optional(),
-      characterId: z.string().min(1).optional(),
-      versionId: z.string().min(1).optional(),
-      refImageId: z.string().min(1).optional(),
-    })
-    .catchall(z.unknown())
-    .optional(),
+const id = z.string().min(1);
+const text = z.string().trim().min(1);
+const providerSchema = z.object({
+  protocol: z.string().min(1),
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  modelId: z.string().min(1),
+  secretKey: z.string().optional(),
+});
+const requestBase = z.object({
+  episodeId: id.optional(),
   modelConfig: z
     .object({
-      text: providerSchema().nullable().optional(),
-      image: providerSchema().nullable().optional(),
-      video: providerSchema().nullable().optional(),
+      text: providerSchema.nullable().optional(),
+      image: providerSchema.nullable().optional(),
+      video: providerSchema.nullable().optional(),
     })
     .optional(),
 });
+const versionPayload = z.object({ versionId: id.optional() });
+const batchPayload = versionPayload.extend({
+  ratio: z
+    .string()
+    .regex(/^(16:9|9:16|1:1|adaptive)$/, "Unsupported aspect ratio")
+    .optional(),
+  overwrite: z.boolean().optional(),
+});
+const shotPayload = batchPayload.extend({ shotId: id });
+const ideaPayload = z.object({ idea: text });
 
-function providerSchema() {
-  return z.object({
-    protocol: z.string(),
-    baseUrl: z.string(),
-    apiKey: z.string(),
-    modelId: z.string(),
-    secretKey: z.string().optional(),
-  });
+function operation<A extends string, P extends z.ZodType>(
+  action: A,
+  payload: P,
+) {
+  return requestBase.extend({ action: z.literal(action), payload });
 }
 
+export const generationRequestSchema = z.discriminatedUnion("action", [
+  operation("script_outline", ideaPayload),
+  operation(
+    "script_generate",
+    ideaPayload.extend({ outline: z.string().optional() }),
+  ),
+  operation("script_parse", z.object({}).optional()),
+  operation("character_extract", z.object({}).optional()),
+  operation("single_character_image", z.object({ characterId: id })),
+  operation("batch_character_image", z.object({}).optional()),
+  operation("shot_split", z.object({}).optional()),
+  operation("generate_keyframe_prompts", versionPayload.optional()),
+  operation("generate_ref_prompts", versionPayload.optional()),
+  operation(
+    "single_shot_rewrite",
+    z.object({ shotId: id, versionId: id.optional() }),
+  ),
+  operation("batch_frame_generate", batchPayload.optional()),
+  operation("single_frame_generate", shotPayload),
+  operation("single_video_generate", shotPayload),
+  operation("batch_video_generate", batchPayload.optional()),
+  operation("batch_scene_frame", batchPayload.optional()),
+  operation("single_reference_video", shotPayload),
+  operation("batch_reference_video", batchPayload.optional()),
+  operation("single_video_prompt", shotPayload),
+  operation("batch_video_prompt", batchPayload.optional()),
+  operation(
+    "ai_optimize_text",
+    z.object({
+      originalText: text,
+      instruction: text,
+      images: z.array(id).optional(),
+    }),
+  ),
+  operation(
+    "video_assemble",
+    versionPayload
+      .extend({
+        generationMode: z.enum(["keyframe", "reference"]).optional(),
+      })
+      .optional(),
+  ),
+  operation(
+    "single_ref_image_generate",
+    shotPayload.extend({ refImageId: id }),
+  ),
+  operation("single_ref_image_generate_all", shotPayload),
+]);
+
 export type GenerationRequest = z.infer<typeof generationRequestSchema>;
-export type GenerationInput = GenerationRequest & {
+export type GenerationAction = GenerationRequest["action"];
+export type GenerationContext = z.infer<typeof requestBase> & {
   projectId: string;
   userId: string;
 };
-
-export function hasGenerationAccess(
-  projectId: string,
-  request: GenerationRequest,
-): boolean {
-  const { episodeId, payload } = request;
-  const { shotId, characterId, versionId, refImageId } = payload ?? {};
-  if (
-    episodeId &&
-    !db
-      .select({ id: episodes.id })
-      .from(episodes)
-      .where(and(eq(episodes.id, episodeId), eq(episodes.projectId, projectId)))
-      .get()
-  )
-    return false;
-  if (
-    versionId &&
-    !db
-      .select({ id: storyboardVersions.id })
-      .from(storyboardVersions)
-      .where(
-        and(
-          eq(storyboardVersions.id, versionId),
-          eq(storyboardVersions.projectId, projectId),
-          episodeId ? eq(storyboardVersions.episodeId, episodeId) : undefined,
-        ),
-      )
-      .get()
-  )
-    return false;
-  if (
-    shotId &&
-    !db
-      .select({ id: shots.id })
-      .from(shots)
-      .where(
-        and(
-          eq(shots.id, shotId),
-          eq(shots.projectId, projectId),
-          episodeId ? eq(shots.episodeId, episodeId) : undefined,
-          versionId ? eq(shots.versionId, versionId) : undefined,
-        ),
-      )
-      .get()
-  )
-    return false;
-  if (
-    characterId &&
-    !db
-      .select({ id: characters.id })
-      .from(characters)
-      .where(
-        and(
-          eq(characters.id, characterId),
-          eq(characters.projectId, projectId),
-        ),
-      )
-      .get()
-  )
-    return false;
-  if (
-    refImageId &&
-    (!shotId ||
-      !db
-        .select({ id: shotAssets.id })
-        .from(shotAssets)
-        .where(
-          and(eq(shotAssets.id, refImageId), eq(shotAssets.shotId, shotId)),
-        )
-        .get())
-  )
-    return false;
-  return true;
-}
+export type GenerationInput<A extends GenerationAction = GenerationAction> =
+  Extract<GenerationRequest, { action: A }> & GenerationContext;
+export type BatchShotAction =
+  | "batch_frame_generate"
+  | "batch_video_generate"
+  | "batch_scene_frame"
+  | "batch_reference_video"
+  | "batch_video_prompt";

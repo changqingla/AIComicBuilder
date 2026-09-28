@@ -1,4 +1,6 @@
 "use client";
+
+import { requestGeneration } from "@/lib/generation/client";
 import { useAutosave } from "@/hooks/use-autosave";
 import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useParams } from "next/navigation";
@@ -91,19 +93,12 @@ export function ScriptEditor() {
     setOutline("");
 
     try {
-      const resp = await apiFetch(
-        `/api/projects/${episode.projectId}/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "script_outline",
-            payload: { idea: episode.idea || "" },
-            modelConfig: getModelConfig(),
-            episodeId: episodeId,
-          }),
-        },
-      );
+      const resp = await requestGeneration(episode.projectId, {
+        action: "script_outline",
+        payload: { idea: episode.idea || "" },
+        modelConfig: getModelConfig(),
+        episodeId: episodeId,
+      });
       if (!resp.ok) throw new Error("Failed to generate outline");
 
       // Stream response
@@ -159,19 +154,12 @@ export function ScriptEditor() {
           t("project.generatingOutlineFirst") || "Generating outline first...",
         );
 
-        const outlineResp = await apiFetch(
-          `/api/projects/${episode.projectId}/generate`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "script_outline",
-              payload: { idea },
-              modelConfig: getModelConfig(),
-              episodeId: episodeId,
-            }),
-          },
-        );
+        const outlineResp = await requestGeneration(episode.projectId, {
+          action: "script_outline",
+          payload: { idea },
+          modelConfig: getModelConfig(),
+          episodeId: episodeId,
+        });
 
         if (outlineResp.ok && outlineResp.body) {
           const reader = outlineResp.body.getReader();
@@ -194,19 +182,12 @@ export function ScriptEditor() {
       // Step 2: Generate script (with outline if available)
       updateScript("");
 
-      const response = await apiFetch(
-        `/api/projects/${episode.projectId}/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "script_generate",
-            payload: { idea, outline: currentOutline || undefined },
-            modelConfig: getModelConfig(),
-            episodeId: episodeId,
-          }),
-        },
-      );
+      const response = await requestGeneration(episode.projectId, {
+        action: "script_generate",
+        payload: { idea, outline: currentOutline || undefined },
+        modelConfig: getModelConfig(),
+        episodeId: episodeId,
+      });
 
       if (response.body) {
         const reader = response.body.getReader();

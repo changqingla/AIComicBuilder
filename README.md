@@ -199,6 +199,18 @@ pnpm build
 
 测试需要 FFmpeg / FFprobe，并自动创建、清理临时数据库。真实 AI 服务在测试中使用固定响应，不消耗账户额度。日常修改按影响执行相关检查，涉及依赖或整体架构时运行完整检查。代码格式使用 Prettier，可执行 `pnpm exec prettier --write <文件>`。
 
+修改编辑器保存、分镜版本、素材操作或导入流程时，还应执行浏览器回归：
+
+```bash
+pnpm exec playwright install chromium
+pnpm build
+pnpm test:e2e
+```
+
+Playwright 会在 `127.0.0.1:3137` 启动生产构建，为每轮测试创建独立的临时数据库和上传目录，并在结束后清理。测试覆盖慢保存、保存失败、版本切换、素材历史，以及导入失败后的重试与确认。AI 生成请求使用模拟响应，保存、上传和导入创建使用真实接口。CI 自动执行这些测试，失败时保留页面截图、执行记录和 HTML 报告。
+
+生成操作的参数集中在 `src/lib/generation/request.ts`，由 Zod 校验并推导类型；前端通过 `requestGeneration` 发送请求，业务函数只接收对应操作的输入。导入页面由 `src/hooks/use-project-import.ts` 管理流程，`src/components/import/` 中的组件负责上传、确认和日志展示。
+
 生成业务集中在 `src/lib/generation/`，单项和批量入口共用实现。项目元数据与分集编辑状态分开；素材只读写 `shot_assets`。分镜页只组合视图与选择状态，生成流程位于 `src/hooks/use-storyboard-generation.ts`；卡片与抽屉共用 `src/components/editor/shot-editor/` 中的编辑组件。当前生成通过请求执行，不提供持久后台队列或重启恢复。详细说明见 [架构审查与整改记录](docs/architecture-review-2026-09-24.md)。
 
 ## 界面截图

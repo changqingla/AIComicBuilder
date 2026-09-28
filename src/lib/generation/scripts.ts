@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
 import { episodes, projects } from "@/lib/db/schema";
 import { findBoundAgent } from "./common";
-import type { GenerationInput } from "./request";
+import type { GenerationInput, GenerationContext } from "./request";
 
 type ScriptAction = "script_outline" | "script_generate" | "script_parse";
 const screenplaySchema = z.object({
@@ -27,14 +27,14 @@ const screenplaySchema = z.object({
     .min(1),
 });
 
-function readSource(input: GenerationInput) {
+function readSource(input: GenerationContext) {
   return input.episodeId
     ? db.select().from(episodes).where(eq(episodes.id, input.episodeId)).get()
     : db.select().from(projects).where(eq(projects.id, input.projectId)).get();
 }
 
 function saveSource(
-  input: GenerationInput,
+  input: GenerationContext,
   patch: { idea?: string; outline?: string; script?: string },
 ) {
   const update = { ...patch, updatedAt: new Date() };
@@ -51,7 +51,7 @@ function saveSource(
 }
 
 async function generateScriptText(
-  input: GenerationInput,
+  input: GenerationContext,
   action: ScriptAction,
   prompt: string,
   save: (text: string) => void,
@@ -89,10 +89,10 @@ async function generateScriptText(
   );
 }
 
-export async function handleScriptOutlineAction(input: GenerationInput) {
-  const idea =
-    typeof input.payload?.idea === "string" ? input.payload.idea.trim() : "";
-  if (!idea) throw new ApiError(400, "No idea provided");
+export async function handleScriptOutlineAction(
+  input: GenerationInput<"script_outline">,
+) {
+  const { idea } = input.payload;
   return generateScriptText(
     input,
     "script_outline",
@@ -101,14 +101,11 @@ export async function handleScriptOutlineAction(input: GenerationInput) {
   );
 }
 
-export async function handleScriptGenerate(input: GenerationInput) {
-  const idea =
-    typeof input.payload?.idea === "string" ? input.payload.idea.trim() : "";
-  if (!idea) throw new ApiError(400, "No idea provided");
-  const outline =
-    typeof input.payload?.outline === "string"
-      ? input.payload.outline
-      : readSource(input)?.outline;
+export async function handleScriptGenerate(
+  input: GenerationInput<"script_generate">,
+) {
+  const { idea } = input.payload;
+  const outline = input.payload.outline ?? readSource(input)?.outline;
   const project = db
     .select({ worldSetting: projects.worldSetting })
     .from(projects)
@@ -128,7 +125,9 @@ export async function handleScriptGenerate(input: GenerationInput) {
   );
 }
 
-export async function handleScriptParseStream(input: GenerationInput) {
+export async function handleScriptParseStream(
+  input: GenerationInput<"script_parse">,
+) {
   const script = readSource(input)?.script;
   if (!script) throw new ApiError(404, "Script not found");
   return generateScriptText(

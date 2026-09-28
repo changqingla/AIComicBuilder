@@ -16,12 +16,11 @@ import { insertAssetVersion, loadShotAssets } from "@/lib/shot-asset-utils";
 import { selectAsset } from "@/lib/shot-assets";
 import { asc, eq } from "drizzle-orm";
 
-export async function handleSingleVideoGenerate(input: GenerationInput) {
+export async function handleSingleVideoGenerate(
+  input: GenerationInput<"single_video_generate">,
+) {
   const { projectId, userId, payload, modelConfig } = input;
-  const shotId = payload?.shotId as string;
-  if (!shotId) {
-    throw new ApiError(400, "No shotId provided");
-  }
+  const shotId = payload.shotId;
   if (!modelConfig?.video) {
     throw new ApiError(400, "No video model configured");
   }
@@ -65,7 +64,7 @@ export async function handleSingleVideoGenerate(input: GenerationInput) {
       .set({ status: "generating" })
       .where(eq(shots.id, shotId));
 
-    const ratio = (payload?.ratio as string) || "16:9";
+    const ratio = payload.ratio || "16:9";
 
     const videoModelId = modelConfig?.video?.modelId;
     const videoMaxDuration = getModelMaxDuration(videoModelId);
@@ -138,6 +137,18 @@ export async function handleSingleVideoGenerate(input: GenerationInput) {
   }
 }
 
-export async function handleBatchVideoGenerate(input: GenerationInput) {
-  return runShotBatch(input, handleSingleVideoGenerate, ["keyframe_video"]);
+export async function handleBatchVideoGenerate(
+  input: GenerationInput<"batch_video_generate">,
+) {
+  return runShotBatch(
+    input,
+    (shotId, episodeId) =>
+      handleSingleVideoGenerate({
+        ...input,
+        action: "single_video_generate",
+        episodeId,
+        payload: { ...input.payload, shotId },
+      }),
+    ["keyframe_video"],
+  );
 }
