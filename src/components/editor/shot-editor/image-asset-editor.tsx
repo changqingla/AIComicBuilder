@@ -43,7 +43,9 @@ export function ImageAssetEditor({
     editor.onUpdate,
   );
   const characters = useEpisodeEditorStore((s) => s.episode?.characters);
-  const [prompt, setPrompt] = useDraft(asset?.prompt ?? "");
+  const [prompt, setPrompt] = useDraft(asset?.prompt ?? "", {
+    preserveUnsaved: true,
+  });
   const [changing, setChanging] = useState<
     "upload" | "version" | "remove" | "metadata" | null
   >(null);
@@ -67,7 +69,7 @@ export function ImageAssetEditor({
   ) {
     setChanging(kind);
     try {
-      await savePrompt.flush();
+      if (!(await savePrompt.flush())) return;
       await operation();
     } finally {
       setChanging(null);
@@ -92,7 +94,7 @@ export function ImageAssetEditor({
     if (!asset) return;
     setRegenerating(true);
     try {
-      await savePrompt.flush();
+      if (!(await savePrompt.flush())) return;
       await onGenerate(asset);
     } finally {
       setRegenerating(false);
@@ -124,7 +126,7 @@ export function ImageAssetEditor({
             images={asset?.fileUrl ? [asset.fileUrl] : undefined}
             onOptimized={(value) => {
               setPrompt(value);
-              savePrompt(value);
+              savePrompt.schedule(value);
               void savePrompt.flush();
             }}
           />
@@ -138,10 +140,10 @@ export function ImageAssetEditor({
           disabled={disabled}
           onChange={(e) => {
             setPrompt(e.target.value);
-            if (asset) savePrompt(e.target.value);
+            if (asset) savePrompt.schedule(e.target.value);
           }}
           onBlur={() => {
-            if (!asset && prompt.trim()) savePrompt(prompt);
+            if (!asset && prompt.trim()) savePrompt.schedule(prompt);
             void savePrompt.flush();
           }}
         />

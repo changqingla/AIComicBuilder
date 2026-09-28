@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
 import { useModelStore } from "@/stores/model-store";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+import { useFlushAutosaves } from "@/components/editor/autosave-provider";
 
 const singleActions = {
   batch_frame_generate: "single_frame_generate",
@@ -28,6 +29,7 @@ export function useBatchGeneration(scope: {
   ratio: string;
   total: number;
 }) {
+  const flushAutosaves = useFlushAutosaves();
   const [active, setActive] = useState<{
     action: BatchAction;
     overwrite: boolean;
@@ -39,6 +41,7 @@ export function useBatchGeneration(scope: {
   } | null>(null);
   const [failed, setFailed] = useState<{
     action: BatchAction;
+    overwrite: boolean;
     shotIds: string[];
     scope: typeof scope;
   } | null>(null);
@@ -78,6 +81,7 @@ export function useBatchGeneration(scope: {
       failed: [],
     });
     try {
+      if (!(await flushAutosaves())) return false;
       const results: Result[] = retry
         ? await pMap(
             retry.shotIds,
@@ -111,6 +115,7 @@ export function useBatchGeneration(scope: {
         errors.length
           ? {
               action,
+              overwrite,
               scope: requestScope,
               shotIds: errors.map((result) => result.shotId),
             }
@@ -136,14 +141,21 @@ export function useBatchGeneration(scope: {
       setProgress(null);
     }
   }
+  const currentFailure =
+    failed?.scope.versionId === scope.versionId ? failed : null;
   return {
     active,
     progress,
-    failedShotIds: failed?.shotIds ?? [],
+    failedShotIds: currentFailure?.shotIds ?? [],
     run: execute,
     retry: () =>
-      failed
-        ? execute(failed.action, false, undefined, failed)
+      currentFailure
+        ? execute(
+            currentFailure.action,
+            currentFailure.overwrite,
+            undefined,
+            currentFailure,
+          )
         : Promise.resolve(true),
   };
 }

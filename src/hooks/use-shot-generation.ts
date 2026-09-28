@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import type { ShotAsset } from "@/lib/shot-assets";
 import { useModelStore } from "@/stores/model-store";
 import type { ShotEditorProps } from "@/components/editor/shot-editor/types";
+import { useFlushAutosaves } from "@/components/editor/autosave-provider";
 
 export type ShotGenerationStep = "text" | "frames" | "prompt" | "video";
 
@@ -25,6 +26,7 @@ export function useShotGeneration({
   const textGuard = useModelGuard("text");
   const [pending, setPending] = useState<ShotGenerationStep | null>(null);
   const running = useRef(false);
+  const flushAutosaves = useFlushAutosaves();
 
   async function run(step: ShotGenerationStep, asset?: ShotAsset) {
     if (running.current) return;
@@ -58,6 +60,7 @@ export function useShotGeneration({
     running.current = true;
     setPending(step);
     try {
+      if (!(await flushAutosaves())) return;
       await apiFetch(`/api/projects/${projectId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

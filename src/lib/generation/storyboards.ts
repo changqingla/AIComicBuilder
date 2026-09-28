@@ -10,15 +10,11 @@ import {
   episodes,
   projects,
   shots,
+  shotAssets,
   storyboardVersions,
 } from "@/lib/db/schema";
 import { id as genId } from "@/lib/id";
-import {
-  getActiveAsset,
-  insertAssetVersion,
-  loadShotAssets,
-  patchAsset,
-} from "@/lib/shot-asset-utils";
+import { insertAssetVersion, loadShotAssets } from "@/lib/shot-asset-utils";
 import { selectAsset } from "@/lib/shot-assets";
 import { generateText } from "ai";
 import { and, desc, eq } from "drizzle-orm";
@@ -328,59 +324,64 @@ IMPORTANT: Keep the same scene, characters, and narrative intent. Only rephrase 
   console.log(`[SingleShotRewrite] Shot ${shot.sequence} prompt:\n${prompt}`);
 
   try {
-    const { text } = await import("ai").then(({ generateText }) =>
-      generateText({ model, prompt, temperature: 0.7 }),
-    );
+    const { text } = await generateText({ model, prompt, temperature: 0.7 });
 
-    const parsed = JSON.parse(extractJSON(text)) as {
-      prompt: string;
-      startFrameDesc: string;
-      endFrameDesc: string;
-      motionScript: string;
-      videoScript?: string;
-      cameraDirection: string;
-    };
-
-    await db
-      .update(shots)
-      .set({
-        prompt: parsed.prompt,
-        motionScript: parsed.motionScript,
-        videoScript: parsed.videoScript ?? null,
-        cameraDirection: parsed.cameraDirection,
+    const result = z
+      .object({
+        prompt: z.string().trim().min(1),
+        startFrameDesc: z.string().trim().min(1),
+        endFrameDesc: z.string().trim().min(1),
+        motionScript: z.string().trim().min(1),
+        videoScript: z.string().trim().min(1),
+        cameraDirection: z.string().trim().min(1),
       })
-      .where(eq(shots.id, shotId));
-    // Update first/last frame prompts in shot_assets
-    {
-      const ff = await getActiveAsset(shotId, "first_frame", 0);
-      if (ff) {
-        await patchAsset(ff.id, { prompt: parsed.startFrameDesc });
-      } else {
-        await insertAssetVersion({
-          shotId,
-          type: "first_frame",
-          sequenceInType: 0,
-          prompt: parsed.startFrameDesc,
-          status: "pending",
-        });
+      .safeParse(JSON.parse(extractJSON(text)));
+    if (!result.success)
+      throw new ApiError(422, "Incomplete shot rewrite result");
+    const parsed = result.data;
+
+    db.transaction((tx) => {
+      tx.update(shots)
+        .set({
+          prompt: parsed.prompt,
+          motionScript: parsed.motionScript,
+          videoScript: parsed.videoScript,
+          cameraDirection: parsed.cameraDirection,
+        })
+        .where(eq(shots.id, shotId))
+        .run();
+      const frames = [
+        { type: "first_frame", prompt: parsed.startFrameDesc },
+        { type: "last_frame", prompt: parsed.endFrameDesc },
+      ] as const;
+      for (const frame of frames) {
+        const current = tx
+          .select()
+          .from(shotAssets)
+          .where(
+            and(
+              eq(shotAssets.shotId, shotId),
+              eq(shotAssets.type, frame.type),
+              eq(shotAssets.sequenceInType, 0),
+              eq(shotAssets.isActive, 1),
+            ),
+          )
+          .get();
+        if (current) {
+          tx.update(shotAssets)
+            .set({ prompt: frame.prompt, updatedAt: new Date() })
+            .where(eq(shotAssets.id, current.id))
+            .run();
+        } else {
+          insertAssetVersion({ shotId, ...frame, status: "pending" });
+        }
       }
-      const lf = await getActiveAsset(shotId, "last_frame", 0);
-      if (lf) {
-        await patchAsset(lf.id, { prompt: parsed.endFrameDesc });
-      } else {
-        await insertAssetVersion({
-          shotId,
-          type: "last_frame",
-          sequenceInType: 0,
-          prompt: parsed.endFrameDesc,
-          status: "pending",
-        });
-      }
-    }
+    });
 
     return { shotId, status: "ok", ...parsed };
   } catch (err) {
     console.error(`[SingleShotRewrite] Error for shot ${shotId}:`, err);
+    if (err instanceof ApiError) throw err;
     throw new ApiError(500, extractErrorMessage(err));
   }
 }

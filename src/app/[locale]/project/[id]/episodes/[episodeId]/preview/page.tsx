@@ -79,9 +79,10 @@ export default function EpisodePreviewPage() {
   const completedVideos = shotsWithVideo.length;
   const currentShot = shotsWithVideo[selectedShot];
   const hasValidVideo = finalVideoUrl && videoValid === true;
+  const loadingVersion = !!versionId && versionId !== episode.versionId;
 
   async function handleAssemble() {
-    if (!episode) return;
+    if (!episode || loadingVersion) return;
     setAssembling(true);
     try {
       const res = await apiFetch(
@@ -92,7 +93,7 @@ export default function EpisodePreviewPage() {
           body: JSON.stringify({
             action: "video_assemble",
             payload: {
-              versionId: versionId ?? undefined,
+              versionId: episode.versionId ?? undefined,
               generationMode: previewMode,
             },
             episodeId: episodeId,
@@ -105,7 +106,11 @@ export default function EpisodePreviewPage() {
       toast.error(t("common.generationFailed"));
     }
     setAssembling(false);
-    await fetchEpisode(episode.projectId, episodeId, versionId ?? undefined);
+    await fetchEpisode(
+      episode.projectId,
+      episodeId,
+      episode.versionId ?? undefined,
+    );
   }
 
   function handleDownload() {
@@ -153,7 +158,11 @@ export default function EpisodePreviewPage() {
               {t("project.downloadVideo")}
             </Button>
           )}
-          <Button onClick={handleAssemble} disabled={assembling} size="sm">
+          <Button
+            onClick={handleAssemble}
+            disabled={assembling || loadingVersion}
+            size="sm"
+          >
             {assembling ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (

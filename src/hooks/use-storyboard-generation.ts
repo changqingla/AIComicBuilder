@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { useFlushAutosaves } from "@/components/editor/autosave-provider";
 import { useBatchGeneration } from "./use-batch-generation";
 import { useModelGuard } from "./use-model-guard";
 import { apiFetch } from "@/lib/api-fetch";
@@ -21,12 +22,12 @@ export function useStoryboardGeneration(
   episode: EpisodeDetail,
   versionId: string | null,
   ratio: string,
-  onVersionCreated: (id: string) => void,
 ) {
   const t = useTranslations();
   const textGuard = useModelGuard("text");
   const imageGuard = useModelGuard("image");
   const videoGuard = useModelGuard("video");
+  const flushAutosaves = useFlushAutosaves();
   const [pending, setPending] = useState<"shots" | "prompts" | null>(null);
   const [autoRunning, setAutoRunning] = useState(false);
   const reference = episode.generationMode === "reference";
@@ -60,11 +61,11 @@ export function useStoryboardGeneration(
     if (!textGuard("shot_split", episode.projectId)) return null;
     setPending("shots");
     try {
+      if (!(await flushAutosaves())) return null;
       const result: { versionId: string } = await (
         await request("shot_split")
       ).json();
       await fetchEpisode(episode.projectId, episode.id, result.versionId);
-      onVersionCreated(result.versionId);
       return result.versionId;
     } catch (error) {
       report(error);
@@ -83,6 +84,7 @@ export function useStoryboardGeneration(
       return false;
     setPending("prompts");
     try {
+      if (!(await flushAutosaves())) return false;
       await request(
         reference ? "generate_ref_prompts" : "generate_keyframe_prompts",
         selectedVersion,

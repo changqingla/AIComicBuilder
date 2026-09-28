@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Check, Clock, Copy, ImageIcon, VideoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useDraft } from "@/hooks/use-draft";
+import { useAutosave } from "@/hooks/use-autosave";
 import { useShotMutations } from "@/hooks/use-shot-mutations";
 import {
   getFirstFrameUrl,
@@ -44,7 +45,12 @@ export function ShotHeader({
     shot.id,
     editor.onUpdate,
   );
-  const [duration, setDuration] = useDraft(shot.duration);
+  const [duration, setDuration] = useDraft(shot.duration, {
+    preserveUnsaved: true,
+  });
+  const saveDuration = useAutosave((duration: number) =>
+    updateShot({ duration }),
+  );
   const [copied, setCopied] = useState(false);
   const frames =
     generationMode === "reference"
@@ -143,12 +149,17 @@ export function ShotHeader({
                 min={5}
                 max={15}
                 value={duration}
-                onChange={(e) =>
-                  setDuration(Math.min(15, Math.max(5, Number(e.target.value))))
-                }
-                onBlur={() =>
-                  duration !== shot.duration && updateShot({ duration })
-                }
+                onChange={(e) => {
+                  const next = Math.min(
+                    15,
+                    Math.max(5, Number(e.target.value)),
+                  );
+                  setDuration(next);
+                  saveDuration.schedule(next);
+                }}
+                onBlur={() => {
+                  void saveDuration.flush();
+                }}
                 className="w-12 rounded border border-[--border-subtle] px-1 text-center text-xs"
               />
               s

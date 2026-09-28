@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useDraft } from "@/hooks/use-draft";
+import { useAutosave } from "@/hooks/use-autosave";
 import type { Shot } from "@/lib/editor-types";
 import type { ShotMutations } from "@/hooks/use-shot-mutations";
 import { TextField } from "./text-field";
@@ -16,7 +17,12 @@ export function DescriptionEditor({
   onSave: ShotMutations["updateShot"];
 }) {
   const t = useTranslations();
-  const [camera, setCamera] = useDraft(shot.cameraDirection);
+  const [camera, setCamera] = useDraft(shot.cameraDirection, {
+    preserveUnsaved: true,
+  });
+  const saveCamera = useAutosave((cameraDirection: string) =>
+    onSave({ cameraDirection }),
+  );
   return (
     <div className="space-y-3">
       <TextField
@@ -37,11 +43,13 @@ export function DescriptionEditor({
         <span>{t("shot.cameraDirection")}</span>
         <input
           value={camera}
-          onChange={(e) => setCamera(e.target.value)}
-          onBlur={() =>
-            camera !== shot.cameraDirection &&
-            onSave({ cameraDirection: camera })
-          }
+          onChange={(e) => {
+            setCamera(e.target.value);
+            saveCamera.schedule(e.target.value);
+          }}
+          onBlur={() => {
+            void saveCamera.flush();
+          }}
           className="w-full rounded-lg border border-[--border-subtle] bg-white px-3 py-2 text-sm text-[--text-primary]"
         />
       </label>

@@ -4,10 +4,11 @@ import { buildReferenceVideoPrompt } from "@/lib/ai/prompts/video-generate";
 import { resolveVideoProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
-import { characters, dialogues, shots } from "@/lib/db/schema";
+import { dialogues, shots } from "@/lib/db/schema";
 import { runShotBatch } from "@/lib/generation/batch";
 import {
   extractErrorMessage,
+  getEpisodeCharacters,
   getVersionedUploadDir,
   isCharacterOnScreen,
 } from "@/lib/generation/common";
@@ -31,19 +32,26 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
     throw new ApiError(404, "Shot not found");
   }
   const assets = await loadShotAssets(shot.id);
+  const references = selectReferences(assets);
+  if (!references.length || references.some((asset) => !asset.fileUrl)) {
+    throw new ApiError(
+      400,
+      "Generate all scene reference images before generating the video",
+    );
+  }
 
   const versionedUploadDir = await getVersionedUploadDir(shot.versionId);
 
-  const projectCharacters = await db
-    .select()
-    .from(characters)
-    .where(eq(characters.projectId, shot.projectId));
+  const projectCharacters = await getEpisodeCharacters(
+    projectId,
+    shot.episodeId,
+  );
 
   // Collect the union of character names declared on this shot's
   // reference assets — this is the precise set of characters the AI said
   // will act in this shot. Only these get passed to the video model.
   const shotCharNameSet = new Set<string>();
-  for (const r of selectReferences(assets)) {
+  for (const r of references) {
     for (const n of r.characters ?? []) shotCharNameSet.add(n);
   }
 
@@ -100,17 +108,7 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
 
     // Step 1: Collect scene frames (pure environment) — may be multiple per shot
     //         (e.g. ground → sky transitions in an action beat).
-    const sceneFramePaths: string[] = selectReferences(assets)
-      .filter((r) => r.fileUrl)
-      .sort((a, b) => a.sequenceInType - b.sequenceInType)
-      .map((r) => r.fileUrl as string);
-
-    if (sceneFramePaths.length === 0) {
-      throw new ApiError(
-        400,
-        "No scene reference images. Please generate scene reference images first.",
-      );
-    }
+    const sceneFramePaths = references.map((asset) => asset.fileUrl!);
 
     console.log(
       `[SingleReferenceVideo] Shot ${shot.sequence}: ${sceneFramePaths.length} scene frame(s), ${charRefs.length} character ref(s)`,
@@ -130,9 +128,7 @@ export async function handleSingleReferenceVideo(input: GenerationInput) {
       visualHint: projectCharacters.find((pc) => pc.name === c.name)
         ?.visualHint,
     }));
-    const sceneAssetList = selectReferences(assets)
-      .filter((r) => r.fileUrl)
-      .sort((a, b) => a.sequenceInType - b.sequenceInType);
+    const sceneAssetList = references;
     const sceneFrameInfos = sceneFramePaths.map((_, i) => {
       const metaObj = sceneAssetList[i]?.meta as { sceneName?: string } | null;
       const name =

@@ -18,15 +18,15 @@ export function TextField({
   label: string;
   fieldLabel: string;
   projectId: string;
-  onSave: (value: string) => Promise<unknown>;
+  onSave: (value: string) => Promise<boolean>;
   images?: string[];
   rows?: number;
 }) {
-  const [draft, setDraft] = useDraft(value);
+  const [draft, setDraft] = useDraft(value, { preserveUnsaved: true });
   const save = useAutosave(onSave);
   function change(next: string) {
     setDraft(next);
-    save(next);
+    save.schedule(next);
   }
   return (
     <div className="min-w-0 space-y-1">

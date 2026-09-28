@@ -13,6 +13,7 @@ function response(id: string, version: string) {
       projectId: "p",
       title: id,
       shots: [{ id: version }],
+      versionId: version,
       versions: [],
     }),
   );
@@ -68,6 +69,7 @@ test("the last requested version wins even when responses arrive out of order", 
   finishOld(response("a", "old"));
   await old;
   expect(useEpisodeEditorStore.getState().episode?.shots[0].id).toBe("new");
+  expect(useEpisodeEditorStore.getState().episode?.versionId).toBe("new");
   expect(request).toHaveBeenLastCalledWith(
     "/api/projects/p/episodes/a?versionId=new",
   );

@@ -1,7 +1,8 @@
 import { extractJSON } from "@/lib/ai/ai-sdk";
 import { getModelMaxDuration } from "@/lib/ai/model-limits";
 import { buildRefVideoPromptRequest } from "@/lib/ai/prompts/ref-video-prompt-generate";
-import { resolvePrompt } from "@/lib/ai/prompts/resolver";
+import { buildVideoPrompt } from "@/lib/ai/prompts/video-generate";
+import { resolveSlotContents, resolvePrompt } from "@/lib/ai/prompts/resolver";
 import { resolveAIProvider } from "@/lib/ai/provider-factory";
 import { ApiError } from "@/lib/api-error";
 import { db } from "@/lib/db";
@@ -19,9 +20,11 @@ import {
 } from "./common";
 import type { GenerationInput } from "./request";
 
-const promptResultsSchema = z.array(
-  z.object({ sequence: z.number(), videoPrompt: z.string().min(1) }),
-);
+const promptResultsSchema = z
+  .array(
+    z.object({ sequence: z.number(), videoPrompt: z.string().trim().min(1) }),
+  )
+  .length(1);
 
 export async function handleSingleVideoPrompt(input: GenerationInput) {
   const { projectId, userId, payload, modelConfig } = input;
@@ -49,8 +52,8 @@ export async function handleSingleVideoPrompt(input: GenerationInput) {
         .from(projects)
         .where(eq(projects.id, projectId))
         .get();
-  const category =
-    source?.mode === "reference" ? "ref_video_prompts" : "video_prompts";
+  const reference = source?.mode === "reference";
+  const category = reference ? "ref_video_prompts" : "video_prompts";
   const agent = await findBoundAgent(projectId, category);
   const characters = await getEpisodeCharacters(projectId, shot.episodeId);
   const duration = Math.min(
@@ -113,44 +116,65 @@ export async function handleSingleVideoPrompt(input: GenerationInput) {
       .where(eq(dialogues.shotId, shot.id))
       .orderBy(asc(dialogues.sequence))
       .all();
-    const request = buildRefVideoPromptRequest({
-      motionScript,
-      cameraDirection: shot.cameraDirection || "static",
-      duration,
-      characters: characterRefs.map((character, index) => ({
-        name: character.name,
-        index: index + 1,
-        visualHint: character.visualHint,
-      })),
-      sceneFrames: frames.map((asset, index) => ({
-        label: asset?.meta?.sceneName || `场景 ${index + 1}`,
-        index: characterRefs.length + index + 1,
-      })),
-      dialogues: shotDialogues.map((dialogue) => {
-        const character = characters.find(
-          (item) => item.id === dialogue.characterId,
-        );
-        const name = character?.name ?? "Unknown";
-        return {
-          characterName: name,
-          text: dialogue.text,
-          offscreen: !isCharacterOnScreen(
-            name,
-            motionScript,
-            selectAsset(assets, "first_frame")?.prompt,
-          ),
-          visualHint: character?.visualHint ?? undefined,
-        };
-      }),
+    const dialogueList = shotDialogues.map((dialogue) => {
+      const character = characters.find(
+        (item) => item.id === dialogue.characterId,
+      );
+      const name = character?.name ?? "Unknown";
+      return {
+        characterName: name,
+        text: dialogue.text,
+        offscreen: !isCharacterOnScreen(
+          name,
+          motionScript,
+          selectAsset(assets, "first_frame")?.prompt,
+        ),
+        visualHint: character?.visualHint ?? undefined,
+      };
     });
+    const request = reference
+      ? buildRefVideoPromptRequest({
+          motionScript,
+          cameraDirection: shot.cameraDirection || "static",
+          duration,
+          characters: characterRefs.map((character, index) => ({
+            name: character.name,
+            index: index + 1,
+            visualHint: character.visualHint,
+          })),
+          sceneFrames: frames.map((asset, index) => ({
+            label: asset?.meta?.sceneName || `场景 ${index + 1}`,
+            index: characterRefs.length + index + 1,
+          })),
+          dialogues: dialogueList,
+        })
+      : buildVideoPrompt({
+          videoScript: motionScript,
+          cameraDirection: shot.cameraDirection || "static",
+          duration,
+          startFrameDesc: selectAsset(assets, "first_frame")?.prompt,
+          endFrameDesc: selectAsset(assets, "last_frame")?.prompt,
+          characters,
+          dialogues: dialogueList,
+          slotContents: await resolveSlotContents("video_generate", {
+            userId,
+            projectId,
+          }),
+        });
     text = await resolveAIProvider(modelConfig).generateText(request, {
-      systemPrompt: await resolvePrompt("ref_video_prompt", {
-        userId,
-        projectId,
-      }),
-      images: frames.map((asset) => asset!.fileUrl!),
+      systemPrompt: reference
+        ? await resolvePrompt("ref_video_prompt", { userId, projectId })
+        : "根据依次提供的首帧、尾帧及镜头要求，描述两帧之间的动态过程。仅输出视频提示词正文。",
+      images: [
+        ...(reference
+          ? characterRefs.map((character) => character.referenceImage!)
+          : []),
+        ...frames.map((asset) => asset!.fileUrl!),
+      ],
     });
   }
+  if (!text.trim())
+    throw new ApiError(422, "The model returned an empty video prompt");
   const videoPrompt = `Duration: ${duration}s.\n\n${text.trim()}`;
   await db.update(shots).set({ videoPrompt }).where(eq(shots.id, shot.id));
   return { shotId: shot.id, videoPrompt, status: "ok" };

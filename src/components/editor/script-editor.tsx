@@ -1,5 +1,5 @@
 "use client";
-import { useDebouncedCallback } from "use-debounce";
+import { useAutosave } from "@/hooks/use-autosave";
 import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useParams } from "next/navigation";
 
@@ -58,30 +58,27 @@ export function ScriptEditor() {
           script: draft.script,
           outline: draft.outline,
         }),
+        keepalive: true,
       });
+      return true;
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t("common.generationFailed"),
       );
+      return false;
     } finally {
       setSaving(false);
     }
   }
-  const saveLater = useDebouncedCallback(save, 1500);
-  useEffect(
-    () => () => {
-      saveLater.flush();
-    },
-    [saveLater],
-  );
+  const saveLater = useAutosave(save, 1500);
 
   function edit(patch: Partial<EpisodeDetail>) {
     if (!episode) return;
     updateDraft(episodeId, patch);
-    saveLater({ ...episode, ...patch });
+    saveLater.schedule({ ...episode, ...patch });
   }
   function handleSave() {
-    if (saveLater.isPending()) saveLater.flush();
+    void saveLater.flush();
   }
 
   if (!episode) return null;
@@ -89,7 +86,7 @@ export function ScriptEditor() {
   async function handleGenerateOutline() {
     if (!episode) return;
     if (!textGuard("script_outline", episode.projectId)) return;
-    await saveLater.flush();
+    if (!(await saveLater.flush())) return;
     setGeneratingOutline(true);
     setOutline("");
 
@@ -147,7 +144,7 @@ export function ScriptEditor() {
       (!outline.trim() && !textGuard("script_outline", episode.projectId))
     )
       return;
-    await saveLater.flush();
+    if (!(await saveLater.flush())) return;
     setGenerating(true);
 
     const idea = episode.idea || "";
@@ -278,7 +275,7 @@ export function ScriptEditor() {
           onBlur={handleSave}
           placeholder={t("project.scriptIdeaPlaceholder")}
           rows={4}
-          disabled={generating}
+          disabled={generating || generatingOutline}
           className={`h-[30vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
             generating ? "opacity-40" : ""
           }`}
@@ -325,7 +322,7 @@ export function ScriptEditor() {
             onChange={(e) => handleOutlineChange(e.target.value)}
             onBlur={handleSave}
             placeholder={t("project.outlinePlaceholder")}
-            disabled={generatingOutline}
+            disabled={generating || generatingOutline}
             className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
               generatingOutline ? "opacity-40" : ""
             }`}
@@ -374,7 +371,7 @@ export function ScriptEditor() {
               onBlur={() => {
                 if (!generating) handleSave();
               }}
-              disabled={generating}
+              disabled={generating || generatingOutline}
               className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
                 generating ? "opacity-40" : ""
               }`}

@@ -17,18 +17,25 @@ import { StoryboardHeader } from "@/components/editor/storyboard/header";
 import { VersionPicker } from "@/components/editor/storyboard/version-picker";
 import { GenerationControls } from "@/components/editor/storyboard/generation-controls";
 import { ShotList } from "@/components/editor/storyboard/shot-list";
+import {
+  AutosaveProvider,
+  useFlushAutosaves,
+} from "@/components/editor/autosave-provider";
 
 export default function EpisodeStoryboardPage() {
   const episode = useEpisodeEditorStore((s) => s.episode);
   return episode ? (
-    <StoryboardEditor key={episode.id} episode={episode} />
+    <AutosaveProvider key={episode.id}>
+      <StoryboardEditor episode={episode} />
+    </AutosaveProvider>
   ) : null;
 }
 
 function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
   const t = useTranslations();
   const fetchEpisode = useEpisodeEditorStore((s) => s.fetchEpisode);
-  const [selection, setSelection] = useState<string | null>(null);
+  const [switchingVersion, setSwitchingVersion] = useState(false);
+  const flushAutosaves = useFlushAutosaves();
   const [drawerShotId, setDrawerShotId] = useState<string | null>(null);
   const [compare, setCompare] = useState(false);
   const [ratio, setRatio] = useState("16:9");
@@ -38,9 +45,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
       ? "kanban"
       : "list",
   );
-  const versionId = episode.versions.some((v) => v.id === selection)
-    ? selection
-    : (episode.versions[0]?.id ?? null);
+  const versionId = episode.versionId;
   const activeVersion = useRef(versionId);
   useEffect(() => {
     activeVersion.current = versionId;
@@ -49,10 +54,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
     };
   }, [versionId]);
   const mode = episode.generationMode;
-  const workflow = useStoryboardGeneration(episode, versionId, ratio, (id) => {
-    activeVersion.current = id;
-    setSelection(id);
-  });
+  const workflow = useStoryboardGeneration(episode, versionId, ratio);
   // A save may finish after the user selected a different version or left the page.
   const refresh = async () => {
     if (activeVersion.current === versionId) {
@@ -65,7 +67,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
     videoRatio: ratio,
     generationMode: mode,
     onUpdate: refresh,
-    disabled: workflow.busy,
+    disabled: workflow.busy || switchingVersion,
     batchGeneratingFrames: workflow.generating.frames,
     batchGeneratingVideoPrompts: workflow.generating.videoPrompts,
     batchGeneratingVideos: workflow.generating.videos,
@@ -75,10 +77,17 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
     localStorage.setItem(`storyboardView:${episode.projectId}`, next);
   }
   async function selectVersion(id: string) {
-    setDrawerShotId(null);
-    activeVersion.current = id;
-    setSelection(id);
-    await fetchEpisode(episode.projectId, episode.id, id);
+    setSwitchingVersion(true);
+    try {
+      if (!(await flushAutosaves())) return;
+      setDrawerShotId(null);
+      activeVersion.current = null;
+      await fetchEpisode(episode.projectId, episode.id, id);
+    } finally {
+      activeVersion.current =
+        useEpisodeEditorStore.getState().episode?.versionId ?? null;
+      setSwitchingVersion(false);
+    }
   }
   return (
     <div className="animate-page-in space-y-4">
@@ -90,7 +99,10 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
         compare={compare}
         onCompareChange={setCompare}
       />
-      <div className="space-y-3 rounded-2xl border border-[--border-subtle] bg-white p-4">
+      <fieldset
+        disabled={switchingVersion}
+        className="min-w-0 space-y-3 rounded-2xl border border-[--border-subtle] bg-white p-4"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <GenerationModeTab disabled={workflow.busy} />
           <VersionPicker
@@ -115,7 +127,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
             onRatioChange={setRatio}
           />
         )}
-      </div>
+      </fieldset>
       {compare ? (
         <VersionCompare
           versions={episode.versions}

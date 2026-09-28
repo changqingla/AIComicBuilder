@@ -14,6 +14,7 @@ import {
   agents,
 } from "@/lib/db/schema";
 import { POST as generate } from "@/app/api/projects/[id]/generate/route";
+import { GET as getEpisode } from "@/app/api/projects/[id]/episodes/[episodeId]/route";
 import {
   GET as getBindings,
   PUT as putBinding,
@@ -102,6 +103,20 @@ beforeAll(() => {
       })
       .run();
   }
+});
+
+test("episode details identify the exact storyboard version supplied with the shots", async () => {
+  const response = await getEpisode(request(undefined, "user-a", "GET"), {
+    params: Promise.resolve({ id: "p-a", episodeId: "ep-a" }),
+  });
+  const episode = await response.json();
+  expect(response.status).toBe(200);
+  expect(episode.versionId).toBe("v-a");
+  expect(
+    episode.shots.every(
+      (shot: { versionId: string }) => shot.versionId === episode.versionId,
+    ),
+  ).toBe(true);
 });
 
 test.each([

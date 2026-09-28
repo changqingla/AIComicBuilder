@@ -8,7 +8,10 @@ import {
   shotAssets,
   storyboardVersions,
 } from "@/lib/db/schema";
-import { handleShotSplit } from "@/lib/generation/storyboards";
+import {
+  handleShotSplit,
+  handleSingleShotRewrite,
+} from "@/lib/generation/storyboards";
 import { handleGenerateAssetPrompts } from "@/lib/generation/asset-prompts";
 import {
   getActiveAsset,
@@ -199,4 +202,54 @@ test("successful prompt batches preserve previous generated files in history", a
   expect(
     (await getAssetHistory("s1", "reference")).map((asset) => asset.fileUrl),
   ).toEqual([null, "existing-1.png"]);
+});
+
+const rewrittenShot = {
+  prompt: "Rewritten forest",
+  startFrameDesc: "Sunrise",
+  endFrameDesc: "Sunset",
+  motionScript: "Branches sway",
+  videoScript: "Wind moves through the trees",
+  cameraDirection: "pan",
+};
+const rewriteInput = {
+  ...input,
+  action: "single_shot_rewrite" as const,
+  payload: { shotId: "s1", versionId: "original" },
+};
+
+test("an incomplete shot rewrite preserves the shot and its assets", async () => {
+  const beforeShots = db.select().from(shots).all();
+  const beforeAssets = db.select().from(shotAssets).all();
+  vi.mocked(generateText).mockResolvedValue(
+    textResult(
+      JSON.stringify({
+        prompt: "Incomplete rewrite",
+        motionScript: "Changed motion",
+      }),
+    ),
+  );
+  await expect(handleSingleShotRewrite(rewriteInput)).rejects.toThrow();
+  expect(db.select().from(shots).all()).toEqual(beforeShots);
+  expect(db.select().from(shotAssets).all()).toEqual(beforeAssets);
+});
+
+test("a failed frame write rolls back the entire shot rewrite", async () => {
+  const beforeShots = db.select().from(shots).all();
+  const beforeAssets = db.select().from(shotAssets).all();
+  vi.mocked(generateText).mockResolvedValue(
+    textResult(JSON.stringify(rewrittenShot)),
+  );
+  db.$client.exec(
+    "CREATE TRIGGER reject_rewrite BEFORE INSERT ON shot_assets WHEN NEW.type = 'last_frame' BEGIN SELECT RAISE(ABORT, 'injected frame failure'); END",
+  );
+  try {
+    await expect(
+      handleSingleShotRewrite({ ...rewriteInput, payload: { shotId: "s2" } }),
+    ).rejects.toThrow("injected frame failure");
+    expect(db.select().from(shots).all()).toEqual(beforeShots);
+    expect(db.select().from(shotAssets).all()).toEqual(beforeAssets);
+  } finally {
+    db.$client.exec("DROP TRIGGER reject_rewrite");
+  }
 });

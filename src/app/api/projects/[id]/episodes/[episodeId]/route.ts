@@ -138,6 +138,7 @@ export async function GET(
     generationMode: episode.generationMode,
     characters: epCharacters,
     shots: enrichedShots,
+    versionId: resolvedVersionId ?? null,
     versions: allVersions.map((v) => ({
       id: v.id,
       label: v.label,

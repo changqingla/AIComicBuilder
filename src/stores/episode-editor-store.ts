@@ -10,6 +10,7 @@ export interface EpisodeDetail extends Omit<Episode, "idea" | "script"> {
   characters: Character[];
   shots: Shot[];
   versions: StoryboardVersion[];
+  versionId: string | null;
 }
 
 interface EpisodeEditorStore {
