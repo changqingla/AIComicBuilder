@@ -2,15 +2,30 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Layers, Plus, Loader2, Users, X, Upload, FileUp, Merge, Download } from "lucide-react";
+import {
+  Layers,
+  Plus,
+  Loader2,
+  Upload,
+  FileUp,
+  Merge,
+  Download,
+} from "lucide-react";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EpisodeCard } from "@/components/editor/episode-card";
 import { EpisodeDialog } from "@/components/editor/episode-dialog";
 import { useEpisodeStore, type Episode } from "@/stores/episode-store";
 import { apiFetch } from "@/lib/api-fetch";
 import Link from "next/link";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function EpisodesPage({
   params,
@@ -21,6 +36,7 @@ export default function EpisodesPage({
   const locale = useLocale();
   const t = useTranslations("episode");
   const tc = useTranslations("common");
+  const tw = useTranslations("workspace");
   const {
     episodes,
     loading,
@@ -42,22 +58,20 @@ export default function EpisodesPage({
     fetchEpisodes(projectId);
   }, [projectId, fetchEpisodes]);
 
-  // Close video modal on Escape
-  useEffect(() => {
-    if (!playingEpisode) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setPlayingEpisode(null);
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [playingEpisode]);
-
-  async function handleCreate(data: { title: string; description?: string; keywords?: string }) {
+  async function handleCreate(data: {
+    title: string;
+    description?: string;
+    keywords?: string;
+  }) {
     await createEpisode(projectId, data);
     toast.success(t("created"));
   }
 
-  async function handleEdit(data: { title: string; description?: string; keywords?: string }) {
+  async function handleEdit(data: {
+    title: string;
+    description?: string;
+    keywords?: string;
+  }) {
     if (!editingEpisode) return;
     await updateEpisode(projectId, editingEpisode.id, data);
     setEditingEpisode(null);
@@ -123,76 +137,51 @@ export default function EpisodesPage({
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-sm text-[--text-muted]">{tc("loading")}</p>
+          <p className="text-sm text-[var(--text-muted)]">{tc("loading")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[--surface] p-6 pb-24 lg:pb-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/8">
-            <Layers className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-              {t("title")}
-            </h2>
-            <p className="text-xs text-[--text-muted]">
-              {episodes.length} {t("count")}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/${locale}/project/${projectId}/import`}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-[--border-subtle] bg-white px-3.5 py-2 text-sm font-medium text-[--text-secondary] shadow-sm transition-all hover:border-primary/20 hover:text-primary"
-          >
-            <FileUp className="h-4 w-4" />
-            {t("importRecord")}
-          </Link>
-          <Link
-            href={`/${locale}/project/${projectId}/characters`}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-[--border-subtle] bg-white px-3.5 py-2 text-sm font-medium text-[--text-secondary] shadow-sm transition-all hover:border-primary/20 hover:text-primary"
-          >
-            <Users className="h-4 w-4" />
-            {t("characters")}
-          </Link>
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (selectionMode) {
-                exitSelectionMode();
-              } else {
-                setSelectionMode(true);
-              }
-            }}
-            className="rounded-[10px]"
-            disabled={episodes.filter((e) => e.finalVideoUrl).length < 2}
-          >
-            <Merge className="mr-1.5 h-4 w-4" />
-            {selectionMode ? t("mergeCancel") : t("mergeVideos")}
-          </Button>
-          <Button onClick={() => setCreateOpen(true)} className="rounded-[10px]">
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("create")}
-          </Button>
-        </div>
-      </div>
+    <div className="workspace-page">
+      <PageHeader
+        title={t("title")}
+        description={`${tw("episodesHint")} ${episodes.length} ${t("count")}`}
+      >
+        <Button
+          variant="outline"
+          onClick={() =>
+            selectionMode ? exitSelectionMode() : setSelectionMode(true)
+          }
+          disabled={episodes.filter((e) => e.finalVideoUrl).length < 2}
+        >
+          <Merge className="size-4" />
+          {selectionMode ? t("mergeCancel") : t("mergeVideos")}
+        </Button>
+        <Link
+          href={`/${locale}/project/${projectId}/import`}
+          className="subtle-link"
+        >
+          <FileUp className="size-4" />
+          {t("uploadScript")}
+        </Link>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" />
+          {t("create")}
+        </Button>
+      </PageHeader>
 
       {/* Episode grid */}
       {episodes.length === 0 ? (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-3xl border border-dashed border-[--border-subtle] bg-white/50 p-8 text-center">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10">
-            <Layers className="h-7 w-7 text-primary" />
+        <div className="empty-state">
+          <div className="mb-2 text-muted-foreground">
+            <Layers className="size-9" />
           </div>
-          <h3 className="font-display text-lg font-semibold text-[--text-primary]">
+          <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {t("title")}
           </h3>
-          <p className="mt-2 max-w-sm text-sm text-[--text-secondary]">
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {t("noEpisodes")}
           </p>
           <div className="mt-6 flex items-center gap-3">
@@ -209,7 +198,7 @@ export default function EpisodesPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 xl:grid-cols-4">
+        <div className="space-y-4">
           {episodes.map((episode) => (
             <EpisodeCard
               key={episode.id}
@@ -224,32 +213,16 @@ export default function EpisodesPage({
               onToggleSelect={toggleSelect}
             />
           ))}
-          {/* Add new card */}
-          {!selectionMode && (
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="flex min-h-[200px] flex-col items-center justify-center rounded-[14px] border-[1.5px] border-dashed border-[--border-subtle] bg-white transition-all hover:border-primary hover:bg-primary/[0.02]"
-            >
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-[10px] bg-[--surface] text-[--text-muted] transition-all group-hover:bg-primary/8 group-hover:text-primary">
-                <Plus className="h-[18px] w-[18px]" />
-              </div>
-              <span className="text-xs font-medium text-[--text-muted]">{t("create")}</span>
-            </button>
-          )}
         </div>
       )}
 
       {/* Floating selection action bar */}
       {selectionMode && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-[--border-subtle] bg-white px-5 py-3 shadow-xl">
-          <span className="text-sm font-medium text-[--text-secondary]">
+        <div className="fixed bottom-5 left-1/2 z-40 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-white px-5 py-3 shadow-xl">
+          <span className="text-sm font-medium text-[var(--text-secondary)]">
             {t("mergeSelected", { count: selectedIds.size })}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exitSelectionMode}
-          >
+          <Button variant="outline" size="sm" onClick={exitSelectionMode}>
             {t("mergeCancel")}
           </Button>
           <Button
@@ -280,84 +253,61 @@ export default function EpisodesPage({
       {/* Edit dialog */}
       <EpisodeDialog
         open={!!editingEpisode}
-        onOpenChange={(open) => { if (!open) setEditingEpisode(null); }}
+        onOpenChange={(open) => {
+          if (!open) setEditingEpisode(null);
+        }}
         onSubmit={handleEdit}
-        defaultValues={editingEpisode ? {
-          title: editingEpisode.title,
-          description: editingEpisode.description || "",
-          keywords: editingEpisode.keywords || "",
-        } : undefined}
+        defaultValues={
+          editingEpisode
+            ? {
+                title: editingEpisode.title,
+                description: editingEpisode.description || "",
+                keywords: editingEpisode.keywords || "",
+              }
+            : undefined
+        }
         mode="edit"
       />
 
-      {/* Video player modal */}
-      {playingEpisode && playingEpisode.finalVideoUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setPlayingEpisode(null)}
-        >
-          <div
-            className="relative w-[90%] max-w-3xl overflow-hidden rounded-2xl bg-black shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setPlayingEpisode(null)}
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      <Dialog
+        open={!!playingEpisode?.finalVideoUrl || !!mergedVideoUrl}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlayingEpisode(null);
+            setMergedVideoUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="p-0 sm:max-w-4xl">
+          <DialogHeader className="px-5 pt-5 pr-14">
+            <DialogTitle>
+              {playingEpisode?.title ?? t("mergeVideos")}
+            </DialogTitle>
+          </DialogHeader>
+          {(playingEpisode?.finalVideoUrl || mergedVideoUrl) && (
             <video
-              src={uploadUrl(playingEpisode.finalVideoUrl)}
+              src={uploadUrl(
+                (playingEpisode?.finalVideoUrl || mergedVideoUrl)!,
+              )}
               controls
               autoPlay
-              className="w-full"
+              className="max-h-[70dvh] w-full bg-black"
             />
-            <div className="flex items-center justify-between bg-[#111] px-5 py-3">
-              <span className="text-sm font-semibold text-white">{playingEpisode.title}</span>
-              <span className="font-mono text-xs text-[#666]">
-                EP.{String(playingEpisode.sequence).padStart(2, "0")}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Merged video preview + download modal */}
-      {mergedVideoUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setMergedVideoUrl(null)}
-        >
-          <div
-            className="relative w-[90%] max-w-3xl overflow-hidden rounded-2xl bg-black shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setMergedVideoUrl(null)}
-              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <video
-              src={uploadUrl(mergedVideoUrl)}
-              controls
-              autoPlay
-              className="w-full"
-            />
-            <div className="flex items-center justify-between bg-[#111] px-5 py-3">
-              <span className="text-sm font-semibold text-white">{t("mergeVideos")}</span>
+          )}
+          {mergedVideoUrl && (
+            <div className="flex justify-end px-5 pb-5">
               <a
                 href={uploadUrl(mergedVideoUrl)}
                 download
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/20"
+                className="subtle-link"
               >
-                <Download className="h-3.5 w-3.5" />
+                <Download className="size-4" />
                 {t("downloadVideo")}
               </a>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

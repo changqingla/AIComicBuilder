@@ -47,7 +47,7 @@ export function EditorStep({
         : Circle;
   return (
     <div
-      className={`rounded-xl border ${next ? "border-primary/30 bg-primary/3" : "border-[--border-subtle] bg-[--surface]/30"}`}
+      className={`rounded-xl border ${next ? "border-primary/30 bg-primary/3" : "border-[var(--border-subtle)] bg-[var(--surface)]/30"}`}
     >
       <button
         onClick={() => setOpen(!open)}
@@ -55,7 +55,7 @@ export function EditorStep({
         className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left"
       >
         <Icon
-          className={`h-4 w-4 shrink-0 ${generating ? "animate-spin text-primary" : done ? "text-emerald-500" : failed ? "text-destructive" : "text-[--text-muted]"}`}
+          className={`h-4 w-4 shrink-0 ${generating ? "animate-spin text-primary" : done ? "text-emerald-500" : failed ? "text-destructive" : "text-[var(--text-muted)]"}`}
         />
         <span className="flex-1 text-sm font-medium">{label}</span>
         {open ? (
@@ -65,7 +65,7 @@ export function EditorStep({
         )}
       </button>
       {open && (
-        <div className="space-y-3 border-t border-[--border-subtle] p-3">
+        <div className="space-y-3 border-t border-[var(--border-subtle)] p-3">
           {children}
           <Button
             size="xs"

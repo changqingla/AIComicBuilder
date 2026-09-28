@@ -66,10 +66,10 @@ export function ShotCard({
     />
   );
   return (
-    <div className="overflow-hidden rounded-2xl border border-[--border-subtle] bg-white">
+    <div className="overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-white">
       {header}
       {!isCompact && (
-        <div className="space-y-2 border-t border-[--border-subtle] px-4 pb-3 pt-3">
+        <div className="space-y-2 border-t border-[var(--border-subtle)] px-4 pb-3 pt-3">
           <EditorStep
             label={t("shot.stepDesc")}
             done={!!shot.prompt}

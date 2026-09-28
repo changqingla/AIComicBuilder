@@ -20,9 +20,10 @@ import {
   ChevronRight,
   Copy,
   Loader2,
-  Sparkles,
+  ImageIcon,
   Trash2,
   Upload,
+  UserRound,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -63,9 +64,7 @@ export function CharacterCard({
   const getModelConfig = useModelStore((s) => s.getModelConfig);
   const providers = useModelStore((s) => s.providers);
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
-  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(
-    () => defaultImageModel,
-  );
+  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(null);
   const [editName, setEditName] = useDraft(name);
   const [editDesc, setEditDesc] = useDraft(description);
   const [editVisualHint, setEditVisualHint] = useDraft(visualHint ?? "");
@@ -114,7 +113,7 @@ export function CharacterCard({
         payload: { characterId: id },
         modelConfig: {
           ...getModelConfig(),
-          image: resolveImageRef(imageModelRef),
+          image: resolveImageRef(imageModelRef ?? defaultImageModel),
         },
       });
       await response.json();
@@ -146,233 +145,214 @@ export function CharacterCard({
     setUploading(false);
   }
 
+  let history: string[] = [];
+  try {
+    history = JSON.parse(referenceImageHistory || "[]");
+  } catch {}
+  if (!history.length && referenceImage) history = [referenceImage];
+  const currentIndex = referenceImage ? history.indexOf(referenceImage) : -1;
+  async function selectImage(index: number) {
+    await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referenceImage: history[index] }),
+    });
+    onUpdate();
+  }
   return (
-    <div className="group overflow-hidden rounded-2xl border border-[--border-subtle] bg-white transition-all duration-300 hover:border-[--border-hover] hover:shadow-lg hover:shadow-black/5">
-      {/* Avatar area */}
-      <div className="relative flex items-center justify-center bg-gradient-to-b from-[--surface] to-white p-8">
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-all hover:bg-red-600 group-hover:opacity-100"
-            title={t("common.delete")}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {referenceImage ? (
-          (() => {
-            let history: string[] = [];
-            try {
-              history = JSON.parse(referenceImageHistory || "[]");
-            } catch {}
-            if (history.length === 0 && referenceImage)
-              history = [referenceImage];
-            const currentIdx = history.indexOf(referenceImage);
-            const showArrows = history.length > 1;
-            async function switchTo(newPath: string) {
-              await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ referenceImage: newPath }),
-              });
-              onUpdate();
-            }
-            return (
-              <div
-                className="relative w-full aspect-video overflow-hidden rounded-xl cursor-pointer group"
-                onClick={() => setLightbox(true)}
-              >
-                <img
-                  src={uploadUrl(referenceImage)}
-                  alt={name}
-                  className="w-full h-full object-cover"
-                />
-                {showArrows && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next =
-                          (currentIdx - 1 + history.length) % history.length;
-                        switchTo(history[next]);
-                      }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = (currentIdx + 1) % history.length;
-                        switchTo(history[next]);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-white">
-                      {currentIdx + 1}/{history.length}
-                    </span>
-                  </>
-                )}
-              </div>
-            );
-          })()
-        ) : isGenerating ? (
-          <div className="w-full aspect-video rounded-xl animate-shimmer" />
-        ) : (
-          <div className="flex w-full aspect-video items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-accent/10 text-3xl font-bold text-primary">
-            {name.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </div>
-
-      {/* Scope badge */}
-      {scope && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              scope === "main"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-purple-100 text-purple-700"
-            }`}
-          >
-            {scope === "main"
-              ? t("episode.mainCharacter")
-              : t("episode.guestCharacter")}
-          </span>
-          {episodeName && (
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-              {episodeName}
-            </span>
-          )}
-          {scope === "guest" && onPromote && (
+    <article className="workspace-panel grid overflow-hidden lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)] 2xl:grid-cols-1">
+      <div className="flex min-w-0 flex-col border-b border-border bg-muted/40 lg:border-b-0 lg:border-r 2xl:border-b 2xl:border-r-0">
+        <div className="relative flex min-h-52 flex-1 items-center justify-center p-5">
+          {referenceImage ? (
             <button
-              onClick={onPromote}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+              onClick={() => setLightbox(true)}
+              aria-label={`${t("workspace.referenceImage")} ${name}`}
+              className="w-full cursor-zoom-in"
             >
-              <ArrowUpCircle className="h-3 w-3" />
-              {t("episode.promoteToMain")}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Info */}
-      <div className="space-y-3 p-4">
-        <Input
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          onBlur={handleSave}
-          className="h-9 font-display font-semibold text-base"
-        />
-        <Textarea
-          value={editDesc}
-          onChange={(e) => setEditDesc(e.target.value)}
-          onBlur={handleSave}
-          placeholder={t("character.description")}
-          className="h-32 resize-none text-sm"
-        />
-        <Input
-          value={editVisualHint}
-          onChange={(e) => setEditVisualHint(e.target.value)}
-          onBlur={handleSave}
-          placeholder={t("character.visualHint")}
-          className="h-8 text-xs text-muted-foreground"
-        />
-        <div className="space-y-2">
-          <InlineModelPicker
-            capability="image"
-            value={imageModelRef}
-            onChange={setImageModelRef}
-          />
-          <div className="flex gap-2">
-            <Button
-              onClick={handleGenerateImage}
-              disabled={isGenerating}
-              className="flex-1"
-              size="sm"
-            >
-              {isGenerating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {isGenerating
-                ? t("common.generating")
-                : t("character.generateImage")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 px-2.5"
-              title={t("character.uploadImage")}
-              disabled={uploading}
-              onClick={() => uploadInputRef.current?.click()}
-            >
-              {uploading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 px-2.5"
-              title="Copy image prompt"
-              onClick={async () => {
-                const prompt = buildCharacterTurnaroundPrompt(
-                  editDesc || editName,
-                  editName,
-                );
-                await navigator.clipboard.writeText(prompt);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-500" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {referenceImage && (
-        <Dialog open={lightbox} onOpenChange={setLightbox}>
-          <DialogContent
-            className="!max-w-[90vw] !w-[90vw] border-0 bg-transparent p-0 shadow-none"
-            showCloseButton={false}
-          >
-            <DialogTitle className="sr-only">{name}</DialogTitle>
-            <div className="relative inline-block w-full">
               <img
                 src={uploadUrl(referenceImage)}
                 alt={name}
-                className="w-full max-h-[85vh] object-contain rounded-xl"
+                className="max-h-72 w-full object-contain"
               />
-              <button
-                onClick={() => setLightbox(false)}
-                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-              >
-                <span className="text-sm leading-none">✕</span>
-              </button>
+            </button>
+          ) : isGenerating ? (
+            <Loader2 className="size-7 animate-spin text-muted-foreground" />
+          ) : (
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <UserRound className="size-10" strokeWidth={1.2} />
+              <span className="text-sm">{t("workspace.referenceImage")}</span>
             </div>
+          )}
+        </div>
+        {history.length > 1 && (
+          <div className="flex items-center justify-center gap-4 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Previous image ${name}`}
+              onClick={() =>
+                selectImage(
+                  (currentIndex - 1 + history.length) % history.length,
+                )
+              }
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="tabular-nums">
+              {currentIndex + 1} / {history.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Next image ${name}`}
+              onClick={() => selectImage((currentIndex + 1) % history.length)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 space-y-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {scope && (
+              <span>
+                {scope === "main"
+                  ? t("episode.mainCharacter")
+                  : t("episode.guestCharacter")}
+              </span>
+            )}
+            {episodeName && <span>{episodeName}</span>}
+            {scope === "guest" && onPromote && (
+              <button
+                onClick={onPromote}
+                className="inline-flex items-center gap-1.5 text-primary"
+              >
+                <ArrowUpCircle className="size-3.5" />
+                {t("episode.promoteToMain")}
+              </button>
+            )}
+          </div>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onDelete}
+              aria-label={`${t("common.delete")} ${name}`}
+              title={t("common.delete")}
+              className="hover:text-destructive"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+        </div>
+        <label className="block space-y-2">
+          <span className="field-label">{t("character.name")}</span>
+          <Input
+            aria-label={t("character.name")}
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={handleSave}
+            className="font-semibold"
+          />
+        </label>
+        <label className="block space-y-2">
+          <span className="field-label">{t("character.description")}</span>
+          <Textarea
+            aria-label={t("character.description")}
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            onBlur={handleSave}
+            placeholder={t("character.description")}
+            className="min-h-28 text-sm leading-7"
+          />
+        </label>
+        <label className="block space-y-2">
+          <span className="field-label">{t("character.visualHint")}</span>
+          <Input
+            aria-label={t("character.visualHint")}
+            value={editVisualHint}
+            onChange={(e) => setEditVisualHint(e.target.value)}
+            onBlur={handleSave}
+            placeholder={t("character.visualHint")}
+          />
+        </label>
+        <div className="toolbar border-t border-border pt-4">
+          <InlineModelPicker
+            capability="image"
+            value={imageModelRef ?? defaultImageModel}
+            onChange={setImageModelRef}
+          />
+          <Button
+            onClick={handleGenerateImage}
+            disabled={isGenerating}
+            variant={referenceImage ? "outline" : "default"}
+            size="sm"
+          >
+            {isGenerating ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ImageIcon className="size-4" />
+            )}
+            {isGenerating
+              ? t("common.generating")
+              : t("character.generateImage")}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={t("character.uploadImage")}
+            title={t("character.uploadImage")}
+            disabled={uploading}
+            onClick={() => uploadInputRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("shot.copyPrompt")}
+            title={t("shot.copyPrompt")}
+            onClick={async () => {
+              await navigator.clipboard.writeText(
+                buildCharacterTurnaroundPrompt(editDesc || editName, editName),
+              );
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? (
+              <Check className="size-4" />
+            ) : (
+              <Copy className="size-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+      {referenceImage && (
+        <Dialog open={lightbox} onOpenChange={setLightbox}>
+          <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-[90vw]">
+            <DialogTitle>{name}</DialogTitle>
+            <img
+              src={uploadUrl(referenceImage)}
+              alt={name}
+              className="max-h-[75vh] w-full object-contain"
+            />
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Hidden file input for image upload */}
       <input
         ref={uploadInputRef}
         type="file"
         accept="image/*"
+        aria-label={t("character.uploadImage")}
         className="hidden"
         onChange={handleUploadImage}
       />
-    </div>
+    </article>
   );
 }

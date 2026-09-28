@@ -44,10 +44,10 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium transition-all duration-150 ${
+        className={`flex h-7 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition-all duration-150 ${
           selectedAgent
             ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-            : "border-[--border-subtle] bg-white text-[--text-muted] hover:border-[--border-hover] hover:text-[--text-secondary]"
+            : "border-[var(--border-subtle)] bg-white text-[var(--text-muted)] hover:border-[var(--border-hover)] hover:text-[var(--text-secondary)]"
         }`}
       >
         <Bot className="h-3 w-3" />
@@ -60,7 +60,7 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-[--border-subtle] bg-white p-1 shadow-lg shadow-black/8 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-xl border border-[var(--border-subtle)] bg-white p-1 shadow-lg shadow-black/8 animate-in fade-in slide-in-from-top-1 duration-150">
           {/* Default option */}
           <button
             onClick={() => {
@@ -69,11 +69,11 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
             }}
             className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
               !selectedAgent
-                ? "bg-[--surface] text-[--text-primary] font-medium"
-                : "text-[--text-secondary] hover:bg-[--surface]"
+                ? "bg-[var(--surface)] text-[var(--text-primary)] font-medium"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface)]"
             }`}
           >
-            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-[--surface] text-[--text-muted]">
+            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--text-muted)]">
               <Bot className="h-3 w-3" />
             </div>
             <span className="flex-1">{t("defaultAgent")}</span>
@@ -81,7 +81,7 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
           </button>
 
           {availableAgents.length > 0 && (
-            <div className="my-1 h-px bg-[--border-subtle]" />
+            <div className="my-1 h-px bg-[var(--border-subtle)]" />
           )}
 
           {availableAgents.map((agent) => {
@@ -96,14 +96,14 @@ export function AgentPicker({ projectId, category }: AgentPickerProps) {
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                   isSelected
                     ? "bg-primary/5 text-primary font-medium"
-                    : "text-[--text-secondary] hover:bg-[--surface]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--surface)]"
                 }`}
               >
                 <div
-                  className={`flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${
+                  className={`flex h-5 w-5 items-center justify-center rounded-md text-xs font-bold ${
                     isSelected
                       ? "bg-primary/10 text-primary"
-                      : "bg-[--surface] text-[--text-muted]"
+                      : "bg-[var(--surface)] text-[var(--text-muted)]"
                   }`}
                 >
                   {agent.name[0]?.toUpperCase()}

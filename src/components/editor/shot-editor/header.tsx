@@ -67,12 +67,6 @@ export function ShotHeader({
     ...frames.map((f) => ({ ...f, kind: "image" as const })),
     { url: video, label: t("shot.stepVideo"), kind: "video" as const },
   ];
-  const progress = [
-    !!shot.prompt,
-    frames.some((f) => f.url),
-    !!shot.videoPrompt,
-    !!video,
-  ];
   async function copy() {
     try {
       await navigator.clipboard.writeText(
@@ -86,15 +80,15 @@ export function ShotHeader({
     }
   }
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-4 px-5 py-4">
       <button
         onClick={onOpen}
         aria-label={`Open editor ${shot.sequence}`}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/8 font-mono text-sm font-bold text-primary"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border font-mono text-sm font-medium text-muted-foreground"
       >
         {shot.sequence}
       </button>
-      <div className="flex gap-1.5">
+      <div className="grid min-w-0 flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none">
         {media.map((item) => (
           <button
             key={item.label}
@@ -104,7 +98,7 @@ export function ShotHeader({
                 ? onOpen?.()
                 : item.url && onPreview?.({ ...item, url: item.url })
             }
-            className={`${compact ? "h-8 w-11" : "h-12 w-16"} flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[--border-subtle] bg-[--surface]`}
+            className={`${compact ? "h-16 w-full sm:h-20 sm:w-28" : "h-14 w-full sm:w-20"} flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)]`}
           >
             {item.url ? (
               item.kind === "video" ? (
@@ -120,16 +114,16 @@ export function ShotHeader({
                 />
               )
             ) : item.kind === "video" ? (
-              <VideoIcon className="h-3.5 w-3.5 text-[--text-muted]" />
+              <VideoIcon className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             ) : (
-              <ImageIcon className="h-3.5 w-3.5 text-[--text-muted]" />
+              <ImageIcon className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             )}
           </button>
         ))}
       </div>
       <div className="order-last min-w-0 basis-full md:order-none md:flex-1">
         <button
-          className="block w-full truncate text-left text-sm"
+          className="line-clamp-2 w-full text-left text-sm font-medium leading-6"
           onClick={onOpen}
         >
           {shot.prompt}
@@ -141,7 +135,7 @@ export function ShotHeader({
         )}
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {!compact && (
-            <label className="flex items-center gap-1 text-xs text-[--text-muted]">
+            <label className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
               <Clock className="h-3 w-3" />
               <input
                 aria-label={t("shot.duration")}
@@ -160,21 +154,21 @@ export function ShotHeader({
                 onBlur={() => {
                   void saveDuration.flush();
                 }}
-                className="w-12 rounded border border-[--border-subtle] px-1 text-center text-xs"
+                className="w-12 rounded border border-[var(--border-subtle)] px-1 text-center text-xs"
               />
               s
             </label>
           )}
-          {progress.map((done, index) => (
-            <span
-              key={index}
-              className={`h-1.5 w-1.5 rounded-full ${done ? "bg-emerald-400" : "bg-[--border-subtle]"}`}
-            />
-          ))}
+          {compact && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="size-3.5" />
+              {shot.duration}s
+            </span>
+          )}
         </div>
         {!compact && (
           <>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[--text-muted]">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
               <span>{t("shot.transition")}:</span>
               {(["transitionIn", "transitionOut"] as const).map((field) => (
                 <select
@@ -182,7 +176,7 @@ export function ShotHeader({
                   aria-label={field}
                   value={shot[field] || "cut"}
                   onChange={(e) => updateShot({ [field]: e.target.value })}
-                  className="h-7 rounded border border-[--border-subtle] bg-white px-2 text-xs"
+                  className="h-7 rounded border border-[var(--border-subtle)] bg-white px-2 text-xs"
                 >
                   {transitions.map((value) => (
                     <option key={value} value={value}>
@@ -206,7 +200,7 @@ export function ShotHeader({
               )}
             </div>
             {(shot.soundDesign || shot.musicCue) && (
-              <p className="mt-1 text-xs text-[--text-muted]">
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
                 {shot.soundDesign && `${t("shot.sfx")}: ${shot.soundDesign} `}
                 {shot.musicCue && `${t("shot.music")}: ${shot.musicCue}`}
               </p>
@@ -218,7 +212,7 @@ export function ShotHeader({
         <button
           onClick={copy}
           title={t("shot.copyPrompt")}
-          className="ml-auto p-1 text-[--text-muted]"
+          className="ml-auto p-1 text-[var(--text-muted)]"
         >
           {copied ? (
             <Check className="h-4 w-4 text-emerald-500" />

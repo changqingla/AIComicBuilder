@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useModelStore, type Capability, type Protocol } from "@/stores/model-store";
+import {
+  useModelStore,
+  type Capability,
+  type Protocol,
+} from "@/stores/model-store";
 import { ProviderCard } from "@/components/settings/provider-card";
 import { ProviderForm } from "@/components/settings/provider-form";
 import { Plus } from "lucide-react";
@@ -28,7 +32,10 @@ export function ProviderSection({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sectionProviders = providers.filter((p) => p.capability === capability);
-  const selectedProvider = sectionProviders.find((p) => p.id === selectedId) || null;
+  const selectedProvider =
+    sectionProviders.find((p) => p.id === selectedId) ||
+    sectionProviders[0] ||
+    null;
 
   function handleAdd() {
     const id = addProvider({
@@ -50,10 +57,10 @@ export function ProviderSection({
   }
 
   return (
-    <div className="rounded-2xl border border-[--border-subtle] bg-white p-5 space-y-4">
+    <div className="space-y-5 p-5 sm:p-6">
       {/* Section header */}
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
+        <h3 className="flex items-center gap-2 text-base font-medium text-foreground">
           {icon}
           {label}
         </h3>
@@ -64,23 +71,21 @@ export function ProviderSection({
       </div>
 
       {sectionProviders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-10">
-          <div className="h-6 w-6 text-[--text-muted]">{icon}</div>
-          <p className="mt-2 text-sm text-[--text-muted]">{t("noProviders")}</p>
-          <Button size="sm" className="mt-3" onClick={handleAdd}>
-            <Plus className="h-3.5 w-3.5" />
-            {t("addProvider")}
-          </Button>
+        <div className="flex min-h-40 items-center justify-center gap-3 py-8">
+          <div className="h-6 w-6 text-[var(--text-muted)]">{icon}</div>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            {t("noProviders")}
+          </p>
         </div>
       ) : (
         <>
           {/* Provider cards */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-2">
             {sectionProviders.map((p) => (
               <ProviderCard
                 key={p.id}
                 provider={p}
-                selected={p.id === selectedId}
+                selected={p.id === selectedProvider?.id}
                 onSelect={() => setSelectedId(p.id)}
                 onDelete={() => handleDelete(p.id)}
               />
@@ -89,10 +94,15 @@ export function ProviderSection({
 
           {/* Provider form */}
           {selectedProvider ? (
-            <ProviderForm key={selectedProvider.id} provider={selectedProvider} />
+            <ProviderForm
+              key={selectedProvider.id}
+              provider={selectedProvider}
+            />
           ) : (
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-8">
-              <p className="text-sm text-[--text-muted]">{t("selectProvider")}</p>
+            <div className="flex items-center justify-center rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)]/50 py-8">
+              <p className="text-sm text-[var(--text-muted)]">
+                {t("selectProvider")}
+              </p>
             </div>
           )}
         </>

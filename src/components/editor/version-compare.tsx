@@ -56,13 +56,14 @@ export function VersionCompare({
   return (
     <div className="space-y-4">
       {/* Version selectors */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex min-w-0 max-w-full items-center gap-2">
           <span className="text-sm font-medium">A:</span>
           <select
+            aria-label="Version A"
             value={versionAId}
             onChange={(e) => setVersionAId(e.target.value)}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="h-10 min-w-0 rounded-md border bg-white px-2 text-sm"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -72,12 +73,13 @@ export function VersionCompare({
           </select>
         </div>
         <span className="text-muted-foreground">vs</span>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full items-center gap-2">
           <span className="text-sm font-medium">B:</span>
           <select
+            aria-label="Version B"
             value={versionBId}
             onChange={(e) => setVersionBId(e.target.value)}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="h-10 min-w-0 rounded-md border bg-white px-2 text-sm"
           >
             {versions.map((v) => (
               <option key={v.id} value={v.id}>
@@ -96,7 +98,7 @@ export function VersionCompare({
           return (
             <div
               key={i}
-              className="grid grid-cols-2 gap-4 rounded-lg border p-3"
+              className="workspace-panel grid grid-cols-1 gap-5 p-4 sm:grid-cols-2"
             >
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground">
@@ -115,7 +117,7 @@ export function VersionCompare({
                   </div>
                 )}
                 {shotA?.prompt && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-sm leading-6 text-muted-foreground">
                     {shotA.prompt}
                   </p>
                 )}
@@ -137,7 +139,7 @@ export function VersionCompare({
                   </div>
                 )}
                 {shotB?.prompt && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-sm leading-6 text-muted-foreground">
                     {shotB.prompt}
                   </p>
                 )}

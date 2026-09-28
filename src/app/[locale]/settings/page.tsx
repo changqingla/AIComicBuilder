@@ -1,108 +1,99 @@
 "use client";
 
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { Tabs } from "@base-ui/react/tabs";
+import { useTranslations } from "next-intl";
+import { ImageIcon, Type, VideoIcon } from "lucide-react";
 import { AgentSection } from "@/components/settings/agent-section";
 import { DefaultModelPicker } from "@/components/settings/default-model-picker";
 import { ProviderSection } from "@/components/settings/provider-section";
-import {
-  ArrowLeft,
-  ImageIcon,
-  Settings,
-  Type,
-  VideoIcon,
-  Wand2,
-  Zap,
-} from "lucide-react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { WorkspaceHeader } from "@/components/workspace/header";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function SettingsPage() {
-  const t = useTranslations("settings");
-  const router = useRouter();
-
+  const t = useTranslations();
+  const sections = [
+    {
+      capability: "text",
+      label: "languageModels",
+      icon: Type,
+      protocol: "openai",
+      baseUrl: "https://api.openai.com",
+    },
+    {
+      capability: "image",
+      label: "imageModels",
+      icon: ImageIcon,
+      protocol: "kling",
+      baseUrl: "https://api.klingai.com",
+    },
+    {
+      capability: "video",
+      label: "videoModels",
+      icon: VideoIcon,
+      protocol: "kling",
+      baseUrl: "https://api.klingai.com",
+    },
+  ] as const;
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center justify-between border-b border-[--border-subtle] bg-white/80 backdrop-blur-xl px-4 lg:px-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[--text-muted] transition-colors hover:bg-[--surface] hover:text-[--text-primary]"
+      <WorkspaceHeader />
+      <main className="workspace-page space-y-6">
+        <PageHeader
+          title={t("settings.title")}
+          description={t("workspace.settingsHint")}
+        />
+        <section className="workspace-panel p-5 sm:p-6">
+          <h2 className="section-heading mb-5">
+            {t("settings.defaultModels")}
+          </h2>
+          <DefaultModelPicker />
+        </section>
+        <Tabs.Root
+          defaultValue="text"
+          className="workspace-panel overflow-hidden"
+        >
+          <Tabs.List
+            aria-label={t("workspace.modelProviders")}
+            className="flex gap-2 overflow-x-auto border-b border-border px-4 sm:gap-6 sm:px-6"
           >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Settings className="h-3.5 w-3.5" />
-            </div>
-            <span className="font-display text-sm font-semibold text-[--text-primary]">
-              {t("title")}
-            </span>
+            {sections.map(({ capability: key, label, icon: Icon }) => (
+              <Tabs.Tab
+                key={key}
+                value={key}
+                className="flex shrink-0 items-center gap-2 border-b-2 border-transparent px-1 py-4 text-sm text-muted-foreground data-active:border-primary data-active:font-medium data-active:text-primary"
+              >
+                <Icon className="size-4" />
+                {t(`settings.${label}`)}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+          {sections.map(
+            ({ capability: key, label, icon: Icon, protocol, baseUrl }) => (
+              <Tabs.Panel
+                key={key}
+                value={key}
+                keepMounted
+                className="data-[hidden]:hidden"
+              >
+                <ProviderSection
+                  capability={key}
+                  label={t(`settings.${label}`)}
+                  icon={<Icon className="size-5" />}
+                  defaultProtocol={protocol}
+                  defaultBaseUrl={baseUrl}
+                />
+              </Tabs.Panel>
+            ),
+          )}
+        </Tabs.Root>
+        <details className="workspace-panel">
+          <summary className="px-6 py-4 text-sm font-medium">
+            {t("workspace.advancedSettings")}
+          </summary>
+          <div className="border-t border-border p-2">
+            <AgentSection />
           </div>
-        </div>
-        <LanguageSwitcher />
-      </header>
-
-      <main className="flex-1 bg-[--surface] p-4 lg:p-6">
-        <div className="mx-auto max-w-4xl animate-page-in space-y-5">
-          {/* Default model selection */}
-          <div className="rounded-2xl border border-[--border-subtle] bg-white p-5">
-            <h3 className="mb-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-              <Zap className="h-3.5 w-3.5" />
-              {t("defaultModels")}
-            </h3>
-            <DefaultModelPicker />
-          </div>
-
-          {/* Prompt Templates link */}
-          <Link
-            href="/settings/prompts"
-            className="flex items-center gap-3 rounded-2xl border border-[--border-subtle] bg-white p-5 transition-all duration-200 hover:border-[--border-hover] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Wand2 className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="font-display text-sm font-semibold">
-                {t("promptTemplates")}
-              </div>
-              <div className="text-xs text-[--text-muted]">
-                {t("promptTemplatesDesc")}
-              </div>
-            </div>
-          </Link>
-
-          {/* Agent Management */}
-          <AgentSection />
-
-          {/* Language Models section */}
-          <ProviderSection
-            capability="text"
-            label={t("languageModels")}
-            icon={<Type className="h-3.5 w-3.5" />}
-            defaultProtocol="openai"
-            defaultBaseUrl="https://api.openai.com"
-          />
-
-          {/* Image Models section */}
-          <ProviderSection
-            capability="image"
-            label={t("imageModels")}
-            icon={<ImageIcon className="h-3.5 w-3.5" />}
-            defaultProtocol="kling"
-            defaultBaseUrl="https://api.klingai.com"
-          />
-
-          {/* Video Models section */}
-          <ProviderSection
-            capability="video"
-            label={t("videoModels")}
-            icon={<VideoIcon className="h-3.5 w-3.5" />}
-            defaultProtocol="kling"
-            defaultBaseUrl="https://api.klingai.com"
-          />
-        </div>
+        </details>
       </main>
     </div>
   );

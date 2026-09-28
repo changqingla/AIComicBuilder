@@ -65,16 +65,18 @@ export function PromptPreview() {
 
   return (
     <div className="flex flex-col gap-2 p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
+      <div className="text-xs font-semibold  text-[var(--text-muted)]">
         {t("editor.previewFull")}
       </div>
       <div
-        className={`overflow-auto rounded-xl border border-[--border-subtle] p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap ${
-          hasOverrides ? "bg-primary/5" : "text-[--text-muted] bg-[--surface]"
+        className={`overflow-auto rounded-xl border border-[var(--border-subtle)] p-3 font-sans text-sm leading-7 whitespace-pre-wrap break-words ${
+          hasOverrides
+            ? "bg-primary/5"
+            : "text-[var(--text-muted)] bg-[var(--surface)]"
         }`}
       >
         {previewText || (
-          <span className="text-[--text-muted] italic">
+          <span className="text-[var(--text-muted)] italic">
             {t("editor.preview")}...
           </span>
         )}

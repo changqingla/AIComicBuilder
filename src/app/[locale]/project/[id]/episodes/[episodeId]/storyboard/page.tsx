@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Film } from "lucide-react";
+import { Film, SlidersHorizontal } from "lucide-react";
 import {
   useEpisodeEditorStore,
   type EpisodeDetail,
@@ -101,7 +101,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
       />
       <fieldset
         disabled={switchingVersion}
-        className="min-w-0 space-y-3 rounded-2xl border border-[--border-subtle] bg-white p-4"
+        className="workspace-panel space-y-4 p-4 sm:p-5"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <GenerationModeTab disabled={workflow.busy} />
@@ -120,12 +120,28 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
           onUpdate={refresh}
         />
         {view === "list" && (
-          <GenerationControls
-            episode={episode}
-            workflow={workflow}
-            ratio={ratio}
-            onRatioChange={setRatio}
-          />
+          <details
+            open={!episode.shots.length}
+            className="border-t border-border pt-3"
+          >
+            <summary className="text-sm font-medium text-muted-foreground">
+              <SlidersHorizontal className="mr-2 inline size-4" />
+              {t("workspace.generationSettings")}
+              {workflow.busy && (
+                <span role="status" className="ml-3 text-primary">
+                  {t("common.generating")}
+                </span>
+              )}
+            </summary>
+            <div className="pt-4">
+              <GenerationControls
+                episode={episode}
+                workflow={workflow}
+                ratio={ratio}
+                onRatioChange={setRatio}
+              />
+            </div>
+          </details>
         )}
       </fieldset>
       {compare ? (
@@ -135,10 +151,10 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
           episodeId={episode.id}
         />
       ) : !episode.shots.length ? (
-        <div className="flex flex-col items-center rounded-3xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-24">
+        <div className="empty-state">
           <Film className="mb-5 h-8 w-8 text-primary" />
           <h3 className="text-lg font-semibold">{t("project.storyboard")}</h3>
-          <p className="mt-2 text-sm text-[--text-secondary]">
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {t("shot.noShots")}
           </p>
         </div>
@@ -153,7 +169,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
         <ShotList
           shots={episode.shots}
           {...editor}
-          isCompact={drawerShotId !== null}
+          isCompact
           onOpenDrawer={setDrawerShotId}
         />
       )}

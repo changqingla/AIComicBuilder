@@ -155,7 +155,7 @@ export function AdvancedEditor({
               <li key={i}>{w}</li>
             ))}
           </ul>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="xs"
               variant="outline"
@@ -181,9 +181,9 @@ export function AdvancedEditor({
       )}
 
       {/* Editor area */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Badge variant="warning">{t("editor.advancedMode")}</Badge>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="xs" variant="ghost" onClick={handleReset}>
             <RotateCcw className="h-3 w-3" />
             {t("editor.resetDefault")}
@@ -200,9 +200,10 @@ export function AdvancedEditor({
       </div>
 
       <textarea
+        aria-label={t("editor.advancedMode")}
         value={fullTextContent}
         onChange={(e) => setFullTextContent(e.target.value)}
-        className="flex-1 resize-none overflow-y-auto rounded-xl border border-[--border-subtle] bg-white px-3.5 py-3 font-mono text-[11px] leading-relaxed text-[--text-primary] outline-none transition-all duration-200 placeholder:text-[--text-muted] hover:border-[--border-hover] focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15"
+        className="min-h-96 flex-1 resize-y overflow-y-auto rounded-md border border-[var(--border-subtle)] bg-white px-3.5 py-3 font-sans text-sm leading-7 text-[var(--text-primary)] outline-none transition-all duration-200 placeholder:text-[var(--text-muted)] hover:border-[var(--border-hover)] focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15"
         placeholder={t("editor.advancedMode")}
       />
     </div>

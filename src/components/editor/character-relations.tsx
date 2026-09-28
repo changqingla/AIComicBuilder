@@ -8,7 +8,14 @@ import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 const RELATION_TYPES = [
-  "ally", "enemy", "lover", "family", "mentor", "rival", "stranger", "neutral",
+  "ally",
+  "enemy",
+  "lover",
+  "family",
+  "mentor",
+  "rival",
+  "stranger",
+  "neutral",
 ];
 
 interface Character {
@@ -44,7 +51,9 @@ export function CharacterRelations({
     // Load all project characters for name resolution
     apiFetch(`/api/projects/${projectId}/characters`)
       .then((r) => r.json())
-      .then((data) => setAllCharacters(Array.isArray(data) ? data : data.characters || []))
+      .then((data) =>
+        setAllCharacters(Array.isArray(data) ? data : data.characters || []),
+      )
       .catch(() => {});
 
     apiFetch(`/api/projects/${projectId}/character-relations`)
@@ -55,16 +64,19 @@ export function CharacterRelations({
 
   async function handleAdd() {
     if (!charA || !charB || charA === charB) return;
-    const resp = await apiFetch(`/api/projects/${projectId}/character-relations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        characterAId: charA,
-        characterBId: charB,
-        relationType: relType,
-        description: desc,
-      }),
-    });
+    const resp = await apiFetch(
+      `/api/projects/${projectId}/character-relations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterAId: charA,
+          characterBId: charB,
+          relationType: relType,
+          description: desc,
+        }),
+      },
+    );
     const newRel = await resp.json();
     setRelations((prev) => [...prev, newRel]);
     setDesc("");
@@ -85,24 +97,37 @@ export function CharacterRelations({
   // Filter: only show relations where BOTH characters are in current character list
   const charIds = new Set(characters.map((c) => c.id));
   const filteredRelations = relations.filter(
-    (r) => charIds.has(r.characterAId) && charIds.has(r.characterBId)
+    (r) => charIds.has(r.characterAId) && charIds.has(r.characterBId),
   );
 
   if (characters.length < 2) return null;
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="workspace-panel space-y-4 p-5">
       <h3 className="text-sm font-medium">{tChar("relations")}</h3>
 
       {filteredRelations.map((rel) => (
-        <div key={rel.id} className="flex items-center gap-2 rounded border p-2 text-sm">
+        <div
+          key={rel.id}
+          className="flex flex-wrap items-center gap-2 border-b border-border py-3 text-sm"
+        >
           <span className="font-medium">{getName(rel.characterAId)}</span>
-          <span className="rounded bg-muted px-2 py-0.5 text-xs">{tChar(`relType_${rel.relationType}`)}</span>
+          <span className="rounded bg-muted px-2 py-0.5 text-xs">
+            {tChar(`relType_${rel.relationType}`)}
+          </span>
           <span className="font-medium">{getName(rel.characterBId)}</span>
           {rel.description && (
-            <span className="text-muted-foreground truncate">&mdash; {rel.description}</span>
+            <span className="min-w-0 break-words text-muted-foreground">
+              &mdash; {rel.description}
+            </span>
           )}
-          <Button variant="ghost" size="sm" onClick={() => handleDelete(rel.id)} className="ml-auto shrink-0">
+          <Button
+            aria-label={`Delete ${getName(rel.characterAId)} / ${getName(rel.characterBId)}`}
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDelete(rel.id)}
+            className="ml-auto shrink-0"
+          >
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
@@ -110,41 +135,55 @@ export function CharacterRelations({
 
       <div className="flex flex-wrap items-end gap-2">
         <select
+          aria-label={tChar("characterA")}
           value={charA}
           onChange={(e) => setCharA(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-10 max-w-full rounded-md border bg-white px-3 text-sm"
         >
           <option value="">{tChar("characterA")}</option>
           {characters.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
         <select
+          aria-label={tChar("relations")}
           value={relType}
           onChange={(e) => setRelType(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-10 max-w-full rounded-md border bg-white px-3 text-sm"
         >
           {RELATION_TYPES.map((rt) => (
-            <option key={rt} value={rt}>{tChar(`relType_${rt}`)}</option>
+            <option key={rt} value={rt}>
+              {tChar(`relType_${rt}`)}
+            </option>
           ))}
         </select>
         <select
+          aria-label={tChar("characterB")}
           value={charB}
           onChange={(e) => setCharB(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-10 max-w-full rounded-md border bg-white px-3 text-sm"
         >
           <option value="">{tChar("characterB")}</option>
           {characters.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
         <Input
+          aria-label={tChar("relationDesc")}
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           placeholder={tChar("relationDesc")}
           className="w-48"
         />
-        <Button size="sm" onClick={handleAdd} disabled={!charA || !charB || charA === charB}>
+        <Button
+          size="sm"
+          onClick={handleAdd}
+          disabled={!charA || !charB || charA === charB}
+        >
           <Plus className="mr-1 h-3 w-3" />
           {tChar("addRelation")}
         </Button>

@@ -5,10 +5,12 @@ import { getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
 import { ProjectCard } from "@/components/project-card";
 import { CreateProjectDialog } from "@/components/create-project-dialog";
-import { Clapperboard } from "lucide-react";
+import { FolderOpen } from "lucide-react";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
+  const tw = await getTranslations("workspace");
   const cookieStore = await cookies();
   const userId = cookieStore.get("ai_comic_uid")?.value ?? "";
 
@@ -21,55 +23,40 @@ export default async function DashboardPage() {
     : [];
 
   return (
-    <div className="animate-page-in space-y-6">
-      {/* Page header — same pattern as detail pages */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-            <Clapperboard className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-              {t("title")}
-            </h2>
-            {allProjects.length > 0 && (
-              <p className="text-xs text-[--text-muted]">
-                {allProjects.length}{" "}
-                {allProjects.length === 1 ? "project" : "projects"}
-              </p>
-            )}
-          </div>
-        </div>
+    <div className="animate-page-in">
+      <PageHeader title={t("title")} description={tw("projectsHint")}>
         <CreateProjectDialog />
-      </div>
-
+      </PageHeader>
       {allProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-24">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10">
-            <Clapperboard className="h-7 w-7 text-primary" />
-          </div>
-          <h3 className="font-display text-lg font-semibold text-[--text-primary]">
-            {t("title")}
-          </h3>
-          <p className="mt-2 max-w-sm text-center text-sm text-[--text-secondary]">
-            {t("noProjects")}
-          </p>
-          <div className="mt-6">
-            <CreateProjectDialog />
-          </div>
+        <div className="empty-state min-h-[50vh]">
+          <FolderOpen
+            className="mb-2 size-10 text-muted-foreground"
+            strokeWidth={1.3}
+          />
+          <h2 className="section-heading">{t("noProjects")}</h2>
+          <CreateProjectDialog />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {allProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              id={project.id}
-              title={project.title}
-              status={project.status}
-              createdAt={project.createdAt.toISOString()}
-            />
-          ))}
-        </div>
+        <section
+          aria-label={tw("allProjects")}
+          className="workspace-panel overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground">
+            <span>{tw("projectCount", { count: allProjects.length })}</span>
+            <span className="hidden pr-28 sm:block">{tw("createdDate")}</span>
+          </div>
+          <div className="divide-y divide-border">
+            {allProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                id={project.id}
+                title={project.title}
+                status={project.status}
+                createdAt={project.createdAt.toISOString()}
+              />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

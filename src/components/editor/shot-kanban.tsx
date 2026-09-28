@@ -32,8 +32,6 @@ interface ShotKanbanProps {
 interface KanbanColumn {
   key: string;
   labelKey: string;
-  color: string;
-  headerBg: string;
   shots: KanbanShot[];
   batchAction?: () => void;
   isGenerating?: boolean;
@@ -89,8 +87,6 @@ export function ShotKanban({
     {
       key: "frames",
       labelKey: "kanbanNeedsFrames",
-      color: "text-amber-700",
-      headerBg: "bg-amber-50 border-amber-200",
       shots: frameShots,
       batchAction: () => workflow.generateFrames(),
       isGenerating: framesGenerating,
@@ -99,8 +95,6 @@ export function ShotKanban({
     {
       key: "prompt",
       labelKey: "kanbanNeedsPrompt",
-      color: "text-violet-700",
-      headerBg: "bg-violet-50 border-violet-200",
       shots: promptShots,
       batchAction: () => workflow.generateVideoPrompts(),
       isGenerating: generatingVideoPrompts,
@@ -109,8 +103,6 @@ export function ShotKanban({
     {
       key: "video",
       labelKey: "kanbanNeedsVideo",
-      color: "text-pink-700",
-      headerBg: "bg-pink-50 border-pink-200",
       shots: videoShots,
       batchAction: () => workflow.generateVideos(),
       isGenerating: generatingVideos,
@@ -119,38 +111,32 @@ export function ShotKanban({
     {
       key: "done",
       labelKey: "kanbanDone",
-      color: "text-emerald-700",
-      headerBg: "bg-emerald-50 border-emerald-200",
       shots: doneShots,
       icon: <CheckCircle2 className="h-3.5 w-3.5" />,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {columns.map((col) => (
         <div
           key={col.key}
-          className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white overflow-hidden"
+          className="flex flex-col rounded-lg border border-[var(--border-subtle)] bg-white overflow-hidden"
         >
           {/* Column header */}
-          <div
-            className={`flex items-center gap-2 border-b px-3 py-2 ${col.headerBg}`}
-          >
-            <span className={col.color}>{col.icon}</span>
-            <span className={`flex-1 text-[12px] font-semibold ${col.color}`}>
+          <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-3">
+            <span className="text-muted-foreground">{col.icon}</span>
+            <span className="flex-1 text-sm font-medium">
               {t(col.labelKey as Parameters<typeof t>[0])}
             </span>
-            <span
-              className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${col.headerBg} ${col.color} border`}
-            >
+            <span className="text-xs tabular-nums text-muted-foreground">
               {col.shots.length}
             </span>
           </div>
 
           {/* Batch button */}
           {col.batchAction && col.shots.length > 0 && (
-            <div className="border-b border-[--border-subtle] px-2 py-2">
+            <div className="border-b border-[var(--border-subtle)] px-2 py-2">
               <Button
                 size="xs"
                 variant="outline"
@@ -175,7 +161,7 @@ export function ShotKanban({
           {/* Shot mini-cards */}
           <div className="flex-1 space-y-1.5 overflow-y-auto p-2">
             {col.shots.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-[11px] text-[--text-muted]">
+              <div className="flex items-center justify-center py-6 text-xs text-[var(--text-muted)]">
                 —
               </div>
             ) : (
@@ -187,7 +173,7 @@ export function ShotKanban({
                 return (
                   <div
                     key={shot.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-[--border-subtle] bg-white px-2 py-1.5 transition-colors hover:border-primary/30 hover:bg-primary/2"
+                    className="flex cursor-pointer flex-col gap-3 rounded-md border border-border bg-white p-3 transition-colors hover:border-primary/30 hover:bg-primary/2"
                     onClick={() => onOpenDrawer(shot.id)}
                     role="button"
                     tabIndex={0}
@@ -199,7 +185,7 @@ export function ShotKanban({
                     }}
                   >
                     {/* Thumbnail */}
-                    <div className="h-8 w-11 flex-shrink-0 overflow-hidden rounded-md border border-[--border-subtle] bg-[--surface]">
+                    <div className="aspect-video w-full flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--surface)]">
                       {thumb ? (
                         <img
                           src={uploadUrl(thumb)}
@@ -208,16 +194,16 @@ export function ShotKanban({
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <ImageIcon className="h-3 w-3 text-[--text-muted]" />
+                          <ImageIcon className="h-3 w-3 text-[var(--text-muted)]" />
                         </div>
                       )}
                     </div>
                     {/* Text */}
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[10px] font-mono font-bold text-primary">
+                    <div className="min-w-0 w-full">
+                      <div className="text-xs font-mono font-bold text-primary">
                         #{shot.sequence}
                       </div>
-                      <div className="truncate text-[11px] text-[--text-secondary]">
+                      <div className="line-clamp-3 text-sm leading-6 text-muted-foreground">
                         {shot.prompt}
                       </div>
                     </div>

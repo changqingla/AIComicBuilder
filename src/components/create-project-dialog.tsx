@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Plus, Loader2, Sparkles } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -58,7 +58,6 @@ export function CreateProjectDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[--primary]" />
             {t("dashboard.newProject")}
           </DialogTitle>
         </DialogHeader>
@@ -69,7 +68,7 @@ export function CreateProjectDialog() {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Epic Comic..."
+              placeholder={t("workspace.projectPlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                   handleCreate();

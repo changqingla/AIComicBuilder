@@ -64,7 +64,7 @@ export function ImageAssets({
             ))}
           </div>
           {!refs.length && (
-            <p className="rounded-lg border border-dashed p-4 text-sm text-[--text-muted]">
+            <p className="rounded-lg border border-dashed p-4 text-sm text-[var(--text-muted)]">
               {t("shot.noRefImages")}
             </p>
           )}
@@ -72,7 +72,7 @@ export function ImageAssets({
             <button
               disabled={busy}
               onClick={addReference}
-              className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed py-2 text-xs text-[--text-muted] hover:text-primary disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed py-2 text-xs text-[var(--text-muted)] hover:text-primary disabled:opacity-40"
             >
               <Plus className="h-3 w-3" />
               {t("shot.addRefImage")}

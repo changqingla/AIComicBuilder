@@ -39,9 +39,7 @@ export function CharactersInlinePanel({
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
   const imageGuard = useModelGuard("image");
 
-  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(
-    () => defaultImageModel,
-  );
+  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
@@ -85,7 +83,7 @@ export function CharactersInlinePanel({
         payload: { characterId },
         modelConfig: {
           ...getModelConfig(),
-          image: resolveImageRef(imageModelRef),
+          image: resolveImageRef(imageModelRef ?? defaultImageModel),
         },
       });
       onUpdate();
@@ -106,7 +104,7 @@ export function CharactersInlinePanel({
       className={`rounded-xl border transition-colors ${
         needsAttention && open
           ? "border-amber-300 bg-amber-50/60"
-          : "border-[--border-subtle] bg-[--surface]/50"
+          : "border-[var(--border-subtle)] bg-[var(--surface)]/50"
       }`}
     >
       {/* Header toggle */}
@@ -114,30 +112,30 @@ export function CharactersInlinePanel({
         className="flex w-full items-center gap-2 px-3 py-2 text-left"
         onClick={toggle}
       >
-        <Users className="h-3.5 w-3.5 text-[--text-muted]" />
-        <span className="flex-1 text-[13px] font-medium text-[--text-secondary]">
+        <Users className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+        <span className="flex-1 text-[13px] font-medium text-[var(--text-secondary)]">
           {t("charactersPanel")}
         </span>
         {needsAttention && (
-          <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">
             {characters.filter((c) => !c.referenceImage).length}
           </span>
         )}
         {open ? (
-          <ChevronUp className="h-3.5 w-3.5 text-[--text-muted]" />
+          <ChevronUp className="h-3.5 w-3.5 text-[var(--text-muted)]" />
         ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-[--text-muted]" />
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--text-muted)]" />
         )}
       </button>
 
       {/* Body */}
       {open && (
-        <div className="border-t border-[--border-subtle] px-3 pb-3 pt-2.5">
+        <div className="border-t border-[var(--border-subtle)] px-3 pb-3 pt-2.5">
           {/* Model picker */}
           <div className="mb-3">
             <InlineModelPicker
               capability="image"
-              value={imageModelRef}
+              value={imageModelRef ?? defaultImageModel}
               onChange={setImageModelRef}
             />
           </div>
@@ -150,7 +148,7 @@ export function CharactersInlinePanel({
                 <div key={char.id} className="flex flex-col items-center gap-1">
                   {/* Thumbnail */}
                   <div
-                    className={`relative h-20 w-20 overflow-hidden rounded-lg border border-[--border-subtle] bg-[--surface] ${char.referenceImage ? "cursor-zoom-in" : ""}`}
+                    className={`relative h-20 w-20 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] ${char.referenceImage ? "cursor-zoom-in" : ""}`}
                     onClick={() =>
                       char.referenceImage &&
                       setPreviewSrc(uploadUrl(char.referenceImage))
@@ -179,7 +177,7 @@ export function CharactersInlinePanel({
                     />
                   </div>
                   {/* Name */}
-                  <span className="max-w-[80px] truncate text-[11px] text-[--text-muted]">
+                  <span className="max-w-[80px] truncate text-xs text-[var(--text-muted)]">
                     {char.name}
                   </span>
                   {/* Generate button (only when no image) */}
@@ -187,7 +185,7 @@ export function CharactersInlinePanel({
                     <button
                       onClick={() => handleGenerate(char.id)}
                       disabled={isGenerating || !!generatingId}
-                      className="flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                      className="flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                     >
                       {isGenerating ? (
                         <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -206,7 +204,7 @@ export function CharactersInlinePanel({
           <div className="mt-3 flex justify-end">
             <Link
               href={`/${locale}/project/${projectId}/characters`}
-              className="text-[11px] text-[--text-muted] underline underline-offset-2 hover:text-[--text-secondary] transition-colors"
+              className="text-xs text-[var(--text-muted)] underline underline-offset-2 hover:text-[var(--text-secondary)] transition-colors"
             >
               {t("charactersPanelEdit")} →
             </Link>

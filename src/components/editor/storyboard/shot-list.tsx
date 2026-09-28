@@ -23,9 +23,9 @@ export function ShotList({
       {[...groups].map(([sceneId, members], index) => (
         <div key={sceneId} className="space-y-3">
           <div className="flex items-center gap-2 border-b pb-2 pt-4">
-            <Film className="h-4 w-4 text-[--text-muted]" />
+            <Film className="h-4 w-4 text-[var(--text-muted)]" />
             <h3 className="text-sm font-medium">Scene {index + 1}</h3>
-            <span className="text-xs text-[--text-muted]">
+            <span className="text-xs text-[var(--text-muted)]">
               {members.length} shots
             </span>
           </div>
@@ -34,7 +34,7 @@ export function ShotList({
       ))}
       {ungrouped.length > 0 && (
         <div className="space-y-3">
-          <h3 className="border-b pb-2 text-sm text-[--text-muted]">
+          <h3 className="border-b pb-2 text-sm text-[var(--text-muted)]">
             Other Shots
           </h3>
           {ungrouped.map(render)}

@@ -6,25 +6,19 @@ import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useParams } from "next/navigation";
 
 import { useState, useRef, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
 
 import { useModelStore } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import {
-  Sparkles,
-  Loader2,
-  FileText,
-  Lightbulb,
-  ListOrdered,
-} from "lucide-react";
+import { PenLine, Loader2 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { AgentPicker } from "@/components/agent-picker";
 import { apiFetch } from "@/lib/api-fetch";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export function ScriptEditor() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -214,112 +208,90 @@ export function ScriptEditor() {
   }
 
   return (
-    <div className="animate-page-in space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/8">
-            <FileText className="h-4 w-4 text-primary" />
-          </div>
-          <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-            {t("project.script")}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <PromptEditButton
-            promptKeys={["script_outline", "script_generate"]}
-            projectId={episode.projectId}
-          />
-          <InlineModelPicker capability="text" />
-          {saving && (
-            <span className="flex items-center gap-1.5 text-xs text-[--text-muted]">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {t("common.saving")}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Idea input */}
-      <div className="rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-        <div className="flex items-center gap-2 px-5 pt-3 pb-1">
-          <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-            {t("episode.idea")}
+    <div className="animate-page-in">
+      <PageHeader
+        title={t("project.script")}
+        description={t("workspace.scriptHint")}
+      >
+        {saving && (
+          <span
+            role="status"
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+          >
+            <Loader2 className="size-4 animate-spin" />
+            {t("common.saving")}
           </span>
-        </div>
-        <Textarea
-          value={episode.idea}
-          onChange={(e) => {
-            edit({ idea: e.target.value });
-          }}
-          onBlur={handleSave}
-          placeholder={t("project.scriptIdeaPlaceholder")}
-          rows={4}
-          disabled={generating || generatingOutline}
-          className={`h-[30vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-            generating ? "opacity-40" : ""
-          }`}
+        )}
+        <PromptEditButton
+          promptKeys={["script_outline", "script_generate"]}
+          projectId={episode.projectId}
         />
-      </div>
-
-      {/* Outline + Generated script — side by side, fixed height */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Outline section */}
-        <div className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-          <div className="flex items-center justify-between px-5 pt-3 pb-1">
-            <div className="flex items-center gap-2">
-              <ListOrdered className="h-3.5 w-3.5 text-violet-500" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-                {t("project.outline")}
-              </span>
+        <InlineModelPicker capability="text" />
+      </PageHeader>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)]">
+        <div className="min-w-0 space-y-5">
+          <section className="workspace-panel overflow-hidden">
+            <div className="editor-section-header">
+              <label htmlFor="script-idea" className="section-heading">
+                {t("project.idea")}
+              </label>
             </div>
-            <div className="flex items-center gap-2">
-              <AgentPicker
-                projectId={episode.projectId}
-                category="script_outline"
-              />
+            <textarea
+              id="script-idea"
+              value={episode.idea}
+              onChange={(e) => edit({ idea: e.target.value })}
+              onBlur={handleSave}
+              placeholder={t("project.scriptIdeaPlaceholder")}
+              disabled={generating || generatingOutline}
+              className="editor-textarea min-h-44"
+            />
+          </section>
+          <section className="workspace-panel overflow-hidden">
+            <div className="editor-section-header">
+              <label htmlFor="script-outline" className="section-heading">
+                {t("project.outline")}
+              </label>
               <Button
                 size="sm"
+                variant="outline"
                 onClick={handleGenerateOutline}
                 disabled={
                   generatingOutline || generating || !episode.idea?.trim()
                 }
               >
                 {generatingOutline ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <PenLine className="size-4" />
                 )}
                 {generatingOutline
                   ? t("common.generating")
                   : t("project.generateOutline")}
               </Button>
             </div>
-          </div>
-
-          <Textarea
-            value={outline}
-            onChange={(e) => handleOutlineChange(e.target.value)}
-            onBlur={handleSave}
-            placeholder={t("project.outlinePlaceholder")}
-            disabled={generating || generatingOutline}
-            className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-              generatingOutline ? "opacity-40" : ""
-            }`}
-          />
-        </div>
-
-        {/* Generated script */}
-        <div className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-          <div className="flex items-center justify-between px-5 pt-3 pb-1">
-            <div className="flex items-center gap-2">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-                {t("project.generatedScript")}
-              </span>
+            <textarea
+              id="script-outline"
+              value={outline}
+              onChange={(e) => handleOutlineChange(e.target.value)}
+              onBlur={handleSave}
+              placeholder={t("project.outlinePlaceholder")}
+              disabled={generating || generatingOutline}
+              className="editor-textarea min-h-80"
+            />
+            <div className="border-t border-border px-5 py-3">
+              <AgentPicker
+                projectId={episode.projectId}
+                category="script_outline"
+              />
             </div>
-            <div className="flex items-center gap-2">
+          </section>
+        </div>
+        <section className="workspace-panel overflow-hidden">
+          <div className="editor-section-header">
+            <label htmlFor="script-document" className="section-heading">
+              {t("workspace.scriptDocument")}
+            </label>
+            <div className="toolbar">
               <AgentPicker
                 projectId={episode.projectId}
                 category="script_generate"
@@ -332,9 +304,9 @@ export function ScriptEditor() {
                 }
               >
                 {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <PenLine className="size-4" />
                 )}
                 {generating
                   ? t("common.generating")
@@ -342,27 +314,19 @@ export function ScriptEditor() {
               </Button>
             </div>
           </div>
-          {episode.script ? (
-            <Textarea
-              ref={scriptTextareaRef}
-              value={episode.script}
-              onChange={(e) => {
-                edit({ script: e.target.value });
-              }}
-              onBlur={() => {
-                if (!generating) handleSave();
-              }}
-              disabled={generating || generatingOutline}
-              className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-                generating ? "opacity-40" : ""
-              }`}
-            />
-          ) : (
-            <div className="h-[55vh] max-h-[55vh] overflow-y-auto px-5 pb-4 pt-2 text-sm text-[--text-muted]">
-              {t("project.scriptPlaceholder") || "点击上方按钮生成剧本..."}
-            </div>
-          )}
-        </div>
+          <textarea
+            id="script-document"
+            ref={scriptTextareaRef}
+            value={episode.script}
+            onChange={(e) => edit({ script: e.target.value })}
+            onBlur={() => {
+              if (!generating) handleSave();
+            }}
+            placeholder={t("project.scriptPlaceholder")}
+            disabled={generating || generatingOutline}
+            className="editor-textarea min-h-[600px] xl:min-h-[720px]"
+          />
+        </section>
       </div>
     </div>
   );

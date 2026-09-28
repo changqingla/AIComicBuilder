@@ -21,30 +21,33 @@ export function EpisodeReview({
 }) {
   const t = useTranslations("import");
   const common = useTranslations("common");
+  const tw = useTranslations("workspace");
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-lg font-bold text-[--text-primary]">
+        <h3 className="font-sans text-lg font-bold text-[var(--text-primary)]">
           {t("reviewEpisodes")} ({episodes.length})
         </h3>
         {onConfirm && (
           <Button
             onClick={onConfirm}
             disabled={!episodes.length}
-            className="rounded-xl"
+            className="rounded-md"
           >
             {t("confirmAndGenerate")}
           </Button>
         )}
       </div>
       {onRename && (
-        <p className="text-sm text-[--text-muted]">{t("reviewEpisodesHint")}</p>
+        <p className="text-sm text-[var(--text-muted)]">
+          {t("reviewEpisodesHint")}
+        </p>
       )}
       <div className="space-y-3">
         {episodes.map((ep, idx) => (
           <div
             key={idx}
-            className="rounded-xl border border-[--border-subtle] bg-white p-4"
+            className="rounded-xl border border-[var(--border-subtle)] bg-white p-4"
           >
             <div className="mb-2 flex items-center gap-3">
               <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
@@ -61,18 +64,30 @@ export function EpisodeReview({
                   <button
                     aria-label={`${common("delete")} ${idx + 1}`}
                     onClick={() => onRemove?.(idx)}
-                    className="shrink-0 text-[--text-muted] hover:text-red-500"
+                    className="shrink-0 text-[var(--text-muted)] hover:text-red-500"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </>
               ) : (
-                <span className="text-sm font-semibold text-[--text-primary]">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">
                   {ep.title}
                 </span>
               )}
             </div>
-            <p className="text-xs text-[--text-muted]">{ep.description}</p>
+            <p className="text-sm leading-7 text-muted-foreground">
+              {ep.description}
+            </p>
+            {ep.idea && (
+              <details className="mt-3 border-t border-border pt-3">
+                <summary className="text-sm font-medium text-muted-foreground">
+                  {tw("document")}
+                </summary>
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7">
+                  {ep.idea}
+                </p>
+              </details>
+            )}
             {ep.characters && ep.characters.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {ep.characters.map((name) => {
@@ -82,7 +97,7 @@ export function EpisodeReview({
                   return (
                     <span
                       key={name}
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isMain ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"}`}
+                      className={`rounded px-2 py-1 text-xs font-medium ${isMain ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"}`}
                     >
                       {name}
                     </span>
@@ -99,7 +114,7 @@ export function EpisodeReview({
                   .map((kw) => (
                     <span
                       key={kw}
-                      className="rounded bg-primary/8 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                      className="rounded bg-transparent px-1.5 py-0.5 text-xs text-muted-foreground"
                     >
                       {kw}
                     </span>

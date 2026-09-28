@@ -31,7 +31,7 @@ export function VersionPicker({
         key={version.id}
         disabled={disabled}
         onClick={() => select(version.id)}
-        className={`rounded-lg px-3 py-1.5 text-sm disabled:opacity-40 ${selected === version.id ? "bg-primary/10 text-primary" : "text-[--text-muted] hover:bg-[--surface]"}`}
+        className={`rounded-lg px-3 py-1.5 text-sm disabled:opacity-40 ${selected === version.id ? "bg-primary/10 text-primary" : "text-[var(--text-muted)] hover:bg-[var(--surface)]"}`}
       >
         {version.label}
       </button>
@@ -47,7 +47,7 @@ export function VersionPicker({
             disabled={disabled}
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-[--text-muted]"
+            className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-[var(--text-muted)]"
           >
             {older.find((v) => v.id === selected)?.label ?? `+${older.length}`}
             <ChevronDown className="h-3 w-3" />
@@ -66,7 +66,7 @@ export function VersionPicker({
         onClick={onCreate}
         disabled={disabled}
         title={t("project.generateShots")}
-        className="rounded-lg p-2 text-[--text-muted] disabled:opacity-40"
+        className="rounded-lg p-2 text-[var(--text-muted)] disabled:opacity-40"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>

@@ -1,7 +1,7 @@
 "use client";
 import { useDraft } from "@/hooks/use-draft";
 import { fetchJson } from "@/lib/api-fetch";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getModelMaxDuration } from "@/lib/ai/model-limits";
 import { apiFetch } from "@/lib/api-fetch";
 import { useModelStore } from "@/stores/model-store";
-import { Lock, RotateCcw, Save, Wand2, X } from "lucide-react";
+import { Lock, RotateCcw, Save, FileText, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -62,6 +62,7 @@ export function PromptDrawer({
   projectId,
 }: PromptDrawerProps) {
   const t = useTranslations("promptTemplates");
+  const tw = useTranslations("workspace");
   const promptKeys = Array.isArray(rawKeys) ? rawKeys : [rawKeys];
 
   const [saving, setSaving] = useState(false);
@@ -92,8 +93,10 @@ export function PromptDrawer({
     ? `/api/projects/${projectId}/prompt-templates`
     : "/api/prompt-templates";
 
+  const cacheKey = [templatesBasePath, promptKeys.join(",")] as const;
+  const { mutate } = useSWRConfig();
   const { data, isLoading: loading } = useSWR(
-    open ? [templatesBasePath, promptKeys.join(",")] : null,
+    open ? cacheKey : null,
     async ([basePath, keys]) => {
       const [registry, overrides] = await Promise.all([
         fetchJson<PromptMeta[]>("/api/prompt-templates/registry"),
@@ -141,10 +144,9 @@ export function PromptDrawer({
   const [selectedSlot, setSelectedSlot] = useDraft(data?.slot ?? null);
   const [slotContents, setSlotContents] = useDraft(
     data?.contents ?? EMPTY_CONTENTS,
+    { preserveUnsaved: true },
   );
-  const [serverOverrides, setServerOverrides] = useDraft(
-    data?.server ?? EMPTY_CONTENTS,
-  );
+  const serverOverrides = data?.server ?? EMPTY_CONTENTS;
 
   if (prompts.length === 0 && !loading) return null;
 
@@ -178,10 +180,6 @@ export function PromptDrawer({
     prompts.length === 1
       ? t(tKey(prompts[0].nameKey) as Parameters<typeof t>[0])
       : t("title");
-  const headerSubtitle =
-    prompts.length === 1
-      ? prompts[0].key
-      : prompts.map((p) => p.key).join(", ");
 
   const handleSave = async () => {
     setSaving(true);
@@ -227,7 +225,11 @@ export function PromptDrawer({
           }
         }
       }
-      setServerOverrides(overMap);
+      await mutate(
+        cacheKey,
+        { ...data, server: overMap, contents: slotContents },
+        { revalidate: false },
+      );
       toast.success(t("editor.savedSuccess"));
     } catch {
       toast.error("Save failed");
@@ -253,7 +255,11 @@ export function PromptDrawer({
       setSlotContents(contents);
       const emptyOverrides: Record<string, Record<string, string>> = {};
       for (const prompt of prompts) emptyOverrides[prompt.key] = {};
-      setServerOverrides(emptyOverrides);
+      await mutate(
+        cacheKey,
+        { ...data, server: emptyOverrides, contents },
+        { revalidate: false },
+      );
       toast.success(t("editor.resetSuccess"));
     } catch {
       toast.error("Reset failed");
@@ -263,27 +269,24 @@ export function PromptDrawer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!fixed !top-0 !right-0 !left-auto !translate-x-0 !translate-y-0 !max-w-5xl !w-[min(1100px,100vw)] !h-screen !rounded-none !rounded-l-2xl !p-0 flex flex-col"
+        className="!fixed !top-0 !right-0 !left-auto !translate-x-0 !translate-y-0 !max-w-[1100px] !w-full !h-dvh !max-h-dvh !rounded-none !p-0 flex flex-col overflow-hidden"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t("editor.edit")}</DialogTitle>
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[--border-subtle] px-5 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-              <Wand2 className="h-3.5 w-3.5 text-primary" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+              <FileText className="size-4 text-muted-foreground" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-[--text-primary]">
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
                 {headerTitle}
-              </div>
-              <div className="text-[10px] font-mono text-[--text-muted]">
-                {headerSubtitle}
               </div>
             </div>
             {isProject && (
-              <Badge variant="default" className="text-[10px]">
+              <Badge variant="default" className="text-xs">
                 {t("project.useProjectPrompts")}
               </Badge>
             )}
@@ -304,6 +307,7 @@ export function PromptDrawer({
             <Button
               size="icon-sm"
               variant="ghost"
+              aria-label={tw("close")}
               onClick={() => onOpenChange(false)}
             >
               <X className="h-4 w-4" />
@@ -312,13 +316,13 @@ export function PromptDrawer({
         </div>
 
         {loading ? (
-          <div className="flex flex-1 items-center justify-center text-[--text-muted] text-sm">
+          <div className="flex flex-1 items-center justify-center text-[var(--text-muted)] text-sm">
             Loading...
           </div>
         ) : (
-          <div className="flex flex-1 overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[200px_170px_minmax(0,1fr)] lg:overflow-hidden">
             {/* Column 1: Prompt list, grouped by category (matches backend settings page) */}
-            <div className="w-[200px] shrink-0 overflow-y-auto border-r border-[--border-subtle] p-2">
+            <div className="max-h-52 overflow-y-auto border-b border-border p-2 lg:max-h-none lg:border-r lg:border-b-0">
               {(() => {
                 const grouped: Record<string, PromptMeta[]> = {};
                 for (const p of prompts) {
@@ -327,7 +331,7 @@ export function PromptDrawer({
                 }
                 return Object.entries(grouped).map(([category, list]) => (
                   <div key={category}>
-                    <div className="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
+                    <div className="px-2 pb-1 pt-3 text-xs font-semibold  text-[var(--text-muted)]">
                       {t(`categories.${category}` as Parameters<typeof t>[0])}
                     </div>
                     {list.map((prompt) => {
@@ -355,15 +359,15 @@ export function PromptDrawer({
                           className={`flex w-full flex-col gap-0.5 rounded-xl px-2.5 py-2 text-left transition-all duration-200 ${
                             isSelected
                               ? "border border-primary/15 bg-primary/5"
-                              : "border border-transparent hover:bg-[--surface]"
+                              : "border border-transparent hover:bg-[var(--surface)]"
                           }`}
                         >
                           <div className="flex items-center gap-1.5">
                             <span
                               className={`text-[13px] ${
                                 isSelected
-                                  ? "text-[--text-primary] font-medium"
-                                  : "text-[--text-secondary]"
+                                  ? "text-[var(--text-primary)] font-medium"
+                                  : "text-[var(--text-secondary)]"
                               }`}
                             >
                               {t(
@@ -373,15 +377,12 @@ export function PromptDrawer({
                             {dirtyCount > 0 && (
                               <Badge
                                 variant="default"
-                                className="text-[9px] px-1 py-0"
+                                className="text-xs px-1 py-0"
                               >
                                 {dirtyCount}
                               </Badge>
                             )}
                           </div>
-                          <span className="font-mono text-[10px] text-[--text-muted]">
-                            {prompt.key}
-                          </span>
                         </button>
                       );
                     })}
@@ -391,12 +392,12 @@ export function PromptDrawer({
             </div>
 
             {/* Column 2: Slot list of selected prompt */}
-            <div className="w-[170px] shrink-0 overflow-y-auto border-r border-[--border-subtle] p-2">
+            <div className="max-h-48 overflow-y-auto border-b border-border p-2 lg:max-h-none lg:border-r lg:border-b-0">
               {(() => {
                 const prompt = prompts.find((p) => p.key === selectedPromptKey);
                 if (!prompt) {
                   return (
-                    <div className="flex h-full items-center justify-center text-[10px] text-[--text-muted] px-2 text-center">
+                    <div className="flex h-full items-center justify-center text-xs text-[var(--text-muted)] px-2 text-center">
                       {t("editor.slotMode")}
                     </div>
                   );
@@ -405,7 +406,7 @@ export function PromptDrawer({
                 const lockedSlots = prompt.slots.filter((s) => !s.editable);
                 return (
                   <>
-                    <div className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
+                    <div className="mb-1 px-2 text-xs font-semibold  text-[var(--text-muted)]">
                       {t("editor.slots")} ({prompt.slots.length})
                     </div>
                     {editableSlots.map((slot) => {
@@ -424,8 +425,8 @@ export function PromptDrawer({
                           }
                           className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${
                             isSelected
-                              ? "border border-primary/15 bg-primary/5 text-[--text-primary] font-medium"
-                              : "border border-transparent hover:bg-[--surface] text-[--text-secondary]"
+                              ? "border border-primary/15 bg-primary/5 text-[var(--text-primary)] font-medium"
+                              : "border border-transparent hover:bg-[var(--surface)] text-[var(--text-secondary)]"
                           }`}
                         >
                           <span className="flex-1 truncate">
@@ -435,7 +436,7 @@ export function PromptDrawer({
                           {modified && (
                             <Badge
                               variant="default"
-                              className="shrink-0 text-[9px] px-1 py-0"
+                              className="shrink-0 text-xs px-1 py-0"
                             >
                               {t("editor.modified")}
                             </Badge>
@@ -445,7 +446,7 @@ export function PromptDrawer({
                     })}
                     {lockedSlots.length > 0 && (
                       <>
-                        <div className="my-1.5 border-t border-[--border-subtle]" />
+                        <div className="my-1.5 border-t border-[var(--border-subtle)]" />
                         {lockedSlots.map((slot) => {
                           const isSelected =
                             selectedSlot?.promptKey === prompt.key &&
@@ -461,8 +462,8 @@ export function PromptDrawer({
                               }
                               className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${
                                 isSelected
-                                  ? "border border-[--border-subtle] bg-[--surface] text-[--text-secondary]"
-                                  : "border border-transparent text-[--text-muted] hover:bg-[--surface] opacity-60 hover:opacity-80"
+                                  ? "border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-secondary)]"
+                                  : "border border-transparent text-[var(--text-muted)] hover:bg-[var(--surface)] opacity-60 hover:opacity-80"
                               }`}
                             >
                               <Lock className="h-2.5 w-2.5 shrink-0" />
@@ -482,11 +483,11 @@ export function PromptDrawer({
             </div>
 
             {/* Column 3: Editor (right) */}
-            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+            <div className="flex min-h-[420px] min-w-0 flex-col lg:min-h-0">
               {selectedSlot && currentSlotMeta ? (
-                <div className="flex flex-1 flex-col p-3 overflow-hidden">
+                <div className="flex min-h-0 flex-1 flex-col p-4">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xs font-medium text-[--text-primary]">
+                    <span className="text-xs font-medium text-[var(--text-primary)]">
                       {t(
                         tKey(currentSlotMeta.nameKey) as Parameters<
                           typeof t
@@ -494,7 +495,7 @@ export function PromptDrawer({
                       )}
                     </span>
                     {!currentSlotMeta.editable && (
-                      <Badge className="shrink-0 text-[9px] px-1.5 py-0 bg-[--surface] text-[--text-muted]">
+                      <Badge className="shrink-0 text-xs px-1.5 py-0 bg-[var(--surface)] text-[var(--text-muted)]">
                         {t("editor.locked")}
                       </Badge>
                     )}
@@ -503,15 +504,15 @@ export function PromptDrawer({
                         selectedSlot.promptKey,
                         selectedSlot.slotKey,
                       ) && (
-                        <Badge
-                          variant="warning"
-                          className="text-[9px] px-1 py-0"
-                        >
+                        <Badge variant="warning" className="text-xs px-1 py-0">
                           {t("editor.modified")}
                         </Badge>
                       )}
                   </div>
                   <textarea
+                    aria-label={t(
+                      tKey(currentSlotMeta.nameKey) as Parameters<typeof t>[0],
+                    )}
                     value={resolvePlaceholders(
                       slotContents[selectedSlot.promptKey]?.[
                         selectedSlot.slotKey
@@ -528,16 +529,16 @@ export function PromptDrawer({
                         },
                       }));
                     }}
-                    className={`flex-1 resize-none rounded-xl border border-[--border-subtle] px-3 py-2.5 font-mono text-[11px] leading-relaxed text-[--text-primary] outline-none transition-all ${
+                    className={`min-h-80 flex-1 resize-none rounded-md border border-border px-4 py-3 text-sm leading-7 lg:min-h-0 text-[var(--text-primary)] outline-none transition-all ${
                       currentSlotMeta.editable
-                        ? "bg-white hover:border-[--border-hover] focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15"
-                        : "bg-[--surface] cursor-default"
+                        ? "bg-white hover:border-[var(--border-hover)] focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/15"
+                        : "bg-[var(--surface)] cursor-default"
                     }`}
                     placeholder={t("editor.edit")}
                   />
                 </div>
               ) : (
-                <div className="flex flex-1 items-center justify-center text-xs text-[--text-muted]">
+                <div className="flex flex-1 items-center justify-center text-xs text-[var(--text-muted)]">
                   {t("editor.slotMode")}
                 </div>
               )}

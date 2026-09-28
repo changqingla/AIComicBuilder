@@ -19,14 +19,14 @@ import {
   ChevronRight,
   Download,
   Loader2,
-  Monitor,
   Play,
-  Sparkles,
+  Film,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function EpisodePreviewPage() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -46,6 +46,7 @@ export default function EpisodePreviewPage() {
   const [selectedShot, setSelectedShot] = useState(0);
 
   const finalVideoUrl = episode?.finalVideoUrl ?? null;
+  const [showFinal, setShowFinal] = useDraft(!!finalVideoUrl);
   const generationMode = episode?.generationMode ?? "keyframe";
 
   // Which mode's videos to preview — default to the project's generationMode
@@ -78,8 +79,13 @@ export default function EpisodePreviewPage() {
 
   const shotsWithVideo = episode.shots.filter((s) => getVideoUrl(s));
   const completedVideos = shotsWithVideo.length;
-  const currentShot = shotsWithVideo[selectedShot];
+  const currentShot =
+    shotsWithVideo[Math.min(selectedShot, shotsWithVideo.length - 1)];
   const hasValidVideo = finalVideoUrl && videoValid === true;
+  const playingFinal = hasValidVideo && showFinal;
+  const playerUrl = playingFinal
+    ? finalVideoUrl
+    : currentShot && getVideoUrl(currentShot);
   const loadingVersion = !!versionId && versionId !== episode.versionId;
 
   async function handleAssemble() {
@@ -95,6 +101,7 @@ export default function EpisodePreviewPage() {
         episodeId: episodeId,
       });
       await res.json();
+      setShowFinal(true);
     } catch (err) {
       console.error("Video assemble error:", err);
       toast.error(t("common.generationFailed"));
@@ -117,192 +124,185 @@ export default function EpisodePreviewPage() {
 
   function handleModeSwitch(mode: "keyframe" | "reference") {
     setPreviewMode(mode);
+    setShowFinal(false);
     setSelectedShot(0);
   }
 
   return (
-    <div className="animate-page-in space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-            <Monitor className="h-4 w-4 text-primary" />
+    <div className="space-y-6">
+      <PageHeader
+        title={t("project.preview")}
+        description={t("workspace.previewHint")}
+      >
+        {hasValidVideo && (
+          <Button onClick={handleDownload} size="sm" variant="outline">
+            <Download className="size-4" />
+            {t("project.downloadVideo")}
+          </Button>
+        )}
+        <Button
+          onClick={handleAssemble}
+          disabled={assembling || loadingVersion || !completedVideos}
+          size="sm"
+        >
+          {assembling ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Film className="size-4" />
+          )}
+          {assembling ? t("common.generating") : t("project.assembleVideo")}
+        </Button>
+      </PageHeader>
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="workspace-panel min-w-0 overflow-hidden">
+          <div className="editor-section-header">
+            <div className="toolbar">
+              <Button
+                size="sm"
+                variant={!playingFinal ? "secondary" : "ghost"}
+                aria-pressed={!playingFinal}
+                onClick={() => setShowFinal(false)}
+              >
+                {t("workspace.clips")}
+              </Button>
+              {hasValidVideo && (
+                <Button
+                  size="sm"
+                  variant={playingFinal ? "secondary" : "ghost"}
+                  aria-pressed={!!playingFinal}
+                  onClick={() => setShowFinal(true)}
+                >
+                  {t("project.finalVideo")}
+                </Button>
+              )}
+            </div>
+            {hasBothModes && !playingFinal && (
+              <select
+                aria-label={t("workspace.clips")}
+                value={previewMode}
+                onChange={(event) =>
+                  handleModeSwitch(
+                    event.target.value as "keyframe" | "reference",
+                  )
+                }
+                className="h-9 max-w-full rounded-md border border-input bg-white px-2 text-sm"
+              >
+                <option value="keyframe">
+                  {t("project.generationModeKeyframe")}
+                </option>
+                <option value="reference">
+                  {t("project.generationModeReference")}
+                </option>
+              </select>
+            )}
           </div>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-              {t("project.preview")}
-            </h2>
-            <p className="text-xs text-[--text-muted]">
+          {playerUrl ? (
+            <video
+              key={playerUrl}
+              controls
+              className="aspect-video max-h-[65vh] w-full bg-[#191c22]"
+              src={uploadUrl(playerUrl)}
+            />
+          ) : (
+            <div className="empty-state min-h-80">
+              <Play className="size-8 text-muted-foreground" />
+              <p>{t("workspace.noClips")}</p>
+            </div>
+          )}
+          <div className="flex min-h-16 items-center justify-between gap-4 px-5 py-3">
+            <p className="text-sm text-muted-foreground">
+              {playingFinal ? t("project.finalVideoHint") : currentShot?.prompt}
+            </p>
+            {!playingFinal && currentShot && (
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={t("workspace.previousShot")}
+                  disabled={selectedShot === 0}
+                  onClick={() => setSelectedShot(Math.max(0, selectedShot - 1))}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="text-sm tabular-nums">
+                  {selectedShot + 1} / {shotsWithVideo.length}
+                </span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={t("workspace.nextShot")}
+                  disabled={selectedShot >= shotsWithVideo.length - 1}
+                  onClick={() =>
+                    setSelectedShot(
+                      Math.min(shotsWithVideo.length - 1, selectedShot + 1),
+                    )
+                  }
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="workspace-panel min-w-0 overflow-hidden">
+          <div className="editor-section-header">
+            <h2 className="section-heading">{t("workspace.clips")}</h2>
+            <span className="text-xs text-muted-foreground">
               {t("project.shotsCompleted", {
                 completed: completedVideos,
                 total: episode.shots.length,
               })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {hasValidVideo && (
-            <Button
-              onClick={handleDownload}
-              size="sm"
-              variant="outline"
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
-            >
-              <Download className="h-3.5 w-3.5" />
-              {t("project.downloadVideo")}
-            </Button>
-          )}
-          <Button
-            onClick={handleAssemble}
-            disabled={assembling || loadingVersion}
-            size="sm"
-          >
-            {assembling ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            {assembling ? t("common.generating") : t("project.assembleVideo")}
-          </Button>
-        </div>
-      </div>
-
-      {/* Mode switcher — only shown when both modes have videos */}
-      {hasBothModes && (
-        <div className="flex items-center gap-1 rounded-xl border border-[--border-subtle] bg-[--surface] p-1 w-fit">
-          <button
-            onClick={() => handleModeSwitch("keyframe")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
-              previewMode === "keyframe"
-                ? "bg-white text-primary shadow ring-1 ring-primary/20"
-                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]",
-            )}
-          >
-            {t("project.generationModeKeyframe")}
-          </button>
-          <button
-            onClick={() => handleModeSwitch("reference")}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
-              previewMode === "reference"
-                ? "bg-white text-primary shadow ring-1 ring-primary/20"
-                : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]",
-            )}
-          >
-            {t("project.generationModeReference")}
-          </button>
-        </div>
-      )}
-
-      {/* Final video player */}
-      {hasValidVideo && (
-        <div className="space-y-3">
-          <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-black shadow-2xl shadow-black/40">
-            <video
-              key={finalVideoUrl!}
-              controls
-              autoPlay
-              className="aspect-video w-full"
-              src={uploadUrl(finalVideoUrl!)}
-            />
-          </div>
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
-            <span className="text-sm font-medium text-emerald-700">
-              {t("project.finalVideo")}
-            </span>
-            <span className="text-xs text-emerald-600/70">
-              {t("project.finalVideoHint")}
             </span>
           </div>
-        </div>
-      )}
-
-      {/* Shot clips player */}
-      {shotsWithVideo.length > 0 && currentShot ? (
-        <div className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-[--border-subtle] bg-black shadow-2xl shadow-black/40">
-            <video
-              key={currentShot.id + previewMode}
-              controls
-              autoPlay={!hasValidVideo}
-              className="aspect-video w-full"
-              src={uploadUrl(getVideoUrl(currentShot)!)}
-            />
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => setSelectedShot(Math.max(0, selectedShot - 1))}
-              disabled={selectedShot === 0}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[--text-muted] transition-all hover:bg-[--surface-hover] hover:text-[--text-primary] disabled:opacity-30"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="font-mono text-sm font-medium text-[--text-secondary]">
-              {selectedShot + 1} / {shotsWithVideo.length}
-            </span>
-            <button
-              onClick={() =>
-                setSelectedShot(
-                  Math.min(shotsWithVideo.length - 1, selectedShot + 1),
-                )
-              }
-              disabled={selectedShot === shotsWithVideo.length - 1}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[--text-muted] transition-all hover:bg-[--surface-hover] hover:text-[--text-primary] disabled:opacity-30"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Thumbnail timeline */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {shotsWithVideo.map((shot, i) => {
-              const thumb = getThumbnail(shot);
+          <div className="max-h-[70vh] divide-y divide-border overflow-y-auto">
+            {shotsWithVideo.map((shot, index) => {
+              const thumbnail = getThumbnail(shot);
               return (
                 <button
                   key={shot.id}
-                  onClick={() => setSelectedShot(i)}
+                  aria-pressed={!playingFinal && selectedShot === index}
+                  onClick={() => {
+                    setSelectedShot(index);
+                    setShowFinal(false);
+                  }}
                   className={cn(
-                    "flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200",
-                    i === selectedShot
-                      ? "border-primary shadow-lg shadow-primary/20 scale-[1.03]"
-                      : "border-[--border-subtle] hover:border-[--border-hover] opacity-70 hover:opacity-100",
+                    "flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50",
+                    !playingFinal && selectedShot === index && "bg-muted",
                   )}
                 >
-                  <div className="relative h-14 w-22">
-                    {thumb ? (
+                  <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded border border-border bg-muted">
+                    {thumbnail ? (
                       <img
-                        src={uploadUrl(thumb)}
-                        alt={`Shot ${shot.sequence}`}
-                        className="h-full w-full object-cover"
+                        src={uploadUrl(thumbnail)}
+                        alt=""
+                        className="size-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[--surface]">
-                        <Play className="h-3 w-3 text-[--text-muted]" />
-                      </div>
+                      <Play className="m-auto mt-4 size-4 text-muted-foreground" />
                     )}
-                    <span className="absolute bottom-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white backdrop-blur-sm">
-                      {shot.sequence}
+                    <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-xs leading-5 text-white">
+                      {String(shot.sequence).padStart(2, "0")}
                     </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-sm leading-6">
+                      {shot.prompt}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {shot.duration}s
+                    </p>
                   </div>
                 </button>
               );
             })}
+            {!shotsWithVideo.length && (
+              <p className="p-5 text-sm leading-6 text-muted-foreground">
+                {t("workspace.noClips")}
+              </p>
+            )}
           </div>
-        </div>
-      ) : (
-        /* Empty state */
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-24">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10">
-            <Play className="h-7 w-7 text-primary" />
-          </div>
-          <p className="max-w-sm text-center text-sm text-[--text-secondary]">
-            {t("shot.noShots")}
-          </p>
-        </div>
-      )}
+        </section>
+      </div>
     </div>
   );
 }

@@ -5,9 +5,9 @@ import useSWR from "swr";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
 import { apiFetch } from "@/lib/api-fetch";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { PageHeader } from "@/components/workspace/page-header";
 import { use, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -38,7 +38,6 @@ export default function CharactersPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = use(params);
-  const locale = useLocale();
   const t = useTranslations();
   const tc = useTranslations("common");
   const tChar = useTranslations("character");
@@ -65,22 +64,14 @@ export default function CharactersPage({
   const guestByEpisode = useMemo(() => {
     const map = new Map<string, Character[]>();
     for (const c of characters) {
-      if (c.scope === "guest" && c.episodeId) {
-        const list = map.get(c.episodeId) || [];
+      if (c.scope === "guest") {
+        const list = map.get(c.episodeId ?? "") || [];
         list.push(c);
-        map.set(c.episodeId, list);
+        map.set(c.episodeId ?? "", list);
       }
     }
     return map;
   }, [characters]);
-
-  const episodeNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const ep of episodes) {
-      map.set(ep.id, ep.title);
-    }
-    return map;
-  }, [episodes]);
 
   const guestCount = useMemo(
     () => characters.filter((c) => c.scope === "guest").length,
@@ -110,50 +101,36 @@ export default function CharactersPage({
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <p className="text-sm text-[--text-muted]">{tc("loading")}</p>
+          <p className="text-sm text-[var(--text-muted)]">{tc("loading")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[--surface] p-6 pb-24 lg:pb-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/${locale}/project/${projectId}/episodes`}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/8 transition-colors hover:bg-primary/15"
-          >
-            <ArrowLeft className="h-5 w-5 text-primary" />
-          </Link>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-              {tChar("management")}
-            </h2>
-            <p className="text-xs text-[--text-muted]">
-              {characters.length} {t("episode.count")}
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="workspace-page">
+      <PageHeader
+        title={tChar("management")}
+        description={t("workspace.charactersHint")}
+      />
       {/* Main Characters Section */}
       <section className="mb-8">
         <div className="mb-4 flex items-center gap-2">
-          <h3 className="font-display text-lg font-semibold text-[--text-primary]">
+          <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {tChar("mainSection")}
           </h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
             {mainCharacters.length}
           </span>
         </div>
         {mainCharacters.length === 0 ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-[--border-subtle] bg-white/50 p-6">
-            <p className="text-sm text-[--text-muted]">{tChar("noMain")}</p>
+          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-[var(--border-subtle)] bg-white/50 p-6">
+            <p className="text-sm text-[var(--text-muted)]">
+              {tChar("noMain")}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 xl:grid-cols-4">
+          <div className="grid gap-5 2xl:grid-cols-2">
             {mainCharacters.map((char) => (
               <CharacterCard
                 key={char.id}
@@ -186,29 +163,32 @@ export default function CharactersPage({
       {/* Guest Characters Section */}
       <section>
         <div className="mb-4 flex items-center gap-2">
-          <h3 className="font-display text-lg font-semibold text-[--text-primary]">
+          <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {tChar("guestSection")}
           </h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-purple-100 px-1.5 text-[11px] font-semibold text-purple-700">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
             {guestCount}
           </span>
         </div>
         {guestCount === 0 ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-[--border-subtle] bg-white/50 p-6">
-            <p className="text-sm text-[--text-muted]">{tChar("noGuest")}</p>
+          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-[var(--border-subtle)] bg-white/50 p-6">
+            <p className="text-sm text-[var(--text-muted)]">
+              {tChar("noGuest")}
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
-            {episodes
-              .filter((ep) => guestByEpisode.has(ep.id))
-              .map((ep) => (
-                <div key={ep.id}>
-                  <h4 className="mb-3 text-sm font-medium text-[--text-secondary]">
-                    EP.{String(ep.sequence).padStart(2, "0")} —{" "}
-                    {episodeNameMap.get(ep.id)}
-                  </h4>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 xl:grid-cols-4">
-                    {guestByEpisode.get(ep.id)!.map((char) => (
+            {Array.from(guestByEpisode, ([episodeId, guests]) => {
+              const ep = episodes.find((episode) => episode.id === episodeId);
+              return (
+                <div key={episodeId}>
+                  {ep && (
+                    <h4 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
+                      EP.{String(ep.sequence).padStart(2, "0")} — {ep.title}
+                    </h4>
+                  )}
+                  <div className="grid gap-5 2xl:grid-cols-2">
+                    {guests.map((char) => (
                       <CharacterCard
                         key={char.id}
                         id={char.id}
@@ -219,7 +199,11 @@ export default function CharactersPage({
                         referenceImage={char.referenceImage}
                         referenceImageHistory={char.referenceImageHistory}
                         scope={char.scope}
-                        episodeName={`EP.${String(ep.sequence).padStart(2, "0")} ${ep.title}`}
+                        episodeName={
+                          ep
+                            ? `EP.${String(ep.sequence).padStart(2, "0")} ${ep.title}`
+                            : undefined
+                        }
                         onUpdate={fetchData}
                         onPromote={() => handlePromote(char.id)}
                         onDelete={() => handleDelete(char.id, char.name)}
@@ -227,7 +211,8 @@ export default function CharactersPage({
                     ))}
                   </div>
                 </div>
-              ))}
+              );
+            })}
           </div>
         )}
       </section>

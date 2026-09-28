@@ -18,6 +18,7 @@ import { useModelGuard } from "@/hooks/use-model-guard";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
 import { AgentPicker } from "@/components/agent-picker";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function EpisodeCharactersPage() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -90,77 +91,63 @@ export default function EpisodeCharactersPage() {
 
   return (
     <div className="animate-page-in space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-            <Users className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-              {t("project.characters")}
-            </h2>
-            <p className="text-xs text-[--text-muted]">
-              {episode.characters.length} characters
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <AgentPicker
-            projectId={episode.projectId}
-            category="character_extract"
-          />
-          <InlineModelPicker capability="text" />
-          <Button
-            onClick={handleExtractCharacters}
-            disabled={extracting}
-            variant="default"
-            size="sm"
-          >
-            {extracting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            {extracting
-              ? t("common.generating")
-              : t("project.extractCharacters")}
-          </Button>
-          {episode.characters.length > 0 && hasCharactersWithoutImages && (
-            <>
-              <InlineModelPicker capability="image" />
-              <Button
-                onClick={handleBatchGenerateImages}
-                disabled={generatingImages}
-                variant="default"
-                size="sm"
-              >
-                {generatingImages ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ImageIcon className="h-3.5 w-3.5" />
-                )}
-                {generatingImages
-                  ? t("common.generating")
-                  : t("character.batchGenerateImages")}
-              </Button>
-            </>
+      <PageHeader
+        title={t("project.characters")}
+        description={t("workspace.charactersHint")}
+      >
+        <AgentPicker
+          projectId={episode.projectId}
+          category="character_extract"
+        />
+        <InlineModelPicker capability="text" />
+        <Button
+          onClick={handleExtractCharacters}
+          disabled={extracting}
+          variant="outline"
+          size="sm"
+        >
+          {extracting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
           )}
-          <PromptEditButton
-            promptKeys="character_extract"
-            projectId={episode.projectId}
-          />
-        </div>
-      </div>
+          {extracting ? t("common.generating") : t("project.extractCharacters")}
+        </Button>
+        {episode.characters.length > 0 && hasCharactersWithoutImages && (
+          <>
+            <InlineModelPicker capability="image" />
+            <Button
+              onClick={handleBatchGenerateImages}
+              disabled={generatingImages}
+              variant="outline"
+              size="sm"
+            >
+              {generatingImages ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ImageIcon className="h-3.5 w-3.5" />
+              )}
+              {generatingImages
+                ? t("common.generating")
+                : t("character.batchGenerateImages")}
+            </Button>
+          </>
+        )}
+        <PromptEditButton
+          promptKeys="character_extract"
+          projectId={episode.projectId}
+        />
+      </PageHeader>
 
       {episode.characters.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-24">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-accent/10">
+        <div className="empty-state">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
             <Users className="h-7 w-7 text-primary" />
           </div>
-          <h3 className="font-display text-lg font-semibold text-[--text-primary]">
+          <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {t("project.characters")}
           </h3>
-          <p className="mt-2 max-w-sm text-center text-sm text-[--text-secondary]">
+          <p className="mt-2 text-center text-sm text-[var(--text-secondary)]">
             {t("character.noCharacters")}
           </p>
         </div>
@@ -177,7 +164,7 @@ export default function EpisodeCharactersPage() {
               />
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-5 2xl:grid-cols-2">
             {episode.characters.map((char) => (
               <CharacterCard
                 key={char.id}

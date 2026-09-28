@@ -11,7 +11,15 @@ import {
   type Capability,
 } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import { Loader2, Download, Plus, Eye, EyeOff, Trash2, Search } from "lucide-react";
+import {
+  Loader2,
+  Download,
+  Plus,
+  Eye,
+  EyeOff,
+  Trash2,
+  Search,
+} from "lucide-react";
 
 const DEFAULT_BASE_URLS: Record<Protocol, string> = {
   openai: "https://api.openai.com",
@@ -23,7 +31,9 @@ const DEFAULT_BASE_URLS: Record<Protocol, string> = {
   dashscope: "https://dashscope.aliyuncs.com/api/v1",
 };
 
-function getProtocolOptions(capability: Capability): { value: Protocol; label: string }[] {
+function getProtocolOptions(
+  capability: Capability,
+): { value: Protocol; label: string }[] {
   if (capability === "text") {
     return [
       { value: "openai", label: "OpenAI" },
@@ -54,8 +64,15 @@ interface ProviderFormProps {
 
 export function ProviderForm({ provider }: ProviderFormProps) {
   const t = useTranslations("settings");
-  const { updateProvider, setModels, toggleModel, addManualModel, removeModel } =
-    useModelStore();
+  const tw = useTranslations("workspace");
+  const tc = useTranslations("common");
+  const {
+    updateProvider,
+    setModels,
+    toggleModel,
+    addManualModel,
+    removeModel,
+  } = useModelStore();
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [manualModelId, setManualModelId] = useState("");
@@ -106,10 +123,11 @@ export function ProviderForm({ provider }: ProviderFormProps) {
   return (
     <div className="space-y-5">
       {/* Row 1: Name + Protocol */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("providerName")}</Label>
+          <Label className="text-sm">{t("providerName")}</Label>
           <Input
+            aria-label={t("providerName")}
             value={provider.name}
             onChange={(e) =>
               updateProvider(provider.id, { name: e.target.value })
@@ -118,22 +136,29 @@ export function ProviderForm({ provider }: ProviderFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">{t("protocol")}</Label>
-          <div className="flex gap-1.5 pt-0.5">
+          <Label className="text-sm">{t("protocol")}</Label>
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
             {getProtocolOptions(provider.capability).map((opt) => (
               <button
                 key={opt.value}
+                aria-pressed={provider.protocol === opt.value}
                 onClick={() => {
-                  const isDefaultUrl = !provider.baseUrl || (Object.values(DEFAULT_BASE_URLS) as string[]).includes(provider.baseUrl);
+                  const isDefaultUrl =
+                    !provider.baseUrl ||
+                    (Object.values(DEFAULT_BASE_URLS) as string[]).includes(
+                      provider.baseUrl,
+                    );
                   updateProvider(provider.id, {
                     protocol: opt.value,
-                    ...(isDefaultUrl && { baseUrl: DEFAULT_BASE_URLS[opt.value] }),
+                    ...(isDefaultUrl && {
+                      baseUrl: DEFAULT_BASE_URLS[opt.value],
+                    }),
                   });
                 }}
-                className={`rounded-lg border px-2.5 py-[7px] text-xs transition-all ${
+                className={`rounded-md border px-3 py-2 text-sm transition-colors ${
                   provider.protocol === opt.value
                     ? "border-primary/30 bg-primary/8 text-primary font-medium"
-                    : "border-[--border-subtle] text-[--text-secondary] hover:border-[--border-hover]"
+                    : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]"
                 }`}
               >
                 {opt.label}
@@ -147,8 +172,9 @@ export function ProviderForm({ provider }: ProviderFormProps) {
       {isKling ? (
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Base URL</Label>
+            <Label className="text-sm">Base URL</Label>
             <Input
+              aria-label="Base URL"
               value={provider.baseUrl}
               onChange={(e) =>
                 updateProvider(provider.id, { baseUrl: e.target.value })
@@ -158,10 +184,11 @@ export function ProviderForm({ provider }: ProviderFormProps) {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Access Key (AK)</Label>
+              <Label className="text-sm">Access Key (AK)</Label>
               <div className="relative">
                 <Input
                   type={showKey ? "text" : "password"}
+                  aria-label={isKling ? "Access Key (AK)" : "API Key"}
                   value={provider.apiKey}
                   onChange={(e) =>
                     updateProvider(provider.id, { apiKey: e.target.value })
@@ -171,18 +198,25 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                 />
                 <button
                   type="button"
+                  aria-label={tw(showKey ? "hideKey" : "showKey")}
+                  aria-pressed={showKey}
                   onClick={() => setShowKey(!showKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] hover:text-[--text-primary]"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showKey ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Secret Key (SK)</Label>
+              <Label className="text-sm">Secret Key (SK)</Label>
               <div className="relative">
                 <Input
                   type={showSecretKey ? "text" : "password"}
+                  aria-label="Secret Key (SK)"
                   value={provider.secretKey ?? ""}
                   onChange={(e) =>
                     updateProvider(provider.id, { secretKey: e.target.value })
@@ -192,10 +226,16 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                 />
                 <button
                   type="button"
+                  aria-label={tw(showSecretKey ? "hideKey" : "showKey")}
+                  aria-pressed={showSecretKey}
                   onClick={() => setShowSecretKey(!showSecretKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] hover:text-[--text-primary]"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  {showSecretKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showSecretKey ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -204,8 +244,9 @@ export function ProviderForm({ provider }: ProviderFormProps) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs">Base URL</Label>
+            <Label className="text-sm">Base URL</Label>
             <Input
+              aria-label="Base URL"
               value={provider.baseUrl}
               onChange={(e) =>
                 updateProvider(provider.id, { baseUrl: e.target.value })
@@ -214,10 +255,11 @@ export function ProviderForm({ provider }: ProviderFormProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">API Key</Label>
+            <Label className="text-sm">API Key</Label>
             <div className="relative">
               <Input
                 type={showKey ? "text" : "password"}
+                aria-label={isKling ? "Access Key (AK)" : "API Key"}
                 value={provider.apiKey}
                 onChange={(e) =>
                   updateProvider(provider.id, { apiKey: e.target.value })
@@ -227,10 +269,16 @@ export function ProviderForm({ provider }: ProviderFormProps) {
               />
               <button
                 type="button"
+                aria-label={tw(showKey ? "hideKey" : "showKey")}
+                aria-pressed={showKey}
                 onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] hover:text-[--text-primary]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               >
-                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showKey ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </div>
@@ -238,17 +286,19 @@ export function ProviderForm({ provider }: ProviderFormProps) {
       )}
 
       {/* Divider */}
-      <div className="border-t border-[--border-subtle]" />
+      <div className="border-t border-[var(--border-subtle)]" />
 
       {/* Row 3: Models */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-xs">{t("models")}</Label>
+          <Label className="text-sm">{t("models")}</Label>
           <Button
             size="sm"
             variant="outline"
             onClick={handleFetchModels}
-            disabled={fetching || (!provider.apiKey && provider.protocol !== "kling")}
+            disabled={
+              fetching || (!provider.apiKey && provider.protocol !== "kling")
+            }
           >
             {fetching ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -268,15 +318,17 @@ export function ProviderForm({ provider }: ProviderFormProps) {
         {/* Manual model input */}
         <div className="flex gap-2">
           <Input
+            aria-label={t("manualModelPlaceholder")}
             value={manualModelId}
             onChange={(e) => setManualModelId(e.target.value)}
             placeholder={t("manualModelPlaceholder")}
             onKeyDown={(e) => e.key === "Enter" && handleAddManualModel()}
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
           <Button
             size="sm"
             variant="outline"
+            aria-label={tw("addModel")}
             onClick={handleAddManualModel}
             disabled={!manualModelId.trim()}
           >
@@ -285,84 +337,90 @@ export function ProviderForm({ provider }: ProviderFormProps) {
         </div>
 
         {/* Model list with search */}
-        {provider.models.length > 0 && (() => {
-          const query = modelSearch.toLowerCase();
-          const filtered = query
-            ? provider.models.filter(
-                (m) =>
-                  m.id.toLowerCase().includes(query) ||
-                  m.name.toLowerCase().includes(query)
-              )
-            : provider.models;
-          const checkedCount = provider.models.filter((m) => m.checked).length;
+        {provider.models.length > 0 &&
+          (() => {
+            const query = modelSearch.toLowerCase();
+            const filtered = query
+              ? provider.models.filter(
+                  (m) =>
+                    m.id.toLowerCase().includes(query) ||
+                    m.name.toLowerCase().includes(query),
+                )
+              : provider.models;
+            const checkedCount = provider.models.filter(
+              (m) => m.checked,
+            ).length;
 
-          return (
-            <div className="rounded-xl border border-[--border-subtle] overflow-hidden">
-              {/* Search bar + stats */}
-              <div className="flex items-center gap-2 border-b border-[--border-subtle] bg-[--surface]/50 px-3 py-2">
-                <Search className="h-3.5 w-3.5 flex-shrink-0 text-[--text-muted]" />
-                <input
-                  type="text"
-                  value={modelSearch}
-                  onChange={(e) => setModelSearch(e.target.value)}
-                  placeholder={t("searchModels")}
-                  className="flex-1 bg-transparent text-xs text-[--text-primary] outline-none placeholder:text-[--text-muted]"
-                />
-                <span className="flex-shrink-0 text-[10px] tabular-nums text-[--text-muted]">
-                  {checkedCount} / {provider.models.length}
-                </span>
-              </div>
-              {/* Model grid */}
-              <div className="max-h-56 overflow-y-auto p-1.5">
-                {filtered.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-[--text-muted]">
-                    No models found
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {filtered.map((model) => (
-                      <label
-                        key={model.id}
-                        className={`group/item flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors ${
-                          model.checked
-                            ? "bg-primary/5"
-                            : "hover:bg-[--surface]"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={model.checked}
-                          onChange={() => toggleModel(provider.id, model.id)}
-                          className="h-3.5 w-3.5 flex-shrink-0 rounded border-[--border-subtle] text-primary accent-primary"
-                        />
-                        <span
-                          className={`min-w-0 flex-1 truncate text-xs ${
+            return (
+              <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+                {/* Search bar + stats */}
+                <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--surface)]/50 px-3 py-2">
+                  <Search className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    aria-label={t("searchModels")}
+                    value={modelSearch}
+                    onChange={(e) => setModelSearch(e.target.value)}
+                    placeholder={t("searchModels")}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+                  />
+                  <span className="flex-shrink-0 text-xs tabular-nums text-[var(--text-muted)]">
+                    {checkedCount} / {provider.models.length}
+                  </span>
+                </div>
+                {/* Model grid */}
+                <div className="max-h-56 overflow-y-auto p-1.5">
+                  {filtered.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-[var(--text-muted)]">
+                      {tw("noModels")}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                      {filtered.map((model) => (
+                        <div
+                          key={model.id}
+                          className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors ${
                             model.checked
-                              ? "font-medium text-[--text-primary]"
-                              : "text-[--text-secondary]"
+                              ? "bg-primary/5"
+                              : "hover:bg-[var(--surface)]"
                           }`}
-                          title={model.id}
                         >
-                          {model.name}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            removeModel(provider.id, model.id);
-                          }}
-                          className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[--text-muted] opacity-0 transition-all hover:text-destructive group-hover/item:opacity-100"
-                        >
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </button>
-                      </label>
-                    ))}
-                  </div>
-                )}
+                          <input
+                            type="checkbox"
+                            aria-label={model.name}
+                            checked={model.checked}
+                            onChange={() => toggleModel(provider.id, model.id)}
+                            className="h-3.5 w-3.5 flex-shrink-0 rounded border-[var(--border-subtle)] text-primary accent-primary"
+                          />
+                          <span
+                            className={`min-w-0 flex-1 truncate text-sm ${
+                              model.checked
+                                ? "font-medium text-[var(--text-primary)]"
+                                : "text-[var(--text-secondary)]"
+                            }`}
+                            title={model.id}
+                          >
+                            {model.name}
+                          </span>
+                          <button
+                            aria-label={`${tc("delete")} ${model.name}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              removeModel(provider.id, model.id);
+                            }}
+                            className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
       </div>
     </div>
   );

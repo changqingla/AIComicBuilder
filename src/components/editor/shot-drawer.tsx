@@ -37,10 +37,10 @@ export function ShotDrawer({
       <DialogContent
         aria-label={`Shot ${shot.sequence}`}
         showCloseButton={false}
-        className="top-0 right-0 left-auto flex h-dvh w-[640px] max-w-[95vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-[95vw]"
+        className="top-0 right-0 left-auto flex h-dvh max-h-dvh w-[860px] max-w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-[95vw]"
       >
         <DialogTitle className="sr-only">Shot {shot.sequence}</DialogTitle>
-        <div className="flex shrink-0 items-center gap-2 border-b border-[--border-subtle] p-3">
+        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] p-3">
           <p className="min-w-0 flex-1 truncate text-sm font-medium">
             {shot.sequence}. {shot.prompt}
           </p>
@@ -64,7 +64,7 @@ export function ShotDrawer({
             <X className="h-4 w-4" />
           </DialogClose>
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
           <ShotCard key={shot.id} {...editor} shot={shot} expanded />
         </div>
       </DialogContent>

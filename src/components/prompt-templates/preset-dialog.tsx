@@ -168,7 +168,7 @@ export function PresetDialog({
 
         <div className="flex flex-col gap-4">
           {loading ? (
-            <div className="flex h-24 items-center justify-center text-sm text-[--text-muted]">
+            <div className="flex h-24 items-center justify-center text-sm text-[var(--text-muted)]">
               Loading...
             </div>
           ) : (
@@ -176,7 +176,7 @@ export function PresetDialog({
               {/* Built-in presets */}
               {builtInPresets.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
                     {t("builtIn")}
                   </div>
                   {builtInPresets.map((preset) => (
@@ -196,11 +196,11 @@ export function PresetDialog({
 
               {/* User presets */}
               <div className="flex flex-col gap-2">
-                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[--text-muted]">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
                   {t("userCreated")}
                 </div>
                 {userPresets.length === 0 ? (
-                  <p className="text-sm text-[--text-muted] py-1">
+                  <p className="text-sm text-[var(--text-muted)] py-1">
                     {t("noUserPresets")}
                   </p>
                 ) : (
@@ -224,11 +224,11 @@ export function PresetDialog({
           )}
 
           {/* Divider */}
-          <div className="border-t border-[--border-subtle]" />
+          <div className="border-t border-[var(--border-subtle)]" />
 
           {/* Save as preset */}
           <div className="flex flex-col gap-2">
-            <div className="text-sm font-medium text-[--text-secondary]">
+            <div className="text-sm font-medium text-[var(--text-secondary)]">
               {t("saveAs")}
             </div>
             <div className="flex gap-2">
@@ -280,13 +280,13 @@ function PresetCard({
   deleteLabel,
 }: PresetCardProps) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-[--border-subtle] bg-[--surface] px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium text-[--text-primary]">
+        <span className="truncate text-sm font-medium text-[var(--text-primary)]">
           {name}
         </span>
         {description && (
-          <span className="truncate text-xs text-[--text-muted]">
+          <span className="truncate text-xs text-[var(--text-muted)]">
             {description}
           </span>
         )}

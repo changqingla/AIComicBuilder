@@ -97,7 +97,8 @@
     "kanbanBatchGenerate": "一括生成 ({count})",
     "continueFromPrev": "前話から続ける",
     "continueFromPrevTooltip": "前話の最後のフレームを最初のフレームとして使用",
-    "prevEpisodeNoFrames": "前話のフレームが未生成です"
+    "prevEpisodeNoFrames": "前話のフレームが未生成です",
+    "generatingOutlineFirst": "先にあらすじを生成しています…"
   },
   "character": {
     "name": "キャラクター名",
@@ -519,5 +520,40 @@
       "durationStrategy": "尺戦略",
       "durationStrategyDesc": "ショット尺に応じた記述粒度のルール"
     }
+  },
+  "workspace": {
+    "mainNavigation": "メインナビゲーション",
+    "projectNavigation": "プロジェクトナビゲーション",
+    "language": "表示言語",
+    "projectsHint": "プロジェクトを管理し、エピソードの編集を続けます。",
+    "episodesHint": "脚本・キャラクター・絵コンテをエピソードごとに管理します。",
+    "charactersHint": "キャラクターの情報と参照画像を管理し、各話で再利用します。",
+    "scriptHint": "アイデア、あらすじ、脚本を整理します。",
+    "storyboardHint": "ショットと画像を編集し、動画を生成・確認します。",
+    "previewHint": "クリップの順序を確認し、動画を合成してダウンロードします。",
+    "importHint": "原文をアップロードし、キャラクターとエピソードを確認して取り込みます。",
+    "settingsHint": "プロバイダーを設定し、テキスト・画像・動画の既定モデルを選択します。",
+    "promptsHint": "各生成ステップで使用するプロンプトを確認・編集します。",
+    "createdDate": "作成日",
+    "projectPlaceholder": "プロジェクト名を入力",
+    "allProjects": "すべてのプロジェクト",
+    "scriptDocument": "脚本本文",
+    "generationSettings": "生成設定",
+    "shotCount": "{count} ショット",
+    "projectCount": "{count} プロジェクト",
+    "workflow": "制作フロー",
+    "modelProviders": "モデルプロバイダー",
+    "advancedSettings": "詳細設定",
+    "referenceImage": "参照画像",
+    "document": "テキスト内容",
+    "showKey": "キーを表示",
+    "hideKey": "キーを非表示",
+    "addModel": "モデルを追加",
+    "noModels": "一致するモデルがありません",
+    "close": "閉じる",
+    "previousShot": "前のショット",
+    "nextShot": "次のショット",
+    "clips": "ショット動画",
+    "noClips": "動画がありません。絵コンテで動画を生成またはアップロードしてください。"
   }
 }

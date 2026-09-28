@@ -97,7 +97,8 @@
     "kanbanBatchGenerate": "일괄 생성 ({count})",
     "continueFromPrev": "이전 회차 이어서",
     "continueFromPrevTooltip": "이전 회차의 마지막 프레임을 첫 프레임으로 사용",
-    "prevEpisodeNoFrames": "이전 회차에 생성된 프레임이 없습니다"
+    "prevEpisodeNoFrames": "이전 회차에 생성된 프레임이 없습니다",
+    "generatingOutlineFirst": "먼저 줄거리를 생성하고 있습니다…"
   },
   "character": {
     "name": "캐릭터 이름",
@@ -519,5 +520,40 @@
       "durationStrategy": "길이 전략",
       "durationStrategyDesc": "샷 길이에 따른 묘사 세분화 규칙"
     }
+  },
+  "workspace": {
+    "mainNavigation": "주 탐색",
+    "projectNavigation": "프로젝트 탐색",
+    "language": "표시 언어",
+    "projectsHint": "프로젝트를 관리하고 에피소드 편집을 이어가세요.",
+    "episodesHint": "에피소드별로 대본, 캐릭터, 스토리보드를 관리합니다.",
+    "charactersHint": "캐릭터 정보와 참조 이미지를 관리하고 에피소드에서 재사용합니다.",
+    "scriptHint": "아이디어, 개요와 대본을 정리합니다.",
+    "storyboardHint": "샷과 이미지를 편집하고 영상 클립을 생성하고 검토합니다.",
+    "previewHint": "클립 순서를 검토하고 영상을 합성하여 다운로드합니다.",
+    "importHint": "원문을 업로드하고 캐릭터와 에피소드를 확인한 후 가져옵니다.",
+    "settingsHint": "공급자를 설정하고 텍스트, 이미지, 영상의 기본 모델을 선택합니다.",
+    "promptsHint": "각 생성 단계의 프롬프트를 확인하고 수정합니다.",
+    "createdDate": "생성일",
+    "projectPlaceholder": "프로젝트 이름 입력",
+    "allProjects": "모든 프로젝트",
+    "scriptDocument": "대본 본문",
+    "generationSettings": "생성 설정",
+    "shotCount": "샷 {count}개",
+    "projectCount": "프로젝트 {count}개",
+    "workflow": "제작 흐름",
+    "modelProviders": "모델 공급자",
+    "advancedSettings": "고급 설정",
+    "referenceImage": "참조 이미지",
+    "document": "텍스트 내용",
+    "showKey": "키 표시",
+    "hideKey": "키 숨기기",
+    "addModel": "모델 추가",
+    "noModels": "일치하는 모델이 없습니다",
+    "close": "닫기",
+    "previousShot": "이전 숏",
+    "nextShot": "다음 숏",
+    "clips": "숏 영상",
+    "noClips": "아직 영상이 없습니다. 스토리보드에서 영상을 생성하거나 업로드하세요."
   }
 }

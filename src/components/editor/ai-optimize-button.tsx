@@ -125,7 +125,7 @@ export function AiOptimizeButton({
         type="button"
         onClick={handleOpen}
         title={t("shot.aiOptimize")}
-        className="inline-flex h-5 w-5 items-center justify-center rounded text-[--text-muted] transition-colors hover:bg-primary/10 hover:text-primary"
+        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-primary/10 hover:text-primary"
       >
         <Sparkles className="h-3 w-3" />
       </button>
@@ -135,7 +135,7 @@ export function AiOptimizeButton({
           <DialogTitle>{t("shot.aiOptimize")}</DialogTitle>
           <div className="space-y-3">
             <div>
-              <p className="mb-1.5 text-xs font-medium text-[--text-secondary]">
+              <p className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
                 {t("shot.aiOptimizeInstruction")}
               </p>
               <Textarea
@@ -147,10 +147,10 @@ export function AiOptimizeButton({
               />
             </div>
             <div>
-              <p className="mb-1.5 text-xs font-medium text-[--text-muted]">
+              <p className="mb-1.5 text-xs font-medium text-[var(--text-muted)]">
                 {t("shot.aiOptimizeOriginal")}
               </p>
-              <div className="max-h-32 overflow-y-auto rounded-lg bg-[--surface] px-3 py-2 text-xs text-[--text-secondary]">
+              <div className="max-h-32 overflow-y-auto rounded-lg bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
                 {value.slice(0, 300)}
                 {value.length > 300 ? "…" : ""}
               </div>

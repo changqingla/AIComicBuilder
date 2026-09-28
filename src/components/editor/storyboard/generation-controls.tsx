@@ -26,7 +26,7 @@ import {
 } from "@/lib/shot-assets";
 
 const StepNumber = ({ value }: { value: number }) => (
-  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[--surface] text-xs text-[--text-muted]">
+  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-xs text-[var(--text-muted)]">
     {value}
   </span>
 );
@@ -63,7 +63,8 @@ export function GenerationControls({
         shot.videoPrompt &&
         (reference ? hasAllReferenceImages(shot) : hasKeyframePair(shot)),
     );
-  const rowClass = "flex flex-wrap items-center gap-2";
+  const rowClass =
+    "flex min-w-0 flex-wrap items-center content-start gap-2 rounded-md border border-border p-3";
 
   function icon(loading: boolean, Icon: typeof Sparkles) {
     return loading ? (
@@ -73,13 +74,14 @@ export function GenerationControls({
     );
   }
   return (
-    <div className="space-y-2">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <div className={rowClass}>
         <StepNumber value={1} />
         <AgentPicker projectId={episode.projectId} category="shot_split" />
         <InlineModelPicker capability="text" />
         <Button
           size="sm"
+          variant="outline"
           disabled={busy}
           onClick={() => workflow.generateShots()}
         >
@@ -98,6 +100,7 @@ export function GenerationControls({
         <InlineModelPicker capability="image" />
         <Button
           size="sm"
+          variant="outline"
           disabled={busy || !shots.length}
           onClick={() => workflow.generatePrompts()}
         >
@@ -112,6 +115,7 @@ export function GenerationControls({
         </Button>
         <Button
           size="sm"
+          variant="outline"
           disabled={busy || !hasPrompts}
           onClick={() => workflow.generateFrames()}
         >
@@ -143,6 +147,7 @@ export function GenerationControls({
         <InlineModelPicker capability="text" />
         <Button
           size="sm"
+          variant="outline"
           disabled={busy || !hasFrames}
           onClick={() => workflow.generateVideoPrompts()}
         >
@@ -160,6 +165,7 @@ export function GenerationControls({
         <VideoRatioPicker value={ratio} onChange={onRatioChange} />
         <Button
           size="sm"
+          variant="outline"
           disabled={busy || !readyForVideo}
           onClick={() => workflow.generateVideos()}
         >
@@ -183,7 +189,7 @@ export function GenerationControls({
         </Button>
       </div>
       {shots.length > 0 && (
-        <div className={`${rowClass} border-t border-[--border-subtle] pt-2`}>
+        <div className={"col-span-full flex flex-wrap items-center gap-3"}>
           <Button size="sm" disabled={busy} onClick={workflow.autoRun}>
             {icon(busy, Play)}
             {t("project.autoRun")}
@@ -203,7 +209,7 @@ export function GenerationControls({
         </div>
       )}
       {batch.progress && (
-        <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+        <div className="col-span-full flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
           <Loader2 className="h-4 w-4 animate-spin" />
           <progress
             className="min-w-0 flex-1"

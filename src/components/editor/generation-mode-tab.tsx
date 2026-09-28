@@ -43,14 +43,15 @@ export function GenerationModeTab({
   }
 
   return (
-    <div className="inline-flex gap-1.5 rounded-xl border border-[--border-subtle] bg-[--surface] p-1.5">
+    <div className="inline-flex gap-1 rounded-md border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
       <button
         disabled={disabled}
+        aria-pressed={mode === "keyframe"}
         onClick={() => switchMode("keyframe")}
-        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
+        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
           mode === "keyframe"
-            ? "bg-white text-primary shadow ring-1 ring-primary/20"
-            : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
+            ? "bg-white text-foreground shadow-sm"
+            : "text-[var(--text-muted)] hover:bg-white/60 hover:text-[var(--text-secondary)]"
         }`}
       >
         <Film
@@ -60,15 +61,16 @@ export function GenerationModeTab({
       </button>
       <button
         disabled={disabled}
+        aria-pressed={mode === "reference"}
         onClick={() => switchMode("reference")}
-        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ${
+        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
           mode === "reference"
-            ? "bg-white text-violet-600 shadow ring-1 ring-violet-200"
-            : "text-[--text-muted] hover:bg-white/60 hover:text-[--text-secondary]"
+            ? "bg-white text-foreground shadow-sm"
+            : "text-[var(--text-muted)] hover:bg-white/60 hover:text-[var(--text-secondary)]"
         }`}
       >
         <ImageIcon
-          className={`h-4 w-4 ${mode === "reference" ? "text-violet-600" : ""}`}
+          className={`h-4 w-4 ${mode === "reference" ? "text-primary" : ""}`}
         />
         {t("generationModeReference")}
       </button>

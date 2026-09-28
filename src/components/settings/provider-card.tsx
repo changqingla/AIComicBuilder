@@ -1,68 +1,50 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { X, Server } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Provider } from "@/stores/model-store";
-
-interface ProviderCardProps {
-  provider: Provider;
-  selected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-}
+import { cn } from "@/lib/utils";
 
 export function ProviderCard({
   provider,
   selected,
   onSelect,
   onDelete,
-}: ProviderCardProps) {
-  const checkedCount = provider.models.filter((m) => m.checked).length;
-
+}: {
+  provider: Provider;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations("common");
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" || e.key === " " ? onSelect() : undefined}
-      className={`group relative flex flex-shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-all duration-200 ${
-        selected
-          ? "border-primary/30 bg-primary/5 shadow-sm shadow-primary/5"
-          : "border-[--border-subtle] bg-white hover:border-[--border-hover] hover:shadow-sm"
-      }`}
+      className={cn(
+        "flex min-w-0 items-center gap-1 rounded-md border bg-white",
+        selected ? "border-primary/40 bg-accent/40" : "border-border",
+      )}
     >
-      <div
-        className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-          selected
-            ? "bg-primary text-white"
-            : "bg-primary/8 text-primary"
-        }`}
+      <button
+        aria-pressed={selected}
+        onClick={onSelect}
+        className="flex min-w-0 items-center gap-3 px-3 py-2.5 text-left"
       >
-        {provider.name.charAt(0).toUpperCase()}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[--text-primary] max-w-[120px]">
-          {provider.name}
-        </p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[--text-muted]">
+        <Server className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium">
+            {provider.name}
+          </span>
+          <span className="text-xs text-muted-foreground">
             {provider.protocol}
           </span>
-          {checkedCount > 0 && (
-            <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
-              {checkedCount}
-            </Badge>
-          )}
-        </div>
-      </div>
+        </span>
+      </button>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="ml-1 flex h-5 w-5 items-center justify-center rounded text-[--text-muted] opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        onClick={onDelete}
+        aria-label={`${t("delete")} ${provider.name}`}
+        className="mr-1 rounded p-2 text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
       >
-        <X className="h-3 w-3" />
+        <X className="size-3.5" />
       </button>
     </div>
   );
