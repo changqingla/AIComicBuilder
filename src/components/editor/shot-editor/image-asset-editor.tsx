@@ -107,7 +107,7 @@ export function ImageAssetEditor({
         ? "startFrameDesc"
         : "endFrameDesc";
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-[--border-subtle] bg-white">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-white">
       <AssetMedia
         shot={editor.shot}
         asset={asset}
@@ -149,7 +149,7 @@ export function ImageAssetEditor({
         />
         {!!characters?.length && (
           <div className="flex flex-wrap items-center gap-1">
-            <span className="text-xs text-[--text-muted]">
+            <span className="text-xs text-[var(--text-muted)]">
               {t("shot.refChars")}:
             </span>
             {characters.map((character) => {
@@ -170,7 +170,7 @@ export function ImageAssetEditor({
                       }),
                     );
                   }}
-                  className={`rounded-full border px-2 py-0.5 text-xs ${selected ? "border-primary/30 bg-primary/10 text-primary" : "border-transparent bg-[--surface] text-[--text-muted]"}`}
+                  className={`rounded-full border px-2 py-0.5 text-xs ${selected ? "border-primary/30 bg-primary/10 text-primary" : "border-transparent bg-[var(--surface)] text-[var(--text-muted)]"}`}
                 >
                   {character.name}
                 </button>
@@ -178,7 +178,7 @@ export function ImageAssetEditor({
             })}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-1 border-t border-[--border-subtle] pt-2">
+        <div className="flex flex-wrap items-center gap-1 border-t border-[var(--border-subtle)] pt-2">
           {type === "reference" && (
             <InlineModelPicker
               capability="image"
@@ -200,7 +200,7 @@ export function ImageAssetEditor({
           <button
             disabled={disabled}
             onClick={() => input.current?.click()}
-            className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-[--text-muted] hover:text-primary"
+            className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-[var(--text-muted)] hover:text-primary"
           >
             {changing === "upload" ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -214,7 +214,7 @@ export function ImageAssetEditor({
               disabled={disabled || !prompt.trim()}
               aria-label={t("shot.regenerateRefImages")}
               onClick={generate}
-              className="ml-auto rounded p-1 text-[--text-muted] hover:text-primary disabled:opacity-30"
+              className="ml-auto rounded p-1 text-[var(--text-muted)] hover:text-primary disabled:opacity-30"
             >
               {regenerating ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -228,7 +228,7 @@ export function ImageAssetEditor({
               disabled={disabled}
               aria-label={`${t("common.delete")} ${label}`}
               onClick={remove}
-              className="rounded p-1 text-[--text-muted] hover:text-red-500 disabled:opacity-30"
+              className="rounded p-1 text-[var(--text-muted)] hover:text-red-500 disabled:opacity-30"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>

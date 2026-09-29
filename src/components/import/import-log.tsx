@@ -42,10 +42,10 @@ export function ImportLog({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-sm font-semibold text-[--text-secondary]">
+        <h3 className="font-sans text-sm font-semibold text-[var(--text-secondary)]">
           {t("processLog")}
           {selectedStep && (
-            <span className="ml-2 text-xs font-normal text-[--text-muted]">
+            <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">
               — {t(IMPORT_STEPS[selectedStep - 1].label)}
             </span>
           )}
@@ -59,7 +59,7 @@ export function ImportLog({
           </button>
         )}
       </div>
-      <div className="rounded-xl border border-[--border-subtle] bg-white p-4">
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-white p-4">
         <div className="max-h-[30vh] space-y-1.5 overflow-y-auto font-mono text-xs">
           {filtered.map((log) => (
             <div key={log.id} className="flex items-start gap-2">
@@ -67,12 +67,12 @@ export function ImportLog({
                 className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${log.status === "done" ? "bg-emerald-500" : log.status === "error" ? "bg-red-500" : "bg-amber-400"}`}
               />
               {!selectedStep && (
-                <span className="shrink-0 text-[--text-muted]">
+                <span className="shrink-0 text-[var(--text-muted)]">
                   [Step {log.step}]
                 </span>
               )}
               <span
-                className={`min-w-0 break-words ${log.status === "error" ? "text-red-500" : "text-[--text-primary]"}`}
+                className={`min-w-0 break-words ${log.status === "error" ? "text-red-500" : "text-[var(--text-primary)]"}`}
               >
                 {log.message}
               </span>

@@ -1,29 +1,23 @@
 "use client";
 
-import { requestGeneration } from "@/lib/generation/client";
 import { useAutosave } from "@/hooks/use-autosave";
+import { requestGeneration } from "@/lib/generation/client";
 import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useParams } from "next/navigation";
 
-import { useState, useRef, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+import { useEffect, useRef, useState } from "react";
 
-import { useModelStore } from "@/stores/model-store";
-import { useTranslations } from "next-intl";
-import {
-  Sparkles,
-  Loader2,
-  FileText,
-  Lightbulb,
-  ListOrdered,
-} from "lucide-react";
-import { InlineModelPicker } from "@/components/editor/model-selector";
 import { AgentPicker } from "@/components/agent-picker";
-import { apiFetch } from "@/lib/api-fetch";
-import { useModelGuard } from "@/hooks/use-model-guard";
+import { InlineModelPicker } from "@/components/editor/model-selector";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
+import { PageHeader } from "@/components/workspace/page-header";
+import { useModelGuard } from "@/hooks/use-model-guard";
+import { apiFetch } from "@/lib/api-fetch";
+import { useModelStore } from "@/stores/model-store";
+import { Tabs } from "@base-ui/react/tabs";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 export function ScriptEditor() {
@@ -214,156 +208,125 @@ export function ScriptEditor() {
   }
 
   return (
-    <div className="animate-page-in space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/8">
-            <FileText className="h-4 w-4 text-primary" />
-          </div>
-          <h2 className="font-display text-xl font-bold tracking-tight text-[--text-primary]">
-            {t("project.script")}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <PromptEditButton
-            promptKeys={["script_outline", "script_generate"]}
-            projectId={episode.projectId}
-          />
-          <InlineModelPicker capability="text" />
-          {saving && (
-            <span className="flex items-center gap-1.5 text-xs text-[--text-muted]">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {t("common.saving")}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Idea input */}
-      <div className="rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-        <div className="flex items-center gap-2 px-5 pt-3 pb-1">
-          <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-            {t("episode.idea")}
+    <div>
+      <PageHeader title={t("project.script")}>
+        {saving && (
+          <span role="status" className="text-sm text-muted-foreground">
+            {t("common.saving")}
           </span>
-        </div>
-        <Textarea
-          value={episode.idea}
-          onChange={(e) => {
-            edit({ idea: e.target.value });
-          }}
-          onBlur={handleSave}
-          placeholder={t("project.scriptIdeaPlaceholder")}
-          rows={4}
-          disabled={generating || generatingOutline}
-          className={`h-[30vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-            generating ? "opacity-40" : ""
-          }`}
+        )}
+        <PromptEditButton
+          promptKeys={["script_outline", "script_generate"]}
+          projectId={episode.projectId}
         />
-      </div>
-
-      {/* Outline + Generated script — side by side, fixed height */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Outline section */}
-        <div className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-          <div className="flex items-center justify-between px-5 pt-3 pb-1">
-            <div className="flex items-center gap-2">
-              <ListOrdered className="h-3.5 w-3.5 text-violet-500" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-                {t("project.outline")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AgentPicker
-                projectId={episode.projectId}
-                category="script_outline"
-              />
-              <Button
-                size="sm"
-                onClick={handleGenerateOutline}
-                disabled={
-                  generatingOutline || generating || !episode.idea?.trim()
-                }
-              >
-                {generatingOutline ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {generatingOutline
-                  ? t("common.generating")
-                  : t("project.generateOutline")}
-              </Button>
-            </div>
+        <InlineModelPicker capability="text" />
+      </PageHeader>
+      <Tabs.Root defaultValue={episode.script ? "script" : "idea"}>
+        <Tabs.List aria-label={t("project.script")} className="document-tabs">
+          <Tabs.Tab value="idea" className="document-tab">
+            {t("project.idea")}
+          </Tabs.Tab>
+          <Tabs.Tab value="outline" className="document-tab">
+            {t("project.outline")}
+          </Tabs.Tab>
+          <Tabs.Tab value="script" className="document-tab">
+            {t("workspace.scriptDocument")}
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel
+          value="idea"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <label htmlFor="script-idea" className="sr-only">
+            {t("project.idea")}
+          </label>
+          <textarea
+            id="script-idea"
+            value={episode.idea}
+            onChange={(e) => edit({ idea: e.target.value })}
+            onBlur={handleSave}
+            placeholder={t("project.scriptIdeaPlaceholder")}
+            disabled={generating || generatingOutline}
+            className="editor-textarea min-h-[55dvh]"
+          />
+        </Tabs.Panel>
+        <Tabs.Panel
+          value="outline"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <div className="toolbar justify-end">
+            <AgentPicker
+              projectId={episode.projectId}
+              category="script_outline"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateOutline}
+              disabled={
+                generatingOutline || generating || !episode.idea?.trim()
+              }
+            >
+              {generatingOutline
+                ? t("common.generating")
+                : t("project.generateOutline")}
+            </Button>
           </div>
-
-          <Textarea
+          <label htmlFor="script-outline" className="sr-only">
+            {t("project.outline")}
+          </label>
+          <textarea
+            id="script-outline"
             value={outline}
             onChange={(e) => handleOutlineChange(e.target.value)}
             onBlur={handleSave}
             placeholder={t("project.outlinePlaceholder")}
             disabled={generating || generatingOutline}
-            className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-              generatingOutline ? "opacity-40" : ""
-            }`}
+            className="editor-textarea min-h-[55dvh]"
           />
-        </div>
-
-        {/* Generated script */}
-        <div className="flex flex-col rounded-2xl border border-[--border-subtle] bg-white p-1.5">
-          <div className="flex items-center justify-between px-5 pt-3 pb-1">
-            <div className="flex items-center gap-2">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-                {t("project.generatedScript")}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AgentPicker
-                projectId={episode.projectId}
-                category="script_generate"
-              />
-              <Button
-                size="sm"
-                onClick={handleGenerateScript}
-                disabled={
-                  generating || generatingOutline || !episode.idea?.trim()
-                }
-              >
-                {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {generating
-                  ? t("common.generating")
-                  : t("project.generateScript")}
-              </Button>
-            </div>
-          </div>
-          {episode.script ? (
-            <Textarea
-              ref={scriptTextareaRef}
-              value={episode.script}
-              onChange={(e) => {
-                edit({ script: e.target.value });
-              }}
-              onBlur={() => {
-                if (!generating) handleSave();
-              }}
-              disabled={generating || generatingOutline}
-              className={`h-[55vh] max-h-[55vh] resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-5 pb-4 font-mono text-sm leading-relaxed placeholder:text-[--text-muted] focus-visible:ring-0 ${
-                generating ? "opacity-40" : ""
-              }`}
+        </Tabs.Panel>
+        <Tabs.Panel
+          value="script"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <div className="toolbar justify-end">
+            <AgentPicker
+              projectId={episode.projectId}
+              category="script_generate"
             />
-          ) : (
-            <div className="h-[55vh] max-h-[55vh] overflow-y-auto px-5 pb-4 pt-2 text-sm text-[--text-muted]">
-              {t("project.scriptPlaceholder") || "点击上方按钮生成剧本..."}
-            </div>
-          )}
-        </div>
-      </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateScript}
+              disabled={
+                generating || generatingOutline || !episode.idea?.trim()
+              }
+            >
+              {generating
+                ? t("common.generating")
+                : t("project.generateScript")}
+            </Button>
+          </div>
+          <label htmlFor="script-document" className="sr-only">
+            {t("workspace.scriptDocument")}
+          </label>
+          <textarea
+            id="script-document"
+            ref={scriptTextareaRef}
+            value={episode.script}
+            onChange={(e) => edit({ script: e.target.value })}
+            onBlur={() => {
+              if (!generating) handleSave();
+            }}
+            placeholder={t("project.scriptPlaceholder")}
+            disabled={generating || generatingOutline}
+            className="editor-textarea min-h-[65dvh]"
+          />
+        </Tabs.Panel>
+      </Tabs.Root>
     </div>
   );
 }

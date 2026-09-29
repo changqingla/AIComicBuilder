@@ -39,19 +39,24 @@ export default function EpisodeLayout({
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <p className="ml-2 text-sm text-[--text-muted]">{t("loading")}</p>
+        <p className="ml-2 text-sm text-[var(--text-muted)]">{t("loading")}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1">
-      <ProjectNav projectId={id} episodeId={episodeId} />
-      <main className="flex-1 bg-[--surface] p-6 pb-24 lg:pb-6 min-w-0">
+    <div className="flex min-w-0 flex-1 flex-col">
+      <ProjectNav
+        projectId={id}
+        episodeId={episodeId}
+        episodeTitle={episode.title}
+        versionId={episode.versionId}
+      />
+      <div className="workspace-page">
         <div key={episodeId} className="min-w-0">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

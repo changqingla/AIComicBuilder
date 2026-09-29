@@ -39,7 +39,7 @@ export function DescriptionEditor({
         projectId={projectId}
         onSave={(motionScript) => onSave({ motionScript })}
       />
-      <label className="block space-y-1 text-xs text-[--text-muted]">
+      <label className="block space-y-1 text-xs text-[var(--text-muted)]">
         <span>{t("shot.cameraDirection")}</span>
         <input
           value={camera}
@@ -50,12 +50,14 @@ export function DescriptionEditor({
           onBlur={() => {
             void saveCamera.flush();
           }}
-          className="w-full rounded-lg border border-[--border-subtle] bg-white px-3 py-2 text-sm text-[--text-primary]"
+          className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm text-[var(--text-primary)]"
         />
       </label>
       {shot.dialogues.length > 0 && (
-        <div className="space-y-1 rounded-lg bg-[--surface] p-3">
-          <p className="text-xs text-[--text-muted]">{t("shot.dialogue")}</p>
+        <div className="space-y-1 rounded-lg bg-[var(--surface)] p-3">
+          <p className="text-xs text-[var(--text-muted)]">
+            {t("shot.dialogue")}
+          </p>
           {shot.dialogues.map((d) => (
             <p key={d.id} className="text-sm">
               <span className="font-medium text-primary">

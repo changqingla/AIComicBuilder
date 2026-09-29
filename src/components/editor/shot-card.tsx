@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { useShotGeneration } from "@/hooks/use-shot-generation";
 import { useShotMutations } from "@/hooks/use-shot-mutations";
 import {
@@ -12,13 +10,15 @@ import {
   hasKeyframePair,
   selectAsset,
 } from "@/lib/shot-assets";
-import { ShotHeader } from "./shot-editor/header";
-import { DescriptionEditor } from "./shot-editor/description-editor";
-import { ImageAssets } from "./shot-editor/image-assets";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { AssetMedia } from "./shot-editor/asset-media";
+import { DescriptionEditor } from "./shot-editor/description-editor";
+import { ShotHeader } from "./shot-editor/header";
+import { ImageAssets } from "./shot-editor/image-assets";
 import { MediaPreview, type Media } from "./shot-editor/media-preview";
-import { TextField } from "./shot-editor/text-field";
 import { EditorStep } from "./shot-editor/step";
+import { TextField } from "./shot-editor/text-field";
 import type { ShotEditorProps } from "./shot-editor/types";
 
 export interface ShotCardProps extends ShotEditorProps {
@@ -66,13 +66,12 @@ export function ShotCard({
     />
   );
   return (
-    <div className="overflow-hidden rounded-2xl border border-[--border-subtle] bg-white">
+    <div className="min-w-0 border-b border-border">
       {header}
       {!isCompact && (
-        <div className="space-y-2 border-t border-[--border-subtle] px-4 pb-3 pt-3">
+        <div className="space-y-2 border-t border-border pb-3 pt-3">
           <EditorStep
             label={t("shot.stepDesc")}
-            done={!!shot.prompt}
             generating={pending === "text"}
             expanded={expanded}
             action={() => generation.run("text")}
@@ -87,7 +86,6 @@ export function ShotCard({
           </EditorStep>
           <EditorStep
             label={t(reference ? "shot.stepSceneFrame" : "shot.stepFrames")}
-            done={hasFrame}
             generating={pending === "frames" || !!editor.batchGeneratingFrames}
             failed={shot.status === "failed" && !hasFrame}
             next={!hasFrame}
@@ -113,7 +111,6 @@ export function ShotCard({
           </EditorStep>
           <EditorStep
             label={t("shot.stepVideoPrompt")}
-            done={!!shot.videoPrompt}
             generating={
               pending === "prompt" || !!editor.batchGeneratingVideoPrompts
             }
@@ -138,7 +135,6 @@ export function ShotCard({
           </EditorStep>
           <EditorStep
             label={t("shot.stepVideo")}
-            done={!!video?.fileUrl}
             generating={pending === "video" || !!editor.batchGeneratingVideos}
             failed={shot.status === "failed" && !video?.fileUrl}
             next={hasFrame && !!shot.videoPrompt && !video?.fileUrl}

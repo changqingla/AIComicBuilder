@@ -1,29 +1,17 @@
 "use client";
 
-import { requestGeneration } from "@/lib/generation/client";
 import { useDraft } from "@/hooks/use-draft";
+import { requestGeneration } from "@/lib/generation/client";
 
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
 import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore, type ModelRef } from "@/stores/model-store";
-import {
-  ArrowUpCircle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Loader2,
-  Sparkles,
-  Trash2,
-  Upload,
-} from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -63,9 +51,7 @@ export function CharacterCard({
   const getModelConfig = useModelStore((s) => s.getModelConfig);
   const providers = useModelStore((s) => s.providers);
   const defaultImageModel = useModelStore((s) => s.defaultImageModel);
-  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(
-    () => defaultImageModel,
-  );
+  const [imageModelRef, setImageModelRef] = useState<ModelRef | null>(null);
   const [editName, setEditName] = useDraft(name);
   const [editDesc, setEditDesc] = useDraft(description);
   const [editVisualHint, setEditVisualHint] = useDraft(visualHint ?? "");
@@ -114,7 +100,7 @@ export function CharacterCard({
         payload: { characterId: id },
         modelConfig: {
           ...getModelConfig(),
-          image: resolveImageRef(imageModelRef),
+          image: resolveImageRef(imageModelRef ?? defaultImageModel),
         },
       });
       await response.json();
@@ -146,233 +132,174 @@ export function CharacterCard({
     setUploading(false);
   }
 
+  let history: string[] = [];
+  try {
+    history = JSON.parse(referenceImageHistory || "[]");
+  } catch {}
+  if (!history.length && referenceImage) history = [referenceImage];
+  const currentIndex = referenceImage ? history.indexOf(referenceImage) : -1;
+  async function selectImage(index: number) {
+    await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referenceImage: history[index] }),
+    });
+    onUpdate();
+  }
   return (
-    <div className="group overflow-hidden rounded-2xl border border-[--border-subtle] bg-white transition-all duration-300 hover:border-[--border-hover] hover:shadow-lg hover:shadow-black/5">
-      {/* Avatar area */}
-      <div className="relative flex items-center justify-center bg-gradient-to-b from-[--surface] to-white p-8">
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/80 text-white opacity-0 transition-all hover:bg-red-600 group-hover:opacity-100"
-            title={t("common.delete")}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {referenceImage ? (
-          (() => {
-            let history: string[] = [];
-            try {
-              history = JSON.parse(referenceImageHistory || "[]");
-            } catch {}
-            if (history.length === 0 && referenceImage)
-              history = [referenceImage];
-            const currentIdx = history.indexOf(referenceImage);
-            const showArrows = history.length > 1;
-            async function switchTo(newPath: string) {
-              await apiFetch(`/api/projects/${projectId}/characters/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ referenceImage: newPath }),
-              });
-              onUpdate();
-            }
-            return (
-              <div
-                className="relative w-full aspect-video overflow-hidden rounded-xl cursor-pointer group"
-                onClick={() => setLightbox(true)}
-              >
-                <img
-                  src={uploadUrl(referenceImage)}
-                  alt={name}
-                  className="w-full h-full object-cover"
-                />
-                {showArrows && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next =
-                          (currentIdx - 1 + history.length) % history.length;
-                        switchTo(history[next]);
-                      }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = (currentIdx + 1) % history.length;
-                        switchTo(history[next]);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded bg-black/60 px-2 py-0.5 text-[10px] text-white">
-                      {currentIdx + 1}/{history.length}
-                    </span>
-                  </>
-                )}
-              </div>
-            );
-          })()
-        ) : isGenerating ? (
-          <div className="w-full aspect-video rounded-xl animate-shimmer" />
-        ) : (
-          <div className="flex w-full aspect-video items-center justify-center rounded-xl bg-gradient-to-br from-primary/15 to-accent/10 text-3xl font-bold text-primary">
-            {name.charAt(0).toUpperCase()}
-          </div>
-        )}
-      </div>
-
-      {/* Scope badge */}
-      {scope && (
-        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              scope === "main"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-purple-100 text-purple-700"
-            }`}
-          >
-            {scope === "main"
-              ? t("episode.mainCharacter")
-              : t("episode.guestCharacter")}
-          </span>
-          {episodeName && (
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-              {episodeName}
-            </span>
+    <article className="grid gap-6 py-7 lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10">
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <input
+            aria-label={t("character.name")}
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={handleSave}
+            className="min-w-0 flex-1 border-b border-transparent bg-transparent py-1 text-lg font-medium hover:border-border focus:border-input focus:outline-none"
+          />
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              aria-label={`${t("common.delete")} ${name}`}
+            >
+              {t("common.delete")}
+            </Button>
           )}
+        </div>
+        <label className="block">
+          <span className="text-sm text-muted-foreground">
+            {t("character.description")}
+          </span>
+          <textarea
+            aria-label={t("character.description")}
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            onBlur={handleSave}
+            placeholder={t("character.description")}
+            className="editor-textarea min-h-32 border-b border-border"
+          />
+        </label>
+        <label className="mt-5 block">
+          <span className="text-sm text-muted-foreground">
+            {t("character.visualHint")}
+          </span>
+          <input
+            aria-label={t("character.visualHint")}
+            value={editVisualHint}
+            onChange={(e) => setEditVisualHint(e.target.value)}
+            onBlur={handleSave}
+            className="mt-2 w-full border-b border-border bg-transparent py-2 text-sm focus:border-input focus:outline-none"
+          />
+        </label>
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          {episodeName && <span>{episodeName}</span>}
           {scope === "guest" && onPromote && (
             <button
               onClick={onPromote}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+              className="underline-offset-4 hover:underline"
             >
-              <ArrowUpCircle className="h-3 w-3" />
               {t("episode.promoteToMain")}
             </button>
           )}
-        </div>
-      )}
-
-      {/* Info */}
-      <div className="space-y-3 p-4">
-        <Input
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          onBlur={handleSave}
-          className="h-9 font-display font-semibold text-base"
-        />
-        <Textarea
-          value={editDesc}
-          onChange={(e) => setEditDesc(e.target.value)}
-          onBlur={handleSave}
-          placeholder={t("character.description")}
-          className="h-32 resize-none text-sm"
-        />
-        <Input
-          value={editVisualHint}
-          onChange={(e) => setEditVisualHint(e.target.value)}
-          onBlur={handleSave}
-          placeholder={t("character.visualHint")}
-          className="h-8 text-xs text-muted-foreground"
-        />
-        <div className="space-y-2">
-          <InlineModelPicker
-            capability="image"
-            value={imageModelRef}
-            onChange={setImageModelRef}
-          />
-          <div className="flex gap-2">
-            <Button
-              onClick={handleGenerateImage}
-              disabled={isGenerating}
-              className="flex-1"
-              size="sm"
-            >
-              {isGenerating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {isGenerating
-                ? t("common.generating")
-                : t("character.generateImage")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 px-2.5"
-              title={t("character.uploadImage")}
-              disabled={uploading}
-              onClick={() => uploadInputRef.current?.click()}
-            >
-              {uploading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 px-2.5"
-              title="Copy image prompt"
-              onClick={async () => {
-                const prompt = buildCharacterTurnaroundPrompt(
-                  editDesc || editName,
-                  editName,
-                );
-                await navigator.clipboard.writeText(prompt);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-500" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
+          <button
+            className="underline-offset-4 hover:underline"
+            onClick={async () => {
+              await navigator.clipboard.writeText(
+                buildCharacterTurnaroundPrompt(editDesc || editName, editName),
+              );
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? t("workspace.copied") : t("shot.copyPrompt")}
+          </button>
         </div>
       </div>
-
+      <div className="min-w-0 space-y-3">
+        {referenceImage ? (
+          <button
+            onClick={() => setLightbox(true)}
+            aria-label={`${t("workspace.referenceImage")} ${name}`}
+            className="block w-full cursor-zoom-in bg-muted"
+          >
+            <img
+              src={uploadUrl(referenceImage)}
+              alt={name}
+              className="h-44 w-full object-contain"
+            />
+          </button>
+        ) : (
+          <div className="flex h-32 items-center justify-center bg-muted text-sm text-muted-foreground">
+            {isGenerating
+              ? t("common.generating")
+              : t("workspace.referenceImage")}
+          </div>
+        )}
+        {history.length > 1 && (
+          <label className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+            {t("workspace.imageHistory")}
+            <select
+              aria-label={`${t("workspace.imageHistory")} ${name}`}
+              value={currentIndex}
+              onChange={(e) => selectImage(Number(e.target.value))}
+              className="bg-transparent py-1"
+            >
+              {history.map((url, index) => (
+                <option key={url} value={index}>
+                  {index + 1} / {history.length}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <InlineModelPicker
+          capability="image"
+          value={imageModelRef ?? defaultImageModel}
+          onChange={setImageModelRef}
+        />
+        <div className="toolbar">
+          <Button
+            onClick={handleGenerateImage}
+            disabled={isGenerating}
+            variant="outline"
+            size="sm"
+          >
+            {isGenerating
+              ? t("common.generating")
+              : t("character.generateImage")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={uploading}
+            onClick={() => uploadInputRef.current?.click()}
+          >
+            {uploading ? t("common.loading") : t("character.uploadImage")}
+          </Button>
+        </div>
+      </div>
       {referenceImage && (
         <Dialog open={lightbox} onOpenChange={setLightbox}>
-          <DialogContent
-            className="!max-w-[90vw] !w-[90vw] border-0 bg-transparent p-0 shadow-none"
-            showCloseButton={false}
-          >
-            <DialogTitle className="sr-only">{name}</DialogTitle>
-            <div className="relative inline-block w-full">
-              <img
-                src={uploadUrl(referenceImage)}
-                alt={name}
-                className="w-full max-h-[85vh] object-contain rounded-xl"
-              />
-              <button
-                onClick={() => setLightbox(false)}
-                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-              >
-                <span className="text-sm leading-none">✕</span>
-              </button>
-            </div>
+          <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-[90vw]">
+            <DialogTitle>{name}</DialogTitle>
+            <img
+              src={uploadUrl(referenceImage)}
+              alt={name}
+              className="max-h-[75vh] w-full object-contain"
+            />
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Hidden file input for image upload */}
       <input
         ref={uploadInputRef}
         type="file"
         accept="image/*"
+        aria-label={t("character.uploadImage")}
         className="hidden"
         onChange={handleUploadImage}
       />
-    </div>
+    </article>
   );
 }

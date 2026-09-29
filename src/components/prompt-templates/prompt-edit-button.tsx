@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Wand2 } from "lucide-react";
-import { PromptDrawer } from "./prompt-drawer";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { PromptDrawer } from "./prompt-drawer";
 
 interface PromptEditButtonProps {
   promptKeys: string | string[];
@@ -19,7 +18,7 @@ export function PromptEditButton({
   promptKeys,
   projectId,
   label,
-  variant = "outline",
+  variant = "ghost",
   size = "sm",
 }: PromptEditButtonProps) {
   const [open, setOpen] = useState(false);
@@ -27,12 +26,7 @@ export function PromptEditButton({
 
   return (
     <>
-      <Button
-        variant={variant}
-        size={size}
-        onClick={() => setOpen(true)}
-      >
-        <Wand2 className="h-3.5 w-3.5" />
+      <Button variant={variant} size={size} onClick={() => setOpen(true)}>
         {label ?? t("editPrompt")}
       </Button>
       <PromptDrawer

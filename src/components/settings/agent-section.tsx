@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-fetch";
-import { Bot, Eye, EyeOff, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Pencil, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -143,10 +143,9 @@ export function AgentSection() {
   const isEditing = editingId !== null;
 
   return (
-    <div className="rounded-2xl border border-[--border-subtle] bg-white p-5">
+    <div className="min-w-0 py-4">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-          <Bot className="h-3.5 w-3.5" />
+        <h3 className="flex items-center gap-2 text-base font-medium text-foreground">
           {t("agents")}
         </h3>
         {!showForm && (
@@ -157,9 +156,8 @@ export function AgentSection() {
               resetForm();
               setShowForm(true);
             }}
-            className="h-7 gap-1 text-xs"
+            className="gap-1"
           >
-            <Plus className="h-3.5 w-3.5" />
             {t("addAgent")}
           </Button>
         )}
@@ -169,16 +167,17 @@ export function AgentSection() {
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          className="mb-4 space-y-3 rounded-xl border border-[--border-subtle] bg-[--surface] p-4"
+          className="mb-4 space-y-4 border-y border-border py-5"
         >
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs font-medium text-[--text-primary]">
+            <span className="text-xs font-medium text-[var(--text-primary)]">
               {isEditing ? t("editAgent") : t("addAgent")}
             </span>
             <button
               type="button"
+              aria-label={tc("cancel")}
               onClick={resetForm}
-              className="flex h-5 w-5 items-center justify-center rounded text-[--text-muted] hover:text-[--text-primary] transition-colors"
+              className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -186,8 +185,9 @@ export function AgentSection() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("agentName")}</Label>
+              <Label className="text-sm">{t("agentName")}</Label>
               <Input
+                aria-label={t("agentName")}
                 value={form.name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
@@ -197,8 +197,9 @@ export function AgentSection() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("agentPlatform")}</Label>
+              <Label className="text-sm">{t("agentPlatform")}</Label>
               <select
+                aria-label={t("agentPlatform")}
                 value={form.platform}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, platform: e.target.value }))
@@ -213,8 +214,9 @@ export function AgentSection() {
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("agentCategory")}</Label>
+              <Label className="text-sm">{t("agentCategory")}</Label>
               <select
+                aria-label={t("agentCategory")}
                 value={form.category}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, category: e.target.value }))
@@ -232,8 +234,9 @@ export function AgentSection() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">{t("agentAppId")}</Label>
+              <Label className="text-sm">{t("agentAppId")}</Label>
               <Input
+                aria-label={t("agentAppId")}
                 value={form.appId}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, appId: e.target.value }))
@@ -243,9 +246,10 @@ export function AgentSection() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">API Key</Label>
+              <Label className="text-sm">API Key</Label>
               <Input
                 type="password"
+                aria-label="API Key"
                 value={form.apiKey}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, apiKey: e.target.value }))
@@ -257,8 +261,9 @@ export function AgentSection() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs">{t("agentDescription")}</Label>
+            <Label className="text-sm">{t("agentDescription")}</Label>
             <Input
+              aria-label={t("agentDescription")}
               value={form.description}
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
@@ -268,22 +273,15 @@ export function AgentSection() {
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={resetForm}
-              className="h-7 text-xs"
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={resetForm}>
               {tc("cancel")}
             </Button>
             <Button
               type="submit"
               size="sm"
               disabled={saving || !form.name || !form.appId || !form.apiKey}
-              className="h-7 gap-1 text-xs"
+              className="gap-1"
             >
-              <Save className="h-3.5 w-3.5" />
               {saving ? "..." : tc("save")}
             </Button>
           </div>
@@ -292,55 +290,55 @@ export function AgentSection() {
 
       {/* Agent List */}
       {agents.length === 0 ? (
-        <p className="py-6 text-center text-xs text-[--text-muted]">
+        <p className="py-6 text-center text-xs text-[var(--text-muted)]">
           {t("noAgents")}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[--border-subtle]">
-          <table className="w-full text-sm">
+        <div className="min-w-0 overflow-x-auto rounded-lg border border-[var(--border-subtle)]">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-[--border-subtle] bg-[--surface]">
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+              <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface)]">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
                   {t("agentName")}
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
                   {t("agentPlatform")}
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
                   {t("agentCategory")}
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
                   {t("agentAppId")}
                 </th>
-                <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)]">
                   API Key
                 </th>
-                <th className="px-3 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-[--text-muted]"></th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-[var(--text-muted)]"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[--border-subtle]">
+            <tbody className="divide-y divide-[var(--border-subtle)]">
               {agents.map((agent) => (
                 <tr
                   key={agent.id}
-                  className={`transition-colors hover:bg-[--surface] ${editingId === agent.id ? "bg-primary/5" : ""}`}
+                  className={`transition-colors hover:bg-[var(--surface)] ${editingId === agent.id ? "bg-primary/5" : ""}`}
                 >
                   <td className="px-3 py-2.5">
-                    <span className="font-medium text-[--text-primary]">
+                    <span className="font-medium text-[var(--text-primary)]">
                       {agent.name}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center rounded-full bg-[--surface] px-2 py-0.5 text-[10px] font-medium text-[--text-muted] border border-[--border-subtle]">
+                    <span className="text-sm text-muted-foreground">
                       {platformLabel(agent.platform || "bailian")}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <span className="text-sm text-foreground">
                       {categoryLabel(agent.category)}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="font-mono text-xs text-[--text-muted]">
+                    <span className="font-mono text-xs text-[var(--text-muted)]">
                       {agent.appId.length > 20
                         ? agent.appId.slice(0, 10) +
                           "..." +
@@ -352,7 +350,7 @@ export function AgentSection() {
                     <button
                       type="button"
                       onClick={() => toggleKeyVisibility(agent.id)}
-                      className="inline-flex items-center gap-1 text-xs text-[--text-muted] hover:text-[--text-primary] transition-colors"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       {visibleKeys.has(agent.id) ? (
                         <>
@@ -374,15 +372,17 @@ export function AgentSection() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"
+                        aria-label={`${t("editAgent")} ${agent.name}`}
                         onClick={() => startEdit(agent)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] transition-colors hover:bg-primary/10 hover:text-primary"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-primary/10 hover:text-primary"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
+                        aria-label={`${tc("delete")} ${agent.name}`}
                         onClick={() => handleDelete(agent.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[--text-muted] transition-colors hover:bg-red-50 hover:text-red-500"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-red-50 hover:text-red-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

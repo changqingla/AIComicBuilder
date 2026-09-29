@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,15 +8,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
-import { Plus, Loader2, Sparkles } from "lucide-react";
-import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-fetch";
+import { Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export function CreateProjectDialog() {
   const t = useTranslations();
@@ -52,13 +51,11 @@ export function CreateProjectDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" className="gap-1.5" />}>
-        <Plus className="h-3.5 w-3.5" />
         {t("dashboard.newProject")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[--primary]" />
             {t("dashboard.newProject")}
           </DialogTitle>
         </DialogHeader>
@@ -69,7 +66,7 @@ export function CreateProjectDialog() {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Epic Comic..."
+              placeholder={t("workspace.projectPlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                   handleCreate();

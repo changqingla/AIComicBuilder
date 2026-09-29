@@ -31,7 +31,9 @@ export function TextField({
   return (
     <div className="min-w-0 space-y-1">
       <div className="flex items-center gap-1">
-        <span className="text-xs font-medium text-[--text-muted]">{label}</span>
+        <span className="text-xs font-medium text-[var(--text-muted)]">
+          {label}
+        </span>
         <AiOptimizeButton
           value={draft}
           fieldLabel={fieldLabel}

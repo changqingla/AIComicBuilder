@@ -30,7 +30,7 @@ export function AssetMedia({
     : [];
   const index = history.findIndex((a) => a.id === asset?.id);
   return (
-    <div className="relative aspect-video overflow-hidden rounded-lg bg-[--surface]">
+    <div className="relative aspect-video overflow-hidden rounded-lg bg-[var(--surface)]">
       <button
         disabled={!asset?.fileUrl}
         aria-label={label}
@@ -58,9 +58,9 @@ export function AssetMedia({
             />
           )
         ) : video ? (
-          <VideoIcon className="h-5 w-5 text-[--text-muted]" />
+          <VideoIcon className="h-5 w-5 text-[var(--text-muted)]" />
         ) : (
-          <ImageIcon className="h-5 w-5 text-[--text-muted]" />
+          <ImageIcon className="h-5 w-5 text-[var(--text-muted)]" />
         )}
       </button>
       {history.length > 1 && (

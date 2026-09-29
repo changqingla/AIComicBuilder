@@ -1,25 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { useModelStore, type Capability, type Protocol } from "@/stores/model-store";
 import { ProviderCard } from "@/components/settings/provider-card";
 import { ProviderForm } from "@/components/settings/provider-form";
-import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  useModelStore,
+  type Capability,
+  type Protocol,
+} from "@/stores/model-store";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface ProviderSectionProps {
   capability: Capability;
-  label: string;
-  icon: React.ReactNode;
   defaultProtocol: Protocol;
   defaultBaseUrl: string;
 }
 
 export function ProviderSection({
   capability,
-  label,
-  icon,
   defaultProtocol,
   defaultBaseUrl,
 }: ProviderSectionProps) {
@@ -28,7 +27,10 @@ export function ProviderSection({
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sectionProviders = providers.filter((p) => p.capability === capability);
-  const selectedProvider = sectionProviders.find((p) => p.id === selectedId) || null;
+  const selectedProvider =
+    sectionProviders.find((p) => p.id === selectedId) ||
+    sectionProviders[0] ||
+    null;
 
   function handleAdd() {
     const id = addProvider({
@@ -50,52 +52,30 @@ export function ProviderSection({
   }
 
   return (
-    <div className="rounded-2xl border border-[--border-subtle] bg-white p-5 space-y-4">
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[--text-muted]">
-          {icon}
-          {label}
-        </h3>
-        <Button size="sm" variant="outline" onClick={handleAdd}>
-          <Plus className="h-3.5 w-3.5" />
-          {t("addProvider")}
-        </Button>
-      </div>
-
-      {sectionProviders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-10">
-          <div className="h-6 w-6 text-[--text-muted]">{icon}</div>
-          <p className="mt-2 text-sm text-[--text-muted]">{t("noProviders")}</p>
-          <Button size="sm" className="mt-3" onClick={handleAdd}>
-            <Plus className="h-3.5 w-3.5" />
+    <div className="grid gap-6 py-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
+      <div className="min-w-0">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <h3 className="text-sm text-muted-foreground">{t("providers")}</h3>
+          <Button size="sm" variant="ghost" onClick={handleAdd}>
             {t("addProvider")}
           </Button>
         </div>
+        <div className="divide-y divide-border">
+          {sectionProviders.map((provider) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              selected={provider.id === selectedProvider?.id}
+              onSelect={() => setSelectedId(provider.id)}
+              onDelete={() => handleDelete(provider.id)}
+            />
+          ))}
+        </div>
+      </div>
+      {selectedProvider ? (
+        <ProviderForm key={selectedProvider.id} provider={selectedProvider} />
       ) : (
-        <>
-          {/* Provider cards */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {sectionProviders.map((p) => (
-              <ProviderCard
-                key={p.id}
-                provider={p}
-                selected={p.id === selectedId}
-                onSelect={() => setSelectedId(p.id)}
-                onDelete={() => handleDelete(p.id)}
-              />
-            ))}
-          </div>
-
-          {/* Provider form */}
-          {selectedProvider ? (
-            <ProviderForm key={selectedProvider.id} provider={selectedProvider} />
-          ) : (
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-[--border-subtle] bg-[--surface]/50 py-8">
-              <p className="text-sm text-[--text-muted]">{t("selectProvider")}</p>
-            </div>
-          )}
-        </>
+        <p className="py-4 text-sm text-muted-foreground">{t("noProviders")}</p>
       )}
     </div>
   );

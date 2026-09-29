@@ -9,9 +9,7 @@ test("slow autosave responses preserve newer drafts and save before generation",
   const shotId = project.currentVersion.shotId;
   const assetId = `${shotId}-first_frame`;
   await page.goto(project.storyboardUrl);
-  await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
-    .click();
+  await page.getByRole("button", { name: "编辑详情 1", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Shot 1", exact: true });
   const prompt = drawer.getByRole("textbox", { name: "首帧描述", exact: true });
   const firstSave = Promise.withResolvers<void>();
@@ -98,9 +96,7 @@ test("failed saves block generation and a corrected edit can be saved and genera
     });
   });
   await page.goto(project.storyboardUrl);
-  await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
-    .click();
+  await page.getByRole("button", { name: "编辑详情 1", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Shot 1", exact: true });
   const generate = drawer.getByRole("button", {
     name: "重新生成视频",
@@ -142,7 +138,9 @@ test("switching versions keeps the displayed shots and generation request aligne
     },
   );
   await page.goto(project.storyboardUrl);
-  await page.getByRole("button", { name: "Old version", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "版本历史", exact: true })
+    .selectOption(project.oldVersion.id);
   try {
     await expect.poll(() => requested).toBe(true);
     await expect(
@@ -152,7 +150,7 @@ test("switching versions keeps the displayed shots and generation request aligne
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Old version", exact: true }),
+      page.getByRole("combobox", { name: "版本历史", exact: true }),
     ).toBeDisabled();
     loading.resolve();
     await expect(
@@ -165,7 +163,14 @@ test("switching versions keeps the displayed shots and generation request aligne
     loading.resolve();
   }
   await page.getByRole("link", { name: "预览", exact: true }).last().click();
-  await page.getByRole("link", { name: "3 分镜", exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`versionId=${project.oldVersion.id}`),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("link", { name: "预览", exact: true }),
+  ).toHaveAttribute("href", new RegExp(`versionId=${project.oldVersion.id}`));
+  await page.getByRole("link", { name: "分镜", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Old version forest scene", exact: true }),
   ).toBeVisible();
@@ -174,9 +179,7 @@ test("switching versions keeps the displayed shots and generation request aligne
     generation = route.request().postDataJSON();
     await route.fulfill({ json: { status: "ok" } });
   });
-  await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
-    .click();
+  await page.getByRole("button", { name: "编辑详情 1", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Shot 1", exact: true })
     .getByRole("button", { name: "重新生成视频", exact: true })
@@ -210,9 +213,7 @@ test("uploads add an asset version and history selection survives a reload", asy
       .get()!;
   const original = activeFrame();
   await page.goto(project.storyboardUrl);
-  await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
-    .click();
+  await page.getByRole("button", { name: "编辑详情 1", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Shot 1", exact: true });
   await drawer
     .getByLabel("上传 首帧描述", { exact: true })
@@ -230,9 +231,7 @@ test("uploads add an asset version and history selection survives a reload", asy
     .click();
   await expect.poll(() => activeFrame().id).toBe(uploadedId);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
-    .click();
+  await page.getByRole("button", { name: "编辑详情 1", exact: true }).click();
   await expect(
     drawer.getByRole("button", {
       name: "首帧描述: previous version",

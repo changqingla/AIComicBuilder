@@ -1,13 +1,12 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useDraft } from "@/hooks/use-draft";
 import { fetchJson } from "@/lib/api-fetch";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
-import { Edit, Loader2, RotateCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -39,16 +38,6 @@ interface ProjectPromptTemplate {
   content: string;
 }
 
-// ── Category icon/emoji map ───────────────────────────────
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  script: "📝",
-  character: "👤",
-  shot: "🎬",
-  frame: "🖼️",
-  video: "🎥",
-};
-
 /** Strip "promptTemplates." prefix from registry nameKeys since t() is already scoped */
 function tKey(nameKey: string): string {
   return nameKey.replace(/^promptTemplates\./, "");
@@ -65,21 +54,16 @@ interface ToggleSwitchProps {
 function ToggleSwitch({ checked, onChange, label }: ToggleSwitchProps) {
   return (
     <label className="flex cursor-pointer items-center gap-3">
-      <div
+      <input
+        type="checkbox"
         role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline-none ${
-          checked ? "bg-primary" : "bg-[--border-subtle]"
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked ? "translate-x-4" : "translate-x-0.5"
-          }`}
-        />
-      </div>
-      <span className="text-sm font-medium text-[--text-primary]">{label}</span>
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 accent-primary"
+      />
+      <span className="text-sm font-medium text-[var(--text-primary)]">
+        {label}
+      </span>
     </label>
   );
 }
@@ -183,7 +167,7 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
 
   if (loading) {
     return (
-      <div className="flex h-40 items-center justify-center text-[--text-muted]">
+      <div className="flex h-40 items-center justify-center text-[var(--text-muted)]">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       </div>
     );
@@ -192,103 +176,86 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Toggle header */}
-      <div className="flex items-center justify-between rounded-2xl border border-[--border-subtle] bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-5">
         <div className="flex flex-col gap-0.5">
           <ToggleSwitch
             checked={enabled}
             onChange={handleToggle}
             label={t("project.useProjectPrompts")}
           />
-          <p className="ml-12 text-xs text-[--text-muted]">
+          <p className="ml-7 mt-2 text-sm text-[var(--text-muted)]">
             {t("project.useProjectPromptsDesc")}
           </p>
         </div>
         {enabled && overrides.length > 0 && (
-          <Badge variant="default" className="shrink-0">
+          <span className="text-xs text-muted-foreground">
             {t("editor.overridden")} ({overrides.length})
-          </Badge>
+          </span>
         )}
       </div>
 
       {/* Card grid */}
       {enabled && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="workspace-panel divide-y divide-border">
           {registry.map((entry) => {
             const { hasOverride, totalSlots, modifiedCount } =
               getPromptStats(entry);
-            const emoji = CATEGORY_EMOJI[entry.category] ?? "💬";
             const isDeleting = deletingKey === entry.key;
             const editUrl = `/${locale}/settings/prompts?scope=project&projectId=${projectId}&prompt=${entry.key}`;
 
             return (
               <div
                 key={entry.key}
-                className="flex flex-col gap-3 rounded-2xl border border-[--border-subtle] bg-white p-4 transition-shadow hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
+                className="grid items-center gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-base ${
-                      hasOverride ? "bg-primary/10" : "bg-[--surface]"
-                    }`}
-                  >
-                    {emoji}
-                  </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-[--text-primary]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-[var(--text-primary)]">
                         {t(tKey(entry.nameKey) as Parameters<typeof t>[0])}
                       </span>
                       {hasOverride ? (
-                        <Badge
-                          variant="success"
-                          className="shrink-0 text-[10px] px-1.5 py-0"
-                        >
+                        <span className="text-xs text-muted-foreground">
                           {t("editor.overridden")}
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-[--surface] text-[--text-muted]">
+                        <span className="text-xs text-muted-foreground">
                           {t("editor.usingGlobal")}
-                        </Badge>
+                        </span>
                       )}
                     </div>
-                    <span className="truncate font-mono text-[10px] text-[--text-muted]">
-                      {entry.key}
-                    </span>
                   </div>
                 </div>
 
-                <p className="text-xs text-[--text-secondary]">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("editor.slotsCount", { count: totalSlots })}
                   {hasOverride && modifiedCount > 0
                     ? `, ${t("project.modifiedCount", { count: modifiedCount })}`
                     : ""}
                 </p>
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="shrink-0"
                     onClick={() => {
                       router.push(editUrl);
                     }}
                   >
-                    <Edit className="h-3.5 w-3.5" />
                     {t("editor.edit")}
                   </Button>
                   {hasOverride && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="flex-1 text-[--text-muted] hover:text-destructive"
+                      className="shrink-0 text-[var(--text-muted)] hover:text-destructive"
                       disabled={isDeleting}
                       onClick={() => handleUseGlobal(entry.key)}
                     >
                       {isDeleting ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      )}
+                      ) : null}
                       {t("project.useGlobal")}
                     </Button>
                   )}

@@ -97,7 +97,8 @@
     "kanbanBatchGenerate": "一括生成 ({count})",
     "continueFromPrev": "前話から続ける",
     "continueFromPrevTooltip": "前話の最後のフレームを最初のフレームとして使用",
-    "prevEpisodeNoFrames": "前話のフレームが未生成です"
+    "prevEpisodeNoFrames": "前話のフレームが未生成です",
+    "generatingOutlineFirst": "先にあらすじを生成しています…"
   },
   "character": {
     "name": "キャラクター名",
@@ -231,7 +232,8 @@
     "mergeError": "結合に失敗しました",
     "mergeMinTwo": "2話以上選択してください",
     "mergeNoVideo": "動画がまだ合成されていません",
-    "downloadVideo": "動画をダウンロード"
+    "downloadVideo": "動画をダウンロード",
+    "name": "エピソード名"
   },
   "import": {
     "title": "脚本インポート",
@@ -519,5 +521,40 @@
       "durationStrategy": "尺戦略",
       "durationStrategyDesc": "ショット尺に応じた記述粒度のルール"
     }
+  },
+  "workspace": {
+    "mainNavigation": "メインナビゲーション",
+    "projectNavigation": "プロジェクトナビゲーション",
+    "language": "表示言語",
+    "createdDate": "作成日",
+    "projectPlaceholder": "プロジェクト名を入力",
+    "allProjects": "すべてのプロジェクト",
+    "scriptDocument": "脚本本文",
+    "generationSettings": "生成設定",
+    "shotCount": "{count} ショット",
+    "projectCount": "{count} プロジェクト",
+    "workflow": "制作フロー",
+    "modelProviders": "モデルプロバイダー",
+    "advancedSettings": "詳細設定",
+    "referenceImage": "参照画像",
+    "document": "テキスト内容",
+    "showKey": "キーを表示",
+    "hideKey": "キーを非表示",
+    "addModel": "モデルを追加",
+    "noModels": "一致するモデルがありません",
+    "close": "閉じる",
+    "previousShot": "前のショット",
+    "nextShot": "次のショット",
+    "clips": "ショット動画",
+    "noClips": "動画がありません。絵コンテで動画を生成またはアップロードしてください。",
+    "copied": "コピーしました",
+    "otherShots": "その他のカット",
+    "imageHistory": "画像の履歴",
+    "expand": "開く",
+    "collapse": "閉じる",
+    "newVersion": "新しいバージョン",
+    "selectModel": "モデルを選択",
+    "transitionIn": "入りのトランジション",
+    "transitionOut": "終わりのトランジション"
   }
 }

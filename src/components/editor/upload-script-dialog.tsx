@@ -44,13 +44,16 @@ export function UploadScriptDialog({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((f: File) => {
-    if (f.size > MAX_SIZE) {
-      toast.error(t("fileTooLarge"));
-      return;
-    }
-    setFile(f);
-  }, [t]);
+  const handleFile = useCallback(
+    (f: File) => {
+      if (f.size > MAX_SIZE) {
+        toast.error(t("fileTooLarge"));
+        return;
+      }
+      setFile(f);
+    },
+    [t],
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -59,7 +62,7 @@ export function UploadScriptDialog({
       const f = e.dataTransfer.files[0];
       if (f) handleFile(f);
     },
-    [handleFile]
+    [handleFile],
   );
 
   async function handleSubmit() {
@@ -73,10 +76,10 @@ export function UploadScriptDialog({
       form.append("targetMinutes", String(targetMinutes));
       form.append("modelConfig", JSON.stringify(getModelConfig()));
 
-      const res = await apiFetch(
-        `/api/projects/${projectId}/upload-script`,
-        { method: "POST", body: form }
-      );
+      const res = await apiFetch(`/api/projects/${projectId}/upload-script`, {
+        method: "POST",
+        body: form,
+      });
 
       if (!res.ok) {
         const err = await res.json();
@@ -89,9 +92,7 @@ export function UploadScriptDialog({
       onComplete();
     } catch (err) {
       console.error("Upload script error:", err);
-      toast.error(
-        err instanceof Error ? err.message : tc("generationFailed")
-      );
+      toast.error(err instanceof Error ? err.message : tc("generationFailed"));
     } finally {
       setUploading(false);
     }
@@ -120,12 +121,12 @@ export function UploadScriptDialog({
         <div className="flex flex-col gap-5">
           {/* Drop zone */}
           <div
-            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-colors ${
+            className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
               dragOver
                 ? "border-primary bg-primary/5"
                 : file
                   ? "border-emerald-300 bg-emerald-50/50"
-                  : "border-[--border-subtle] bg-[--surface]"
+                  : "border-[var(--border-subtle)] bg-[var(--surface)]"
             }`}
             onDragOver={(e) => {
               e.preventDefault();
@@ -151,10 +152,10 @@ export function UploadScriptDialog({
               <div className="flex items-center gap-3">
                 <FileText className="h-8 w-8 text-emerald-500" />
                 <div>
-                  <p className="text-sm font-medium text-[--text-primary]">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {file.name}
                   </p>
-                  <p className="text-xs text-[--text-muted]">
+                  <p className="text-xs text-[var(--text-muted)]">
                     {(file.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
@@ -163,18 +164,18 @@ export function UploadScriptDialog({
                     e.stopPropagation();
                     setFile(null);
                   }}
-                  className="ml-2 flex h-6 w-6 items-center justify-center rounded-full text-[--text-muted] hover:bg-black/5 hover:text-[--text-primary]"
+                  className="ml-2 flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-black/5 hover:text-[var(--text-primary)]"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
             ) : (
               <>
-                <Upload className="mb-2 h-8 w-8 text-[--text-muted]" />
-                <p className="text-sm font-medium text-[--text-primary]">
+                <Upload className="mb-2 h-8 w-8 text-[var(--text-muted)]" />
+                <p className="text-sm font-medium text-[var(--text-primary)]">
                   {t("dropHint")}
                 </p>
-                <p className="mt-1 text-xs text-[--text-muted]">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   {t("supportedFormats")}
                 </p>
               </>
@@ -184,7 +185,7 @@ export function UploadScriptDialog({
           {/* Duration slider */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-medium text-[--text-primary]">
+              <label className="text-sm font-medium text-[var(--text-primary)]">
                 {t("episodeDuration")}
               </label>
               <span className="rounded-md bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
@@ -200,7 +201,7 @@ export function UploadScriptDialog({
               onChange={(e) => setTargetMinutes(Number(e.target.value))}
               className="w-full accent-primary"
             />
-            <div className="mt-1 flex justify-between text-[10px] text-[--text-muted]">
+            <div className="mt-1 flex justify-between text-xs text-[var(--text-muted)]">
               <span>2 {t("minutes")}</span>
               <span>20 {t("minutes")}</span>
             </div>

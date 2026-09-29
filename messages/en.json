@@ -97,7 +97,8 @@
     "kanbanBatchGenerate": "Generate ({count})",
     "continueFromPrev": "Continue from previous",
     "continueFromPrevTooltip": "Use last frame of previous episode as first frame",
-    "prevEpisodeNoFrames": "Previous episode has no generated frames"
+    "prevEpisodeNoFrames": "Previous episode has no generated frames",
+    "generatingOutlineFirst": "Generating the outline first…"
   },
   "character": {
     "name": "Character Name",
@@ -231,7 +232,8 @@
     "mergeError": "Merge failed",
     "mergeMinTwo": "Select at least 2 episodes",
     "mergeNoVideo": "Episode video not yet composed",
-    "downloadVideo": "Download Video"
+    "downloadVideo": "Download Video",
+    "name": "Episode name"
   },
   "import": {
     "title": "Import Script",
@@ -519,5 +521,40 @@
       "durationStrategy": "Duration Strategy",
       "durationStrategyDesc": "Description-granularity rules tiered by shot duration"
     }
+  },
+  "workspace": {
+    "mainNavigation": "Main navigation",
+    "projectNavigation": "Project navigation",
+    "language": "Language",
+    "createdDate": "Created",
+    "projectPlaceholder": "Enter a project name",
+    "allProjects": "All projects",
+    "scriptDocument": "Screenplay",
+    "generationSettings": "Generation settings",
+    "shotCount": "{count} shots",
+    "projectCount": "{count} projects",
+    "workflow": "Workflow",
+    "modelProviders": "Model providers",
+    "advancedSettings": "Advanced settings",
+    "referenceImage": "Reference image",
+    "document": "Text content",
+    "showKey": "Show key",
+    "hideKey": "Hide key",
+    "addModel": "Add model",
+    "noModels": "No matching models",
+    "close": "Close",
+    "previousShot": "Previous shot",
+    "nextShot": "Next shot",
+    "clips": "Shot clips",
+    "noClips": "No video clips yet. Generate or upload videos in the storyboard.",
+    "copied": "Copied",
+    "otherShots": "Other shots",
+    "imageHistory": "Image history",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "newVersion": "New version",
+    "selectModel": "Select a model",
+    "transitionIn": "Transition in",
+    "transitionOut": "Transition out"
   }
 }
