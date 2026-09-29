@@ -50,6 +50,7 @@ export default function EpisodeLayout({
         projectId={id}
         episodeId={episodeId}
         episodeTitle={episode.title}
+        versionId={episode.versionId}
       />
       <div className="workspace-page">
         <div key={episodeId} className="min-w-0">

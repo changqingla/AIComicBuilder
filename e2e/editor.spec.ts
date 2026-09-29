@@ -163,6 +163,13 @@ test("switching versions keeps the displayed shots and generation request aligne
     loading.resolve();
   }
   await page.getByRole("link", { name: "预览", exact: true }).last().click();
+  await expect(page).toHaveURL(
+    new RegExp(`versionId=${project.oldVersion.id}`),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("link", { name: "预览", exact: true }),
+  ).toHaveAttribute("href", new RegExp(`versionId=${project.oldVersion.id}`));
   await page.getByRole("link", { name: "分镜", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Old version forest scene", exact: true }),

@@ -9,10 +9,12 @@ export function ProjectNav({
   projectId,
   episodeId,
   episodeTitle,
+  versionId,
 }: {
   projectId: string;
   episodeId: string;
   episodeTitle: string;
+  versionId: string | null;
 }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -33,15 +35,19 @@ export function ProjectNav({
         className="flex max-w-full flex-wrap gap-5 sm:gap-7"
       >
         {stages.map((stage) => {
-          const href = `${base}/${episodeId}/${stage}`;
+          const path = `${base}/${episodeId}/${stage}`;
+          const href =
+            stage === "preview" && versionId
+              ? `${path}?versionId=${encodeURIComponent(versionId)}`
+              : path;
           return (
             <Link
               key={stage}
               href={href}
-              aria-current={pathname === href ? "page" : undefined}
+              aria-current={pathname === path ? "page" : undefined}
               className={cn(
                 "-mb-px border-b-2 border-transparent py-3 text-sm text-muted-foreground hover:text-foreground",
-                pathname === href && "border-foreground text-foreground",
+                pathname === path && "border-foreground text-foreground",
               )}
             >
               {t(`project.${stage}`)}
