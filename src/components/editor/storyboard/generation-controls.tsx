@@ -1,35 +1,22 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import {
-  ImageIcon,
-  Loader2,
-  Play,
-  RefreshCw,
-  Sparkles,
-  VideoIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { AgentPicker } from "@/components/agent-picker";
-import { InlineModelPicker } from "../model-selector";
-import { VideoRatioPicker } from "../video-ratio-picker";
-import type { EpisodeDetail } from "@/stores/episode-editor-store";
+import { Button } from "@/components/ui/button";
 import type { StoryboardGeneration } from "@/hooks/use-storyboard-generation";
 import {
   getFirstFramePrompt,
+  getFirstFrameUrl,
   getLastFramePrompt,
+  getLastFrameUrl,
   getReferenceAssets,
   hasAllReferenceImages,
   hasKeyframePair,
-  getFirstFrameUrl,
-  getLastFrameUrl,
 } from "@/lib/shot-assets";
-
-const StepNumber = ({ value }: { value: number }) => (
-  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-xs text-[var(--text-muted)]">
-    {value}
-  </span>
-);
+import type { EpisodeDetail } from "@/stores/episode-editor-store";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { InlineModelPicker } from "../model-selector";
+import { VideoRatioPicker } from "../video-ratio-picker";
 
 export function GenerationControls({
   episode,
@@ -64,19 +51,13 @@ export function GenerationControls({
         (reference ? hasAllReferenceImages(shot) : hasKeyframePair(shot)),
     );
   const rowClass =
-    "flex min-w-0 flex-wrap items-center content-start gap-2 rounded-md border border-border p-3";
-
-  function icon(loading: boolean, Icon: typeof Sparkles) {
-    return loading ? (
-      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-    ) : (
-      <Icon className="h-3.5 w-3.5" />
-    );
-  }
+    "flex min-w-0 flex-wrap items-center gap-3 border-b border-border py-4";
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-1">
       <div className={rowClass}>
-        <StepNumber value={1} />
+        <span className="w-full text-sm font-medium lg:w-28 lg:shrink-0">
+          {t("project.workflowStepShots")}
+        </span>
         <AgentPicker projectId={episode.projectId} category="shot_split" />
         <InlineModelPicker capability="text" />
         <Button
@@ -85,14 +66,19 @@ export function GenerationControls({
           disabled={busy}
           onClick={() => workflow.generateShots()}
         >
-          {icon(pending === "shots", Sparkles)}
           {t(
             pending === "shots" ? "common.generating" : "project.generateShots",
           )}
         </Button>
       </div>
       <div className={rowClass}>
-        <StepNumber value={2} />
+        <span className="w-full text-sm font-medium lg:w-28 lg:shrink-0">
+          {t(
+            reference
+              ? "project.workflowStepSceneFrames"
+              : "project.workflowStepFrames",
+          )}
+        </span>
         <AgentPicker
           projectId={episode.projectId}
           category={reference ? "ref_image_prompts" : "keyframe_prompts"}
@@ -104,7 +90,6 @@ export function GenerationControls({
           disabled={busy || !shots.length}
           onClick={() => workflow.generatePrompts()}
         >
-          {icon(pending === "prompts", Sparkles)}
           {t(
             pending === "prompts"
               ? "common.generating"
@@ -119,7 +104,6 @@ export function GenerationControls({
           disabled={busy || !hasPrompts}
           onClick={() => workflow.generateFrames()}
         >
-          {icon(generating.frames && !batch.active?.overwrite, ImageIcon)}
           {t(
             generating.frames
               ? "common.generating"
@@ -129,17 +113,19 @@ export function GenerationControls({
           )}
         </Button>
         <Button
-          size="icon"
+          size="sm"
           variant="ghost"
           disabled={busy || !hasPrompts}
-          title={t("project.batchGenerateFramesOverwrite")}
+          aria-label={t("project.batchGenerateFramesOverwrite")}
           onClick={() => workflow.generateFrames(true)}
         >
-          {icon(generating.frames && !!batch.active?.overwrite, RefreshCw)}
+          {t("shot.regenerateFrames")}
         </Button>
       </div>
       <div className={rowClass}>
-        <StepNumber value={3} />
+        <span className="w-full text-sm font-medium lg:w-28 lg:shrink-0">
+          {t("project.workflowStepVideoPrompts")}
+        </span>
         <AgentPicker
           projectId={episode.projectId}
           category={reference ? "ref_video_prompts" : "video_prompts"}
@@ -151,7 +137,6 @@ export function GenerationControls({
           disabled={busy || !hasFrames}
           onClick={() => workflow.generateVideoPrompts()}
         >
-          {icon(generating.videoPrompts, Sparkles)}
           {t(
             generating.videoPrompts
               ? "common.generating"
@@ -160,7 +145,9 @@ export function GenerationControls({
         </Button>
       </div>
       <div className={rowClass}>
-        <StepNumber value={4} />
+        <span className="w-full text-sm font-medium lg:w-28 lg:shrink-0">
+          {t("shot.stepVideo")}
+        </span>
         <InlineModelPicker capability="video" />
         <VideoRatioPicker value={ratio} onChange={onRatioChange} />
         <Button
@@ -169,7 +156,6 @@ export function GenerationControls({
           disabled={busy || !readyForVideo}
           onClick={() => workflow.generateVideos()}
         >
-          {icon(generating.videos && !batch.active?.overwrite, VideoIcon)}
           {t(
             generating.videos
               ? "common.generating"
@@ -179,19 +165,18 @@ export function GenerationControls({
           )}
         </Button>
         <Button
-          size="icon"
+          size="sm"
           variant="ghost"
           disabled={busy || !readyForVideo}
-          title={t("project.batchGenerateVideosOverwrite")}
+          aria-label={t("project.batchGenerateVideosOverwrite")}
           onClick={() => workflow.generateVideos(true)}
         >
-          {icon(generating.videos && !!batch.active?.overwrite, RefreshCw)}
+          {t("shot.regenerateVideo")}
         </Button>
       </div>
       {shots.length > 0 && (
-        <div className={"col-span-full flex flex-wrap items-center gap-3"}>
+        <div className={"flex flex-wrap items-center gap-3 pt-4"}>
           <Button size="sm" disabled={busy} onClick={workflow.autoRun}>
-            {icon(busy, Play)}
             {t("project.autoRun")}
           </Button>
           {batch.failedShotIds.length > 0 && !batch.progress && (
@@ -202,14 +187,13 @@ export function GenerationControls({
               onClick={batch.retry}
               className="text-destructive"
             >
-              <RefreshCw className="h-4 w-4" />
               {t("common.retry")} ({batch.failedShotIds.length})
             </Button>
           )}
         </div>
       )}
       {batch.progress && (
-        <div className="col-span-full flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+        <div className="col-span-full flex items-center gap-3 py-3">
           <Loader2 className="h-4 w-4 animate-spin" />
           <progress
             className="min-w-0 flex-1"

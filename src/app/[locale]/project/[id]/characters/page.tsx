@@ -4,10 +4,10 @@ import useSWR from "swr";
 
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
+import { PageHeader } from "@/components/workspace/page-header";
 import { apiFetch } from "@/lib/api-fetch";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { PageHeader } from "@/components/workspace/page-header";
 import { use, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -38,7 +38,6 @@ export default function CharactersPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = use(params);
-  const t = useTranslations();
   const tc = useTranslations("common");
   const tChar = useTranslations("character");
 
@@ -109,28 +108,25 @@ export default function CharactersPage({
 
   return (
     <div className="workspace-page">
-      <PageHeader
-        title={tChar("management")}
-        description={t("workspace.charactersHint")}
-      />
+      <PageHeader title={tChar("management")} />
       {/* Main Characters Section */}
       <section className="mb-8">
         <div className="mb-4 flex items-center gap-2">
           <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {tChar("mainSection")}
           </h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             {mainCharacters.length}
           </span>
         </div>
         {mainCharacters.length === 0 ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-[var(--border-subtle)] bg-white/50 p-6">
+          <div className="border-t border-border py-6">
             <p className="text-sm text-[var(--text-muted)]">
               {tChar("noMain")}
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 2xl:grid-cols-2">
+          <div className="divide-y divide-border border-t border-border">
             {mainCharacters.map((char) => (
               <CharacterCard
                 key={char.id}
@@ -166,12 +162,10 @@ export default function CharactersPage({
           <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {tChar("guestSection")}
           </h3>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
-            {guestCount}
-          </span>
+          <span className="text-sm text-muted-foreground">{guestCount}</span>
         </div>
         {guestCount === 0 ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-[var(--border-subtle)] bg-white/50 p-6">
+          <div className="border-t border-border py-6">
             <p className="text-sm text-[var(--text-muted)]">
               {tChar("noGuest")}
             </p>
@@ -187,7 +181,7 @@ export default function CharactersPage({
                       EP.{String(ep.sequence).padStart(2, "0")} — {ep.title}
                     </h4>
                   )}
-                  <div className="grid gap-5 2xl:grid-cols-2">
+                  <div className="divide-y divide-border border-t border-border">
                     {guests.map((char) => (
                       <CharacterCard
                         key={char.id}

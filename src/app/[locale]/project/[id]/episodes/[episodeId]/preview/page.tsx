@@ -1,10 +1,11 @@
 "use client";
 
+import { useDraft } from "@/hooks/use-draft";
 import { requestGeneration } from "@/lib/generation/client";
 import useSWR from "swr";
-import { useDraft } from "@/hooks/use-draft";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/workspace/page-header";
 import {
   getFirstFrameUrl,
   getKeyframeVideoUrl,
@@ -14,19 +15,11 @@ import {
 import { cn } from "@/lib/utils";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Loader2,
-  Play,
-  Film,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/workspace/page-header";
 
 export default function EpisodePreviewPage() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -130,13 +123,9 @@ export default function EpisodePreviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t("project.preview")}
-        description={t("workspace.previewHint")}
-      >
+      <PageHeader title={t("project.preview")}>
         {hasValidVideo && (
           <Button onClick={handleDownload} size="sm" variant="outline">
-            <Download className="size-4" />
             {t("project.downloadVideo")}
           </Button>
         )}
@@ -145,11 +134,7 @@ export default function EpisodePreviewPage() {
           disabled={assembling || loadingVersion || !completedVideos}
           size="sm"
         >
-          {assembling ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Film className="size-4" />
-          )}
+          {assembling ? <Loader2 className="size-4 animate-spin" /> : null}
           {assembling ? t("common.generating") : t("project.assembleVideo")}
         </Button>
       </PageHeader>

@@ -3,11 +3,9 @@
 import { Label } from "@/components/ui/label";
 import { useModelStore, type ModelRef } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import { Type, ImageIcon, VideoIcon } from "lucide-react";
 
 interface PickerRowProps {
   label: string;
-  icon: React.ReactNode;
   options: {
     providerId: string;
     providerName: string;
@@ -18,14 +16,12 @@ interface PickerRowProps {
   onChange: (ref: ModelRef | null) => void;
 }
 
-function PickerRow({ label, icon, options, value, onChange }: PickerRowProps) {
+function PickerRow({ label, options, value, onChange }: PickerRowProps) {
+  const t = useTranslations("workspace");
   const currentValue = value ? `${value.providerId}:${value.modelId}` : "";
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-9 shrink-0 items-center justify-center text-muted-foreground">
-        {icon}
-      </div>
       <div className="min-w-0 flex-1">
         <Label className="text-sm text-muted-foreground">{label}</Label>
         <select
@@ -42,7 +38,7 @@ function PickerRow({ label, icon, options, value, onChange }: PickerRowProps) {
           }}
           className="mt-2 block h-10 w-full rounded-md border border-input bg-white px-3 text-sm text-foreground"
         >
-          <option value="">--</option>
+          <option value="">{t("selectModel")}</option>
           {options.map((opt) => (
             <option
               key={`${opt.providerId}:${opt.modelId}`}
@@ -92,24 +88,21 @@ export function DefaultModelPicker() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
       <PickerRow
         label={t("defaultTextModel")}
-        icon={<Type className="h-4 w-4" />}
         options={getOptions("text")}
         value={defaultTextModel}
         onChange={setDefaultTextModel}
       />
       <PickerRow
         label={t("defaultImageModel")}
-        icon={<ImageIcon className="h-4 w-4" />}
         options={getOptions("image")}
         value={defaultImageModel}
         onChange={setDefaultImageModel}
       />
       <PickerRow
         label={t("defaultVideoModel")}
-        icon={<VideoIcon className="h-4 w-4" />}
         options={getOptions("video")}
         value={defaultVideoModel}
         onChange={setDefaultVideoModel}

@@ -1,12 +1,11 @@
+import { CreateProjectDialog } from "@/components/create-project-dialog";
+import { ProjectCard } from "@/components/project-card";
+import { PageHeader } from "@/components/workspace/page-header";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getTranslations } from "next-intl/server";
 import { cookies } from "next/headers";
-import { ProjectCard } from "@/components/project-card";
-import { CreateProjectDialog } from "@/components/create-project-dialog";
-import { FolderOpen } from "lucide-react";
-import { PageHeader } from "@/components/workspace/page-header";
 
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
@@ -24,24 +23,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="animate-page-in">
-      <PageHeader title={t("title")} description={tw("projectsHint")}>
+      <PageHeader title={t("title")}>
         <CreateProjectDialog />
       </PageHeader>
       {allProjects.length === 0 ? (
         <div className="empty-state min-h-[50vh]">
-          <FolderOpen
-            className="mb-2 size-10 text-muted-foreground"
-            strokeWidth={1.3}
-          />
           <h2 className="section-heading">{t("noProjects")}</h2>
-          <CreateProjectDialog />
         </div>
       ) : (
         <section
           aria-label={tw("allProjects")}
-          className="workspace-panel overflow-hidden"
+          className="border-b border-border"
         >
-          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3 text-xs font-medium text-muted-foreground">
+          <div className="flex items-center justify-between border-b border-border py-3 text-sm font-medium text-muted-foreground">
             <span>{tw("projectCount", { count: allProjects.length })}</span>
             <span className="hidden pr-28 sm:block">{tw("createdDate")}</span>
           </div>

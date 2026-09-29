@@ -1,8 +1,6 @@
 "use client";
 
 import { usePromptTemplateStore } from "@/stores/prompt-template-store";
-import { Badge } from "@/components/ui/badge";
-import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 function tKey(nameKey: string): string {
@@ -34,7 +32,7 @@ export function SlotList() {
   };
 
   return (
-    <div className="flex flex-col gap-1 p-2">
+    <div className="flex flex-col gap-1 py-2">
       <div className="mb-1 px-2 text-xs font-semibold  text-[var(--text-muted)]">
         {t("editor.slots")} ({prompt.slots.length})
       </div>
@@ -47,19 +45,19 @@ export function SlotList() {
           <button
             key={slot.key}
             onClick={() => selectSlot(slot.key)}
-            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all duration-200 ${
+            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-all duration-200 ${
               isSelected
-                ? "border border-primary/15 bg-primary/5 text-[var(--text-primary)]"
-                : "border border-transparent hover:bg-[var(--surface)] text-[var(--text-secondary)]"
+                ? "border-l-2 border-foreground bg-muted text-[var(--text-primary)]"
+                : "border-l-2 border-transparent hover:bg-muted text-[var(--text-secondary)]"
             }`}
           >
             <span className="flex-1 truncate">
               {t(tKey(slot.nameKey) as Parameters<typeof t>[0]) || slot.key}
             </span>
             {modified && (
-              <Badge variant="default" className="shrink-0 text-xs px-1.5 py-0">
+              <span className="text-xs text-muted-foreground">
                 {t("editor.modified")}
-              </Badge>
+              </span>
             )}
           </button>
         );
@@ -74,13 +72,12 @@ export function SlotList() {
               <button
                 key={slot.key}
                 onClick={() => selectSlot(slot.key)}
-                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all duration-200 ${
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-all duration-200 ${
                   isSelected
-                    ? "border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-secondary)]"
-                    : "border border-transparent text-[var(--text-muted)] hover:bg-[var(--surface)] opacity-60 hover:opacity-80"
+                    ? "border-l-2 border-foreground bg-muted text-foreground"
+                    : "border-l-2 border-transparent text-muted-foreground hover:bg-muted"
                 }`}
               >
-                <Lock className="h-3 w-3 shrink-0" />
                 <span className="flex-1 truncate">
                   {t(tKey(slot.nameKey) as Parameters<typeof t>[0]) || slot.key}
                 </span>

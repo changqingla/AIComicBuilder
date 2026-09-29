@@ -1,29 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { ProviderCard } from "@/components/settings/provider-card";
+import { ProviderForm } from "@/components/settings/provider-form";
 import { Button } from "@/components/ui/button";
 import {
   useModelStore,
   type Capability,
   type Protocol,
 } from "@/stores/model-store";
-import { ProviderCard } from "@/components/settings/provider-card";
-import { ProviderForm } from "@/components/settings/provider-form";
-import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface ProviderSectionProps {
   capability: Capability;
-  label: string;
-  icon: React.ReactNode;
   defaultProtocol: Protocol;
   defaultBaseUrl: string;
 }
 
 export function ProviderSection({
   capability,
-  label,
-  icon,
   defaultProtocol,
   defaultBaseUrl,
 }: ProviderSectionProps) {
@@ -57,55 +52,30 @@ export function ProviderSection({
   }
 
   return (
-    <div className="space-y-5 p-5 sm:p-6">
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-base font-medium text-foreground">
-          {icon}
-          {label}
-        </h3>
-        <Button size="sm" variant="outline" onClick={handleAdd}>
-          <Plus className="h-3.5 w-3.5" />
-          {t("addProvider")}
-        </Button>
-      </div>
-
-      {sectionProviders.length === 0 ? (
-        <div className="flex min-h-40 items-center justify-center gap-3 py-8">
-          <div className="h-6 w-6 text-[var(--text-muted)]">{icon}</div>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">
-            {t("noProviders")}
-          </p>
+    <div className="grid gap-6 py-6 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
+      <div className="min-w-0">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <h3 className="text-sm text-muted-foreground">{t("providers")}</h3>
+          <Button size="sm" variant="ghost" onClick={handleAdd}>
+            {t("addProvider")}
+          </Button>
         </div>
-      ) : (
-        <>
-          {/* Provider cards */}
-          <div className="flex flex-wrap gap-2">
-            {sectionProviders.map((p) => (
-              <ProviderCard
-                key={p.id}
-                provider={p}
-                selected={p.id === selectedProvider?.id}
-                onSelect={() => setSelectedId(p.id)}
-                onDelete={() => handleDelete(p.id)}
-              />
-            ))}
-          </div>
-
-          {/* Provider form */}
-          {selectedProvider ? (
-            <ProviderForm
-              key={selectedProvider.id}
-              provider={selectedProvider}
+        <div className="divide-y divide-border">
+          {sectionProviders.map((provider) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              selected={provider.id === selectedProvider?.id}
+              onSelect={() => setSelectedId(provider.id)}
+              onDelete={() => handleDelete(provider.id)}
             />
-          ) : (
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface)]/50 py-8">
-              <p className="text-sm text-[var(--text-muted)]">
-                {t("selectProvider")}
-              </p>
-            </div>
-          )}
-        </>
+          ))}
+        </div>
+      </div>
+      {selectedProvider ? (
+        <ProviderForm key={selectedProvider.id} provider={selectedProvider} />
+      ) : (
+        <p className="py-4 text-sm text-muted-foreground">{t("noProviders")}</p>
       )}
     </div>
   );

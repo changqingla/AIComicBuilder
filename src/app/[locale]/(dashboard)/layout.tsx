@@ -1,4 +1,4 @@
-import { WorkspaceHeader } from "@/components/workspace/header";
+import { WorkspaceShell } from "@/components/workspace/shell";
 
 export default function DashboardLayout({
   children,
@@ -6,9 +6,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <WorkspaceHeader />
-      <main className="workspace-page">{children}</main>
-    </div>
+    <WorkspaceShell>
+      <div className="workspace-page">{children}</div>
+    </WorkspaceShell>
   );
 }

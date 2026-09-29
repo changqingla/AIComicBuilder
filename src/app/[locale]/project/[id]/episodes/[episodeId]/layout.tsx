@@ -51,11 +51,11 @@ export default function EpisodeLayout({
         episodeId={episodeId}
         episodeTitle={episode.title}
       />
-      <main className="workspace-page">
+      <div className="workspace-page">
         <div key={episodeId} className="min-w-0">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

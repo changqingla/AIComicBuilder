@@ -1,24 +1,24 @@
 "use client";
 
-import { requestGeneration } from "@/lib/generation/client";
 import { useAutosave } from "@/hooks/use-autosave";
+import { requestGeneration } from "@/lib/generation/client";
 import type { EpisodeDetail } from "@/stores/episode-editor-store";
 import { useParams } from "next/navigation";
 
-import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+import { useEffect, useRef, useState } from "react";
 
-import { useModelStore } from "@/stores/model-store";
-import { useTranslations } from "next-intl";
-import { PenLine, Loader2 } from "lucide-react";
-import { InlineModelPicker } from "@/components/editor/model-selector";
 import { AgentPicker } from "@/components/agent-picker";
-import { apiFetch } from "@/lib/api-fetch";
-import { useModelGuard } from "@/hooks/use-model-guard";
+import { InlineModelPicker } from "@/components/editor/model-selector";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
-import { toast } from "sonner";
 import { PageHeader } from "@/components/workspace/page-header";
+import { useModelGuard } from "@/hooks/use-model-guard";
+import { apiFetch } from "@/lib/api-fetch";
+import { useModelStore } from "@/stores/model-store";
+import { Tabs } from "@base-ui/react/tabs";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 export function ScriptEditor() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -208,17 +208,10 @@ export function ScriptEditor() {
   }
 
   return (
-    <div className="animate-page-in">
-      <PageHeader
-        title={t("project.script")}
-        description={t("workspace.scriptHint")}
-      >
+    <div>
+      <PageHeader title={t("project.script")}>
         {saving && (
-          <span
-            role="status"
-            className="flex items-center gap-2 text-sm text-muted-foreground"
-          >
-            <Loader2 className="size-4 animate-spin" />
+          <span role="status" className="text-sm text-muted-foreground">
             {t("common.saving")}
           </span>
         )}
@@ -228,92 +221,98 @@ export function ScriptEditor() {
         />
         <InlineModelPicker capability="text" />
       </PageHeader>
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)]">
-        <div className="min-w-0 space-y-5">
-          <section className="workspace-panel overflow-hidden">
-            <div className="editor-section-header">
-              <label htmlFor="script-idea" className="section-heading">
-                {t("project.idea")}
-              </label>
-            </div>
-            <textarea
-              id="script-idea"
-              value={episode.idea}
-              onChange={(e) => edit({ idea: e.target.value })}
-              onBlur={handleSave}
-              placeholder={t("project.scriptIdeaPlaceholder")}
-              disabled={generating || generatingOutline}
-              className="editor-textarea min-h-44"
+      <Tabs.Root defaultValue={episode.script ? "script" : "idea"}>
+        <Tabs.List aria-label={t("project.script")} className="document-tabs">
+          <Tabs.Tab value="idea" className="document-tab">
+            {t("project.idea")}
+          </Tabs.Tab>
+          <Tabs.Tab value="outline" className="document-tab">
+            {t("project.outline")}
+          </Tabs.Tab>
+          <Tabs.Tab value="script" className="document-tab">
+            {t("workspace.scriptDocument")}
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel
+          value="idea"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <label htmlFor="script-idea" className="sr-only">
+            {t("project.idea")}
+          </label>
+          <textarea
+            id="script-idea"
+            value={episode.idea}
+            onChange={(e) => edit({ idea: e.target.value })}
+            onBlur={handleSave}
+            placeholder={t("project.scriptIdeaPlaceholder")}
+            disabled={generating || generatingOutline}
+            className="editor-textarea min-h-[55dvh]"
+          />
+        </Tabs.Panel>
+        <Tabs.Panel
+          value="outline"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <div className="toolbar justify-end">
+            <AgentPicker
+              projectId={episode.projectId}
+              category="script_outline"
             />
-          </section>
-          <section className="workspace-panel overflow-hidden">
-            <div className="editor-section-header">
-              <label htmlFor="script-outline" className="section-heading">
-                {t("project.outline")}
-              </label>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleGenerateOutline}
-                disabled={
-                  generatingOutline || generating || !episode.idea?.trim()
-                }
-              >
-                {generatingOutline ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <PenLine className="size-4" />
-                )}
-                {generatingOutline
-                  ? t("common.generating")
-                  : t("project.generateOutline")}
-              </Button>
-            </div>
-            <textarea
-              id="script-outline"
-              value={outline}
-              onChange={(e) => handleOutlineChange(e.target.value)}
-              onBlur={handleSave}
-              placeholder={t("project.outlinePlaceholder")}
-              disabled={generating || generatingOutline}
-              className="editor-textarea min-h-80"
-            />
-            <div className="border-t border-border px-5 py-3">
-              <AgentPicker
-                projectId={episode.projectId}
-                category="script_outline"
-              />
-            </div>
-          </section>
-        </div>
-        <section className="workspace-panel overflow-hidden">
-          <div className="editor-section-header">
-            <label htmlFor="script-document" className="section-heading">
-              {t("workspace.scriptDocument")}
-            </label>
-            <div className="toolbar">
-              <AgentPicker
-                projectId={episode.projectId}
-                category="script_generate"
-              />
-              <Button
-                size="sm"
-                onClick={handleGenerateScript}
-                disabled={
-                  generating || generatingOutline || !episode.idea?.trim()
-                }
-              >
-                {generating ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <PenLine className="size-4" />
-                )}
-                {generating
-                  ? t("common.generating")
-                  : t("project.generateScript")}
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateOutline}
+              disabled={
+                generatingOutline || generating || !episode.idea?.trim()
+              }
+            >
+              {generatingOutline
+                ? t("common.generating")
+                : t("project.generateOutline")}
+            </Button>
           </div>
+          <label htmlFor="script-outline" className="sr-only">
+            {t("project.outline")}
+          </label>
+          <textarea
+            id="script-outline"
+            value={outline}
+            onChange={(e) => handleOutlineChange(e.target.value)}
+            onBlur={handleSave}
+            placeholder={t("project.outlinePlaceholder")}
+            disabled={generating || generatingOutline}
+            className="editor-textarea min-h-[55dvh]"
+          />
+        </Tabs.Panel>
+        <Tabs.Panel
+          value="script"
+          keepMounted
+          className="pt-5 data-[hidden]:hidden"
+        >
+          <div className="toolbar justify-end">
+            <AgentPicker
+              projectId={episode.projectId}
+              category="script_generate"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateScript}
+              disabled={
+                generating || generatingOutline || !episode.idea?.trim()
+              }
+            >
+              {generating
+                ? t("common.generating")
+                : t("project.generateScript")}
+            </Button>
+          </div>
+          <label htmlFor="script-document" className="sr-only">
+            {t("workspace.scriptDocument")}
+          </label>
           <textarea
             id="script-document"
             ref={scriptTextareaRef}
@@ -324,10 +323,10 @@ export function ScriptEditor() {
             }}
             placeholder={t("project.scriptPlaceholder")}
             disabled={generating || generatingOutline}
-            className="editor-textarea min-h-[600px] xl:min-h-[720px]"
+            className="editor-textarea min-h-[65dvh]"
           />
-        </section>
-      </div>
+        </Tabs.Panel>
+      </Tabs.Root>
     </div>
   );
 }

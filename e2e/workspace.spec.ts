@@ -43,16 +43,25 @@ test("an empty screenplay accepts manual editing and saves before leaving the pa
     name: zh.workspace.scriptDocument,
     exact: true,
   });
-  await expect(script).toBeEditable();
   await page
-    .getByLabel(zh.project.idea, { exact: true })
+    .getByRole("textbox", { name: zh.project.idea, exact: true })
     .fill("雨夜，末班地铁驶入一座没有地图的车站。");
   await page
-    .getByLabel(zh.project.outline, { exact: true })
+    .getByRole("tab", { name: zh.project.outline, exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: zh.project.outline, exact: true })
     .fill("乘客发现旧车票上写着自己的名字。");
   const text = "第一场 · 地铁站台 · 夜\n林夏：这里不是终点站。";
+  await page
+    .getByRole("tab", { name: zh.workspace.scriptDocument, exact: true })
+    .click();
+  await expect(script).toBeEditable();
   await script.fill(text);
-  await page.getByRole("link", { name: "2 角色", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: zh.workspace.workflow })
+    .getByRole("link", { name: zh.project.characters, exact: true })
+    .click();
   await expect
     .poll(
       () =>
@@ -63,7 +72,17 @@ test("an empty screenplay accepts manual editing and saves before leaving the pa
           .get()?.script,
     )
     .toBe(text);
-  await page.getByRole("link", { name: "1 剧本", exact: true }).click();
+  expect(
+    db.select().from(episodes).where(eq(episodes.id, project.episodeId)).get(),
+  ).toMatchObject({
+    idea: "雨夜，末班地铁驶入一座没有地图的车站。",
+    outline: "乘客发现旧车票上写着自己的名字。",
+    script: text,
+  });
+  await page
+    .getByRole("navigation", { name: zh.workspace.workflow })
+    .getByRole("link", { name: zh.project.script, exact: true })
+    .click();
   await expect(script).toHaveValue(text);
   await page.reload();
   await expect(script).toHaveValue(text);
@@ -133,12 +152,42 @@ test("provider tabs support the keyboard and model changes reach the defaults", 
   await form
     .getByRole("textbox", { name: zh.settings.agentAppId, exact: true })
     .fill("test-agent");
+  await form
+    .getByRole("combobox", { name: zh.settings.agentCategory, exact: true })
+    .selectOption("script_generate");
   await form.getByLabel("API Key", { exact: true }).fill("test-key");
   await form.getByRole("button", { name: zh.common.save, exact: true }).click();
   await expect(
     page.getByRole("cell", { name: "Script reviewer", exact: true }),
   ).toBeVisible();
   await expectNoOverflow(page);
+  const apiOptions = { headers: { "x-user-id": project.userId } };
+  const agents = await (
+    await page.request.get("/api/agents", apiOptions)
+  ).json();
+  const reviewer = agents.find(
+    (agent: { name: string }) => agent.name === "Script reviewer",
+  );
+  await page.goto(project.storyboardUrl.replace("/storyboard", "/script"));
+  const picker = page.getByRole("combobox", {
+    name: zh.settings.agents,
+    exact: true,
+  });
+  await picker.selectOption(reviewer.id);
+  const binding = async () => {
+    const response = await page.request.get(
+      `/api/projects/${project.projectId}/agent-bindings`,
+      apiOptions,
+    );
+    return (await response.json()).find(
+      (item: { category: string }) => item.category === "script_generate",
+    );
+  };
+  await expect.poll(binding).toMatchObject({ agentId: reviewer.id });
+  await expect(picker).toHaveValue(reviewer.id);
+  await picker.selectOption("");
+  await expect.poll(binding).toBeUndefined();
+  await expect(picker).toHaveValue("");
 });
 
 test("workspace routes fit desktop, tablet and phone layouts", async ({
@@ -227,7 +276,7 @@ test("phone drawers allow shot editing and saving project prompts", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(project.storyboardUrl);
   await page
-    .getByRole("button", { name: "Open editor 1", exact: true })
+    .getByRole("button", { name: `${zh.shot.editDetails} 1`, exact: true })
     .click();
   const shot = page.getByRole("dialog", { name: "Shot 1", exact: true });
   await expect(
@@ -322,7 +371,7 @@ test("episodes can be renamed from the list without opening the editor", async (
     exact: true,
   });
   await dialog
-    .getByRole("textbox", { name: zh.episode.title, exact: true })
+    .getByRole("textbox", { name: zh.episode.name, exact: true })
     .fill("归途");
   await dialog
     .getByRole("textbox", { name: zh.episode.description, exact: true })
@@ -414,6 +463,12 @@ test("localized navigation fits a phone and keeps the selected storyboard versio
     `${project.storyboardUrl}?versionId=${project.oldVersion.id}`,
   );
   for (const locale of ["en", "ja", "ko", "zh"]) {
+    const menu = page.locator(
+      "header button[aria-controls=workspace-navigation]",
+    );
+    if ((await menu.getAttribute("aria-expanded")) === "false")
+      await menu.click();
+    await expectNoOverflow(page);
     await page.locator("header select").selectOption(locale);
     await expect(page).toHaveURL(
       new RegExp(`/${locale}/project/.*versionId=${project.oldVersion.id}`),

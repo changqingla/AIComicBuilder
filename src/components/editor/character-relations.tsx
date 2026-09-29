@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api-fetch";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 
 const RELATION_TYPES = [
   "ally",
@@ -184,7 +184,6 @@ export function CharacterRelations({
           onClick={handleAdd}
           disabled={!charA || !charB || charA === charB}
         >
-          <Plus className="mr-1 h-3 w-3" />
           {tChar("addRelation")}
         </Button>
       </div>

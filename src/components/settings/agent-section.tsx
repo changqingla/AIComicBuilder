@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-fetch";
-import { Bot, Eye, EyeOff, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Pencil, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -143,10 +143,9 @@ export function AgentSection() {
   const isEditing = editingId !== null;
 
   return (
-    <div className="min-w-0 p-4">
+    <div className="min-w-0 py-4">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-base font-medium text-foreground">
-          <Bot className="h-3.5 w-3.5" />
           {t("agents")}
         </h3>
         {!showForm && (
@@ -159,7 +158,6 @@ export function AgentSection() {
             }}
             className="gap-1"
           >
-            <Plus className="h-3.5 w-3.5" />
             {t("addAgent")}
           </Button>
         )}
@@ -169,7 +167,7 @@ export function AgentSection() {
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          className="mb-4 space-y-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4"
+          className="mb-4 space-y-4 border-y border-border py-5"
         >
           <div className="mb-1 flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--text-primary)]">
@@ -284,7 +282,6 @@ export function AgentSection() {
               disabled={saving || !form.name || !form.appId || !form.apiKey}
               className="gap-1"
             >
-              <Save className="h-3.5 w-3.5" />
               {saving ? "..." : tc("save")}
             </Button>
           </div>
@@ -331,12 +328,12 @@ export function AgentSection() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                    <span className="text-sm text-muted-foreground">
                       {platformLabel(agent.platform || "bailian")}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-sm text-foreground">
+                    <span className="text-sm text-foreground">
                       {categoryLabel(agent.category)}
                     </span>
                   </td>

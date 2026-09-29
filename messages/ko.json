@@ -232,7 +232,8 @@
     "mergeError": "합치기 실패",
     "mergeMinTwo": "2개 이상 선택하세요",
     "mergeNoVideo": "아직 영상이 합성되지 않았습니다",
-    "downloadVideo": "영상 다운로드"
+    "downloadVideo": "영상 다운로드",
+    "name": "에피소드 이름"
   },
   "import": {
     "title": "각본 가져오기",
@@ -525,15 +526,6 @@
     "mainNavigation": "주 탐색",
     "projectNavigation": "프로젝트 탐색",
     "language": "표시 언어",
-    "projectsHint": "프로젝트를 관리하고 에피소드 편집을 이어가세요.",
-    "episodesHint": "에피소드별로 대본, 캐릭터, 스토리보드를 관리합니다.",
-    "charactersHint": "캐릭터 정보와 참조 이미지를 관리하고 에피소드에서 재사용합니다.",
-    "scriptHint": "아이디어, 개요와 대본을 정리합니다.",
-    "storyboardHint": "샷과 이미지를 편집하고 영상 클립을 생성하고 검토합니다.",
-    "previewHint": "클립 순서를 검토하고 영상을 합성하여 다운로드합니다.",
-    "importHint": "원문을 업로드하고 캐릭터와 에피소드를 확인한 후 가져옵니다.",
-    "settingsHint": "공급자를 설정하고 텍스트, 이미지, 영상의 기본 모델을 선택합니다.",
-    "promptsHint": "각 생성 단계의 프롬프트를 확인하고 수정합니다.",
     "createdDate": "생성일",
     "projectPlaceholder": "프로젝트 이름 입력",
     "allProjects": "모든 프로젝트",
@@ -554,6 +546,15 @@
     "previousShot": "이전 숏",
     "nextShot": "다음 숏",
     "clips": "숏 영상",
-    "noClips": "아직 영상이 없습니다. 스토리보드에서 영상을 생성하거나 업로드하세요."
+    "noClips": "아직 영상이 없습니다. 스토리보드에서 영상을 생성하거나 업로드하세요.",
+    "copied": "복사됨",
+    "otherShots": "기타 샷",
+    "imageHistory": "이미지 기록",
+    "expand": "펼치기",
+    "collapse": "접기",
+    "newVersion": "새 버전",
+    "selectModel": "모델 선택",
+    "transitionIn": "시작 전환",
+    "transitionOut": "종료 전환"
   }
 }

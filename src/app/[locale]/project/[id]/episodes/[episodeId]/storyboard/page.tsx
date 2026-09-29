@@ -1,26 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { Film, SlidersHorizontal } from "lucide-react";
-import {
-  useEpisodeEditorStore,
-  type EpisodeDetail,
-} from "@/stores/episode-editor-store";
-import { useStoryboardGeneration } from "@/hooks/use-storyboard-generation";
-import { CharactersInlinePanel } from "@/components/editor/characters-inline-panel";
-import { GenerationModeTab } from "@/components/editor/generation-mode-tab";
-import { ShotDrawer } from "@/components/editor/shot-drawer";
-import { ShotKanban } from "@/components/editor/shot-kanban";
-import { VersionCompare } from "@/components/editor/version-compare";
-import { StoryboardHeader } from "@/components/editor/storyboard/header";
-import { VersionPicker } from "@/components/editor/storyboard/version-picker";
-import { GenerationControls } from "@/components/editor/storyboard/generation-controls";
-import { ShotList } from "@/components/editor/storyboard/shot-list";
 import {
   AutosaveProvider,
   useFlushAutosaves,
 } from "@/components/editor/autosave-provider";
+import { CharactersInlinePanel } from "@/components/editor/characters-inline-panel";
+import { GenerationModeTab } from "@/components/editor/generation-mode-tab";
+import { ShotDrawer } from "@/components/editor/shot-drawer";
+import { ShotKanban } from "@/components/editor/shot-kanban";
+import { GenerationControls } from "@/components/editor/storyboard/generation-controls";
+import { StoryboardHeader } from "@/components/editor/storyboard/header";
+import { ShotList } from "@/components/editor/storyboard/shot-list";
+import { VersionPicker } from "@/components/editor/storyboard/version-picker";
+import { VersionCompare } from "@/components/editor/version-compare";
+import { useStoryboardGeneration } from "@/hooks/use-storyboard-generation";
+import {
+  useEpisodeEditorStore,
+  type EpisodeDetail,
+} from "@/stores/episode-editor-store";
+import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 
 export default function EpisodeStoryboardPage() {
   const episode = useEpisodeEditorStore((s) => s.episode);
@@ -101,7 +100,7 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
       />
       <fieldset
         disabled={switchingVersion}
-        className="workspace-panel space-y-4 p-4 sm:p-5"
+        className="space-y-4 border-y border-border py-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <GenerationModeTab disabled={workflow.busy} />
@@ -125,7 +124,6 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
             className="border-t border-border pt-3"
           >
             <summary className="text-sm font-medium text-muted-foreground">
-              <SlidersHorizontal className="mr-2 inline size-4" />
               {t("workspace.generationSettings")}
               {workflow.busy && (
                 <span role="status" className="ml-3 text-primary">
@@ -152,7 +150,6 @@ function StoryboardEditor({ episode }: { episode: EpisodeDetail }) {
         />
       ) : !episode.shots.length ? (
         <div className="empty-state">
-          <Film className="mb-5 h-8 w-8 text-primary" />
           <h3 className="text-lg font-semibold">{t("project.storyboard")}</h3>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             {t("shot.noShots")}

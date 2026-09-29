@@ -1,30 +1,17 @@
 "use client";
 
-import { requestGeneration } from "@/lib/generation/client";
 import { useDraft } from "@/hooks/use-draft";
+import { requestGeneration } from "@/lib/generation/client";
 
 import { InlineModelPicker } from "@/components/editor/model-selector";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useModelGuard } from "@/hooks/use-model-guard";
 import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
 import { apiFetch } from "@/lib/api-fetch";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import { useModelStore, type ModelRef } from "@/stores/model-store";
-import {
-  ArrowUpCircle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Loader2,
-  ImageIcon,
-  Trash2,
-  Upload,
-  UserRound,
-} from "lucide-react";
+
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -160,163 +147,64 @@ export function CharacterCard({
     onUpdate();
   }
   return (
-    <article className="workspace-panel grid overflow-hidden lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)] 2xl:grid-cols-1">
-      <div className="flex min-w-0 flex-col border-b border-border bg-muted/40 lg:border-b-0 lg:border-r 2xl:border-b 2xl:border-r-0">
-        <div className="relative flex min-h-52 flex-1 items-center justify-center p-5">
-          {referenceImage ? (
-            <button
-              onClick={() => setLightbox(true)}
-              aria-label={`${t("workspace.referenceImage")} ${name}`}
-              className="w-full cursor-zoom-in"
-            >
-              <img
-                src={uploadUrl(referenceImage)}
-                alt={name}
-                className="max-h-72 w-full object-contain"
-              />
-            </button>
-          ) : isGenerating ? (
-            <Loader2 className="size-7 animate-spin text-muted-foreground" />
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <UserRound className="size-10" strokeWidth={1.2} />
-              <span className="text-sm">{t("workspace.referenceImage")}</span>
-            </div>
-          )}
-        </div>
-        {history.length > 1 && (
-          <div className="flex items-center justify-center gap-4 border-t border-border px-4 py-2 text-xs text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Previous image ${name}`}
-              onClick={() =>
-                selectImage(
-                  (currentIndex - 1 + history.length) % history.length,
-                )
-              }
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="tabular-nums">
-              {currentIndex + 1} / {history.length}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Next image ${name}`}
-              onClick={() => selectImage((currentIndex + 1) % history.length)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 space-y-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {scope && (
-              <span>
-                {scope === "main"
-                  ? t("episode.mainCharacter")
-                  : t("episode.guestCharacter")}
-              </span>
-            )}
-            {episodeName && <span>{episodeName}</span>}
-            {scope === "guest" && onPromote && (
-              <button
-                onClick={onPromote}
-                className="inline-flex items-center gap-1.5 text-primary"
-              >
-                <ArrowUpCircle className="size-3.5" />
-                {t("episode.promoteToMain")}
-              </button>
-            )}
-          </div>
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onDelete}
-              aria-label={`${t("common.delete")} ${name}`}
-              title={t("common.delete")}
-              className="hover:text-destructive"
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          )}
-        </div>
-        <label className="block space-y-2">
-          <span className="field-label">{t("character.name")}</span>
-          <Input
+    <article className="grid gap-6 py-7 lg:grid-cols-[minmax(0,1fr)_240px] lg:gap-10">
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <input
             aria-label={t("character.name")}
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleSave}
-            className="font-semibold"
+            className="min-w-0 flex-1 border-b border-transparent bg-transparent py-1 text-lg font-medium hover:border-border focus:border-input focus:outline-none"
           />
-        </label>
-        <label className="block space-y-2">
-          <span className="field-label">{t("character.description")}</span>
-          <Textarea
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              aria-label={`${t("common.delete")} ${name}`}
+            >
+              {t("common.delete")}
+            </Button>
+          )}
+        </div>
+        <label className="block">
+          <span className="text-sm text-muted-foreground">
+            {t("character.description")}
+          </span>
+          <textarea
             aria-label={t("character.description")}
             value={editDesc}
             onChange={(e) => setEditDesc(e.target.value)}
             onBlur={handleSave}
             placeholder={t("character.description")}
-            className="min-h-28 text-sm leading-7"
+            className="editor-textarea min-h-32 border-b border-border"
           />
         </label>
-        <label className="block space-y-2">
-          <span className="field-label">{t("character.visualHint")}</span>
-          <Input
+        <label className="mt-5 block">
+          <span className="text-sm text-muted-foreground">
+            {t("character.visualHint")}
+          </span>
+          <input
             aria-label={t("character.visualHint")}
             value={editVisualHint}
             onChange={(e) => setEditVisualHint(e.target.value)}
             onBlur={handleSave}
-            placeholder={t("character.visualHint")}
+            className="mt-2 w-full border-b border-border bg-transparent py-2 text-sm focus:border-input focus:outline-none"
           />
         </label>
-        <div className="toolbar border-t border-border pt-4">
-          <InlineModelPicker
-            capability="image"
-            value={imageModelRef ?? defaultImageModel}
-            onChange={setImageModelRef}
-          />
-          <Button
-            onClick={handleGenerateImage}
-            disabled={isGenerating}
-            variant={referenceImage ? "outline" : "default"}
-            size="sm"
-          >
-            {isGenerating ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ImageIcon className="size-4" />
-            )}
-            {isGenerating
-              ? t("common.generating")
-              : t("character.generateImage")}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={t("character.uploadImage")}
-            title={t("character.uploadImage")}
-            disabled={uploading}
-            onClick={() => uploadInputRef.current?.click()}
-          >
-            {uploading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("shot.copyPrompt")}
-            title={t("shot.copyPrompt")}
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          {episodeName && <span>{episodeName}</span>}
+          {scope === "guest" && onPromote && (
+            <button
+              onClick={onPromote}
+              className="underline-offset-4 hover:underline"
+            >
+              {t("episode.promoteToMain")}
+            </button>
+          )}
+          <button
+            className="underline-offset-4 hover:underline"
             onClick={async () => {
               await navigator.clipboard.writeText(
                 buildCharacterTurnaroundPrompt(editDesc || editName, editName),
@@ -325,11 +213,70 @@ export function CharacterCard({
               setTimeout(() => setCopied(false), 2000);
             }}
           >
-            {copied ? (
-              <Check className="size-4" />
-            ) : (
-              <Copy className="size-4" />
-            )}
+            {copied ? t("workspace.copied") : t("shot.copyPrompt")}
+          </button>
+        </div>
+      </div>
+      <div className="min-w-0 space-y-3">
+        {referenceImage ? (
+          <button
+            onClick={() => setLightbox(true)}
+            aria-label={`${t("workspace.referenceImage")} ${name}`}
+            className="block w-full cursor-zoom-in bg-muted"
+          >
+            <img
+              src={uploadUrl(referenceImage)}
+              alt={name}
+              className="h-44 w-full object-contain"
+            />
+          </button>
+        ) : (
+          <div className="flex h-32 items-center justify-center bg-muted text-sm text-muted-foreground">
+            {isGenerating
+              ? t("common.generating")
+              : t("workspace.referenceImage")}
+          </div>
+        )}
+        {history.length > 1 && (
+          <label className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+            {t("workspace.imageHistory")}
+            <select
+              aria-label={`${t("workspace.imageHistory")} ${name}`}
+              value={currentIndex}
+              onChange={(e) => selectImage(Number(e.target.value))}
+              className="bg-transparent py-1"
+            >
+              {history.map((url, index) => (
+                <option key={url} value={index}>
+                  {index + 1} / {history.length}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <InlineModelPicker
+          capability="image"
+          value={imageModelRef ?? defaultImageModel}
+          onChange={setImageModelRef}
+        />
+        <div className="toolbar">
+          <Button
+            onClick={handleGenerateImage}
+            disabled={isGenerating}
+            variant="outline"
+            size="sm"
+          >
+            {isGenerating
+              ? t("common.generating")
+              : t("character.generateImage")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={uploading}
+            onClick={() => uploadInputRef.current?.click()}
+          >
+            {uploading ? t("common.loading") : t("character.uploadImage")}
           </Button>
         </div>
       </div>

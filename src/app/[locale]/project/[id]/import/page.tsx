@@ -1,17 +1,17 @@
 "use client";
 
-import { use, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
-import { PageHeader } from "@/components/workspace/page-header";
-import { toast } from "sonner";
 import { CharacterReview } from "@/components/import/character-review";
 import { EpisodeReview } from "@/components/import/episode-review";
 import { FileUpload } from "@/components/import/file-upload";
 import { ImportLog } from "@/components/import/import-log";
 import { ImportSteps } from "@/components/import/import-steps";
+import { PageHeader } from "@/components/workspace/page-header";
 import { useProjectImport } from "@/hooks/use-project-import";
 import type { ImportStep } from "@/lib/import-types";
+import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
+import { toast } from "sonner";
 
 export default function ImportPage({
   params,
@@ -24,7 +24,6 @@ export default function ImportPage({
 
 function ImportContent({ projectId }: { projectId: string }) {
   const t = useTranslations("import");
-  const tw = useTranslations("workspace");
   const locale = useLocale();
   const router = useRouter();
   const episodesUrl = `/${locale}/project/${projectId}/episodes`;
@@ -40,7 +39,7 @@ function ImportContent({ projectId }: { projectId: string }) {
 
   return (
     <div className="workspace-page">
-      <PageHeader title={t("title")} description={tw("importHint")} />
+      <PageHeader title={t("title")} />
       <ImportSteps
         status={flow.status}
         historyMode={flow.historyMode}

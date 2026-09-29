@@ -1,11 +1,10 @@
 "use client";
 import { useParams } from "next/navigation";
 
-import { useTranslations } from "next-intl";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+import { useTranslations } from "next-intl";
 
 import { apiFetch } from "@/lib/api-fetch";
-import { Film, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 type GenerationMode = "keyframe" | "reference";
@@ -43,37 +42,24 @@ export function GenerationModeTab({
   }
 
   return (
-    <div className="inline-flex gap-1 rounded-md border border-[var(--border-subtle)] bg-[var(--surface)] p-1">
-      <button
-        disabled={disabled}
-        aria-pressed={mode === "keyframe"}
-        onClick={() => switchMode("keyframe")}
-        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
-          mode === "keyframe"
-            ? "bg-white text-foreground shadow-sm"
-            : "text-[var(--text-muted)] hover:bg-white/60 hover:text-[var(--text-secondary)]"
-        }`}
-      >
-        <Film
-          className={`h-4 w-4 ${mode === "keyframe" ? "text-primary" : ""}`}
-        />
-        {t("generationModeKeyframe")}
-      </button>
-      <button
-        disabled={disabled}
-        aria-pressed={mode === "reference"}
-        onClick={() => switchMode("reference")}
-        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 ${
-          mode === "reference"
-            ? "bg-white text-foreground shadow-sm"
-            : "text-[var(--text-muted)] hover:bg-white/60 hover:text-[var(--text-secondary)]"
-        }`}
-      >
-        <ImageIcon
-          className={`h-4 w-4 ${mode === "reference" ? "text-primary" : ""}`}
-        />
-        {t("generationModeReference")}
-      </button>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      {(["keyframe", "reference"] as const).map((value) => (
+        <label key={value} className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="generation-mode"
+            value={value}
+            checked={mode === value}
+            disabled={disabled}
+            onChange={() => switchMode(value)}
+          />
+          {t(
+            value === "keyframe"
+              ? "generationModeKeyframe"
+              : "generationModeReference",
+          )}
+        </label>
+      ))}
     </div>
   );
 }

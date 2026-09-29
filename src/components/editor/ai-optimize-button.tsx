@@ -2,15 +2,15 @@
 
 import { requestGeneration } from "@/lib/generation/client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2 } from "lucide-react";
-import { useModelStore } from "@/stores/model-store";
 import { useModelGuard } from "@/hooks/use-model-guard";
-import { toast } from "sonner";
+import { useModelStore } from "@/stores/model-store";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface AiOptimizeButtonProps {
   /** Current text content to optimize */
@@ -125,9 +125,9 @@ export function AiOptimizeButton({
         type="button"
         onClick={handleOpen}
         title={t("shot.aiOptimize")}
-        className="inline-flex h-5 w-5 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-primary/10 hover:text-primary"
+        className="inline-flex min-h-8 items-center text-xs text-muted-foreground underline-offset-4 hover:underline"
       >
-        <Sparkles className="h-3 w-3" />
+        {t("shot.aiOptimize")}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -170,9 +170,7 @@ export function AiOptimizeButton({
               >
                 {optimizing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
+                ) : null}
                 {optimizing
                   ? t("common.generating")
                   : t("shot.aiOptimizeConfirm")}

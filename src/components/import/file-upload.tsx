@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { ArrowRight, FileText, Upload, X } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 
 const ACCEPTED = ".txt,.docx,.pdf,.md,.markdown";
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -32,11 +31,11 @@ export function FileUpload({
     <div className="w-full space-y-5">
       {/* Drop zone */}
       <div
-        className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg min-h-80 border border-dashed p-6 sm:p-12 transition-colors ${
+        className={`relative flex min-h-48 cursor-pointer flex-col items-start justify-center border-y border-border py-8 transition-colors ${
           dragOver
-            ? "border-primary bg-primary/5"
+            ? "border-primary bg-muted"
             : file
-              ? "border-primary/40 bg-accent/50"
+              ? "border-border bg-white"
               : "border-[var(--border-subtle)] bg-white"
         }`}
         onDragOver={(e) => {
@@ -78,12 +77,11 @@ export function FileUpload({
         />
         {file ? (
           <div className="flex min-w-0 max-w-full items-center gap-3">
-            <FileText className="h-10 w-10 shrink-0 text-primary" />
             <div className="min-w-0">
               <p className="break-words text-sm font-medium text-[var(--text-primary)]">
                 {file.name}
               </p>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-sm text-muted-foreground">
                 {(file.size / 1024).toFixed(1)} KB
               </p>
             </div>
@@ -95,16 +93,15 @@ export function FileUpload({
               }}
               className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-black/5"
             >
-              <X className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              {tc("delete")}
             </button>
           </div>
         ) : (
           <>
-            <Upload className="mb-3 h-10 w-10 text-[var(--text-muted)]" />
             <p className="break-words text-sm font-medium text-[var(--text-primary)]">
               {t("dropHint")}
             </p>
-            <p className="mt-1 text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-sm text-muted-foreground">
               {t("supportedFormats")}
             </p>
           </>
@@ -114,10 +111,9 @@ export function FileUpload({
       <Button
         onClick={() => file && onStart(file)}
         disabled={!file || disabled}
-        className="ml-auto flex w-full sm:w-auto"
-        size="lg"
+        className="flex w-full sm:w-auto"
+        size="default"
       >
-        <ArrowRight className="size-4" />
         {t("startImport")}
       </Button>
     </div>

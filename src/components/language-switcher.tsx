@@ -1,9 +1,8 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter, usePathname } from "next/navigation";
-import { Globe2 } from "lucide-react";
 import { routing } from "@/i18n/routing";
+import { useLocale, useTranslations } from "next-intl";
+import { usePathname, useRouter } from "next/navigation";
 
 const labels = { zh: "中文", en: "English", ja: "日本語", ko: "한국어" };
 
@@ -14,7 +13,6 @@ export function LanguageSwitcher() {
   const t = useTranslations("workspace");
   return (
     <label className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-      <Globe2 className="size-4" aria-hidden="true" />
       <select
         aria-label={t("language")}
         value={locale}

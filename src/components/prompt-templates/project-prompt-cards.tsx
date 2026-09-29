@@ -1,13 +1,12 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useDraft } from "@/hooks/use-draft";
 import { fetchJson } from "@/lib/api-fetch";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
-import { Edit, Loader2, RotateCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -177,7 +176,7 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Toggle header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-[var(--border-subtle)] bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-5">
         <div className="flex flex-col gap-0.5">
           <ToggleSwitch
             checked={enabled}
@@ -189,9 +188,9 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
           </p>
         </div>
         {enabled && overrides.length > 0 && (
-          <Badge variant="default" className="shrink-0">
+          <span className="text-xs text-muted-foreground">
             {t("editor.overridden")} ({overrides.length})
-          </Badge>
+          </span>
         )}
       </div>
 
@@ -216,16 +215,13 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
                         {t(tKey(entry.nameKey) as Parameters<typeof t>[0])}
                       </span>
                       {hasOverride ? (
-                        <Badge
-                          variant="success"
-                          className="shrink-0 text-xs px-1.5 py-0"
-                        >
+                        <span className="text-xs text-muted-foreground">
                           {t("editor.overridden")}
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge className="shrink-0 text-xs px-1.5 py-0 bg-[var(--surface)] text-[var(--text-muted)]">
+                        <span className="text-xs text-muted-foreground">
                           {t("editor.usingGlobal")}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -247,7 +243,6 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
                       router.push(editUrl);
                     }}
                   >
-                    <Edit className="h-3.5 w-3.5" />
                     {t("editor.edit")}
                   </Button>
                   {hasOverride && (
@@ -260,9 +255,7 @@ export function ProjectPromptCards({ projectId }: ProjectPromptCardsProps) {
                     >
                       {isDeleting ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      )}
+                      ) : null}
                       {t("project.useGlobal")}
                     </Button>
                   )}

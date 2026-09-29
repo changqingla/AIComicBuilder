@@ -232,7 +232,8 @@
     "mergeError": "Merge failed",
     "mergeMinTwo": "Select at least 2 episodes",
     "mergeNoVideo": "Episode video not yet composed",
-    "downloadVideo": "Download Video"
+    "downloadVideo": "Download Video",
+    "name": "Episode name"
   },
   "import": {
     "title": "Import Script",
@@ -525,15 +526,6 @@
     "mainNavigation": "Main navigation",
     "projectNavigation": "Project navigation",
     "language": "Language",
-    "projectsHint": "Manage your projects and pick up where you left off.",
-    "episodesHint": "Organize scripts, characters, and storyboards by episode.",
-    "charactersHint": "Manage character details and reference images across episodes.",
-    "scriptHint": "Develop your idea, outline, and screenplay.",
-    "storyboardHint": "Edit shots and images, then generate and review video clips.",
-    "previewHint": "Review your clips, assemble the sequence, and download the final video.",
-    "importHint": "Upload a story, review its characters and episodes, then add it to your project.",
-    "settingsHint": "Configure providers and choose default text, image, and video models.",
-    "promptsHint": "Review and edit the prompts used in each generation step.",
     "createdDate": "Created",
     "projectPlaceholder": "Enter a project name",
     "allProjects": "All projects",
@@ -554,6 +546,15 @@
     "previousShot": "Previous shot",
     "nextShot": "Next shot",
     "clips": "Shot clips",
-    "noClips": "No video clips yet. Generate or upload videos in the storyboard."
+    "noClips": "No video clips yet. Generate or upload videos in the storyboard.",
+    "copied": "Copied",
+    "otherShots": "Other shots",
+    "imageHistory": "Image history",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "newVersion": "New version",
+    "selectModel": "Select a model",
+    "transitionIn": "Transition in",
+    "transitionOut": "Transition out"
   }
 }

@@ -1,22 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { useLocale } from "next-intl";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Folder, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api-fetch";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/api-fetch";
+import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface ProjectCardProps {
   id: string;
@@ -54,23 +52,16 @@ export function ProjectCard({
 
   return (
     <>
-      <article className="group flex items-center gap-2 px-4 py-1 transition-colors hover:bg-muted/40 sm:px-5">
+      <article className="group flex items-center gap-4 py-2 transition-colors hover:bg-muted/40">
         <Link
           href={`/${locale}/project/${id}/episodes`}
           className="flex min-w-0 flex-1 items-center gap-4 py-5 sm:gap-5"
         >
-          <Folder
-            className="size-6 shrink-0 text-muted-foreground"
-            strokeWidth={1.5}
-          />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-medium text-foreground group-hover:text-primary">
               {title}
             </h2>
             <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <span
-                className={`size-1.5 rounded-full ${status === "completed" ? "bg-[var(--success)]" : status === "processing" ? "bg-[var(--warning)]" : "bg-slate-400"}`}
-              />
               {t(
                 `projectStatus.${status}` as
                   | "projectStatus.draft"
@@ -81,7 +72,7 @@ export function ProjectCard({
           </div>
           <time
             dateTime={createdAt}
-            className="hidden text-sm tabular-nums text-muted-foreground sm:block"
+            className="hidden text-sm tabular-nums text-muted-foreground sm:block sm:pr-12"
           >
             {new Date(createdAt).toLocaleDateString(locale, {
               year: "numeric",
@@ -89,17 +80,16 @@ export function ProjectCard({
               day: "2-digit",
             })}
           </time>
-          <ArrowRight className="ml-2 size-4 shrink-0 text-muted-foreground sm:mx-5" />
         </Link>
         <Button
-          size="icon-sm"
+          size="sm"
           variant="ghost"
           aria-label={`${tc("delete")} ${title}`}
           title={tc("delete")}
           onClick={() => setDeleteOpen(true)}
           className="hover:text-destructive"
         >
-          <Trash2 className="size-4" />
+          {tc("delete")}
         </Button>
       </article>
 

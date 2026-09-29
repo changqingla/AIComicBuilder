@@ -11,15 +11,7 @@ import {
   type Capability,
 } from "@/stores/model-store";
 import { useTranslations } from "next-intl";
-import {
-  Loader2,
-  Download,
-  Plus,
-  Eye,
-  EyeOff,
-  Trash2,
-  Search,
-} from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 const DEFAULT_BASE_URLS: Record<Protocol, string> = {
   openai: "https://api.openai.com",
@@ -137,34 +129,29 @@ export function ProviderForm({ provider }: ProviderFormProps) {
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm">{t("protocol")}</Label>
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {getProtocolOptions(provider.capability).map((opt) => (
-              <button
-                key={opt.value}
-                aria-pressed={provider.protocol === opt.value}
-                onClick={() => {
-                  const isDefaultUrl =
-                    !provider.baseUrl ||
-                    (Object.values(DEFAULT_BASE_URLS) as string[]).includes(
-                      provider.baseUrl,
-                    );
-                  updateProvider(provider.id, {
-                    protocol: opt.value,
-                    ...(isDefaultUrl && {
-                      baseUrl: DEFAULT_BASE_URLS[opt.value],
-                    }),
-                  });
-                }}
-                className={`rounded-md border px-3 py-2 text-sm transition-colors ${
-                  provider.protocol === opt.value
-                    ? "border-primary/30 bg-primary/8 text-primary font-medium"
-                    : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]"
-                }`}
-              >
-                {opt.label}
-              </button>
+          <select
+            aria-label={t("protocol")}
+            value={provider.protocol}
+            onChange={(event) => {
+              const protocol = event.target.value as Protocol;
+              const isDefaultUrl =
+                !provider.baseUrl ||
+                (Object.values(DEFAULT_BASE_URLS) as string[]).includes(
+                  provider.baseUrl,
+                );
+              updateProvider(provider.id, {
+                protocol,
+                ...(isDefaultUrl && { baseUrl: DEFAULT_BASE_URLS[protocol] }),
+              });
+            }}
+            className="h-10 w-full border border-input bg-white px-3 text-sm"
+          >
+            {getProtocolOptions(provider.capability).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 
@@ -300,11 +287,7 @@ export function ProviderForm({ provider }: ProviderFormProps) {
               fetching || (!provider.apiKey && provider.protocol !== "kling")
             }
           >
-            {fetching ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="h-3.5 w-3.5" />
-            )}
+            {fetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {t("fetchModels")}
           </Button>
         </div>
@@ -332,7 +315,7 @@ export function ProviderForm({ provider }: ProviderFormProps) {
             onClick={handleAddManualModel}
             disabled={!manualModelId.trim()}
           >
-            <Plus className="h-3.5 w-3.5" />
+            {tw("addModel")}
           </Button>
         </div>
 
@@ -355,7 +338,6 @@ export function ProviderForm({ provider }: ProviderFormProps) {
               <div className="rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                 {/* Search bar + stats */}
                 <div className="flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--surface)]/50 px-3 py-2">
-                  <Search className="h-3.5 w-3.5 flex-shrink-0 text-[var(--text-muted)]" />
                   <input
                     type="text"
                     aria-label={t("searchModels")}
@@ -409,9 +391,9 @@ export function ProviderForm({ provider }: ProviderFormProps) {
                               e.stopPropagation();
                               removeModel(provider.id, model.id);
                             }}
-                            className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
+                            className="flex h-8 shrink-0 items-center justify-center px-2 text-xs text-muted-foreground hover:bg-destructive/5 hover:text-destructive"
                           >
-                            <Trash2 className="size-3.5" />
+                            {tc("delete")}
                           </button>
                         </div>
                       ))}

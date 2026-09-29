@@ -7,8 +7,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
-    "PingFang SC", "Microsoft YaHei", sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -50,48 +50,48 @@
 
 :root {
   color-scheme: light;
-  --background: #f7f8fa;
-  --foreground: #20252e;
+  --background: #ffffff;
+  --foreground: #242520;
   --card: #ffffff;
-  --card-foreground: #20252e;
+  --card-foreground: #242520;
   --popover: #ffffff;
-  --popover-foreground: #20252e;
-  --primary: #3659b8;
+  --popover-foreground: #242520;
+  --primary: #30332d;
   --primary-foreground: #ffffff;
-  --secondary: #edf0f5;
-  --secondary-foreground: #48515f;
-  --muted: #f0f2f5;
-  --muted-foreground: #626c7a;
-  --accent: #eef2fa;
-  --accent-foreground: #2f4d99;
-  --destructive: #c13b3b;
-  --border: #e0e4eb;
-  --input: #d6dce5;
-  --ring: #3659b8;
-  --chart-1: #3659b8;
+  --secondary: #eeefea;
+  --secondary-foreground: #41433b;
+  --muted: #f5f5f1;
+  --muted-foreground: #72746b;
+  --accent: #f0f1ec;
+  --accent-foreground: #30332d;
+  --destructive: #a23f35;
+  --border: #e5e6df;
+  --input: #cbcdc3;
+  --ring: #30332d;
+  --chart-1: #30332d;
   --chart-2: #348075;
   --chart-3: #77718f;
   --chart-4: #b38539;
   --chart-5: #648cad;
-  --radius: 0.5rem;
+  --radius: 0.2rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #20252e;
-  --sidebar-primary: #3659b8;
+  --sidebar-foreground: #242520;
+  --sidebar-primary: #30332d;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef2fa;
-  --sidebar-accent-foreground: #2f4d99;
-  --sidebar-border: #e0e4eb;
-  --sidebar-ring: #3659b8;
-  --surface: #f7f8fa;
-  --surface-hover: #edf0f5;
+  --sidebar-accent: #f0f1ec;
+  --sidebar-accent-foreground: #30332d;
+  --sidebar-border: #e5e6df;
+  --sidebar-ring: #30332d;
+  --surface: #ffffff;
+  --surface-hover: #eeefea;
   --elevated: #ffffff;
   --success: #267663;
   --warning: #99681c;
-  --text-primary: #20252e;
-  --text-secondary: #586270;
-  --text-muted: #717b89;
-  --border-subtle: #e0e4eb;
-  --border-hover: #b9c2d0;
+  --text-primary: #242520;
+  --text-secondary: #61645a;
+  --text-muted: #7c7f74;
+  --border-subtle: #e5e6df;
+  --border-hover: #909586;
 }
 
 @layer base {
@@ -131,8 +131,8 @@
     min-width: 0;
   }
   ::selection {
-    background: #dce5fc;
-    color: #20252e;
+    background: #e3e6d9;
+    color: #242520;
   }
   ::-webkit-scrollbar {
     width: 8px;
@@ -142,7 +142,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #ccd2dc;
+    background: #d1d4c9;
     border: 2px solid transparent;
     border-radius: 8px;
     background-clip: padding-box;
@@ -150,36 +150,54 @@
 }
 
 @layer components {
+  .workspace-shell {
+    @apply min-h-dvh md:flex;
+  }
+  .workspace-sidebar {
+    @apply border-b border-border bg-[#f6f6f2] px-5 py-3 md:sticky md:top-0 md:flex md:h-dvh md:w-48 md:shrink-0 md:flex-col md:overflow-y-auto md:border-r md:border-b-0 md:px-4 md:py-8;
+  }
+  .workspace-nav-link {
+    @apply block border-l-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-foreground;
+  }
+  .workspace-nav-active {
+    @apply border-foreground font-medium text-foreground;
+  }
   .workspace-page {
-    @apply min-w-0 flex-1 px-5 py-7 sm:px-8 lg:px-10;
+    @apply min-w-0 flex-1 px-5 py-7 sm:px-8 lg:px-10 lg:py-9;
   }
   .page-heading {
-    @apply text-2xl font-semibold tracking-tight text-foreground;
+    @apply text-[22px] font-medium tracking-tight text-foreground;
   }
   .section-heading {
-    @apply text-base font-semibold text-foreground;
+    @apply text-base font-medium text-foreground;
   }
   .field-label {
     @apply text-sm font-medium text-foreground;
   }
   .workspace-panel {
-    @apply min-w-0 rounded-lg border border-border bg-card;
+    @apply min-w-0 border-t border-border;
   }
   .editor-section-header {
-    @apply flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4;
+    @apply flex flex-wrap items-center justify-between gap-3 py-4;
   }
   .editor-textarea {
-    @apply w-full resize-y rounded-none border-0 bg-transparent px-5 py-4 text-[15px] leading-8 shadow-none focus-visible:ring-0;
+    @apply w-full resize-y rounded-none border-0 bg-transparent px-0 py-3 text-[15px] leading-8 shadow-none focus-visible:ring-0;
     field-sizing: fixed;
   }
   .toolbar {
     @apply flex flex-wrap items-center gap-2;
   }
   .subtle-link {
-    @apply inline-flex min-h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground;
+    @apply inline-flex min-h-9 items-center gap-2 px-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline;
   }
   .empty-state {
-    @apply flex min-h-72 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card px-6 py-14 text-center;
+    @apply flex min-h-52 flex-col items-start justify-center gap-3 border-t border-border py-10 text-muted-foreground;
+  }
+  .document-tabs {
+    @apply flex gap-6 border-b border-border;
+  }
+  .document-tab {
+    @apply -mb-px border-b-2 border-transparent py-3 text-sm text-muted-foreground data-active:border-foreground data-active:text-foreground;
   }
 }
 

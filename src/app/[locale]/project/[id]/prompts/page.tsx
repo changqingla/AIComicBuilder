@@ -1,9 +1,9 @@
 "use client";
 
-import { use } from "react";
 import { ProjectPromptCards } from "@/components/prompt-templates/project-prompt-cards";
 import { PageHeader } from "@/components/workspace/page-header";
 import { useTranslations } from "next-intl";
+import { use } from "react";
 
 export default function ProjectPromptsPage({
   params,
@@ -14,10 +14,7 @@ export default function ProjectPromptsPage({
   const t = useTranslations();
   return (
     <main className="workspace-page">
-      <PageHeader
-        title={t("promptTemplates.title")}
-        description={t("workspace.promptsHint")}
-      />
+      <PageHeader title={t("promptTemplates.title")} />
       <ProjectPromptCards projectId={id} />
     </main>
   );

@@ -75,10 +75,10 @@ function EpisodeDialogContent({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[var(--text-primary)]">
-              {t("title")} *
+              {t("name")} *
             </label>
             <Input
-              aria-label={t("title")}
+              aria-label={t("name")}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("titlePlaceholder")}

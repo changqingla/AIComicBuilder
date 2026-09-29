@@ -1,10 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-fetch";
 import { usePromptTemplateStore } from "@/stores/prompt-template-store";
-import { RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -182,10 +180,11 @@ export function AdvancedEditor({
 
       {/* Editor area */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Badge variant="warning">{t("editor.advancedMode")}</Badge>
+        <span className="text-xs text-muted-foreground">
+          {t("editor.advancedMode")}
+        </span>
         <div className="flex flex-wrap gap-2">
           <Button size="xs" variant="ghost" onClick={handleReset}>
-            <RotateCcw className="h-3 w-3" />
             {t("editor.resetDefault")}
           </Button>
           <Button
@@ -193,7 +192,6 @@ export function AdvancedEditor({
             onClick={handleValidateAndSave}
             disabled={saving || !fullTextContent}
           >
-            <Save className="h-3 w-3" />
             {t("editor.save")}
           </Button>
         </div>

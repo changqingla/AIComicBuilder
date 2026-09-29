@@ -1,7 +1,7 @@
 {
   "common": {
     "saveFailed": "保存失败，请重试",
-    "appName": "AI 漫剧生成器",
+    "appName": "漫剧制作",
     "create": "创建",
     "save": "保存",
     "saving": "保存中...",
@@ -17,7 +17,7 @@
     "generationFailed": "生成失败，请检查模型配置后重试",
     "generationCompleted": "生成完成",
     "batchPartialFailed": "部分项目生成失败，请稍后重试",
-    "promptTemplates": "提示词管理",
+    "promptTemplates": "项目提示词",
     "upload": "上传",
     "uploadFailed": "上传失败，请重试",
     "downloadFailed": "下载失败，请重试"
@@ -25,7 +25,7 @@
   "dashboard": {
     "title": "我的项目",
     "newProject": "新建项目",
-    "noProjects": "还没有项目，点击上方按钮创建一个吧",
+    "noProjects": "暂无项目",
     "deleteConfirmTitle": "删除项目",
     "deleteConfirmDesc": "确定要删除「{title}」吗？此操作不可撤销，所有相关数据将被永久删除。",
     "projectStatus": {
@@ -37,15 +37,15 @@
   "project": {
     "title": "项目标题",
     "script": "剧本",
-    "idea": "创意构思",
+    "idea": "构思",
     "generatedScript": "生成的剧本",
     "characters": "角色",
     "storyboard": "分镜",
     "preview": "预览",
     "scriptPlaceholder": "在这里输入你的故事或剧本...",
     "parseScript": "AI 解析剧本",
-    "generateScript": "AI 生成剧本",
-    "outline": "故事大纲",
+    "generateScript": "生成剧本",
+    "outline": "大纲",
     "generateOutline": "生成大纲",
     "generatingOutlineFirst": "正在先生成故事大纲...",
     "outlinePlaceholder": "故事大纲将在此显示...",
@@ -58,8 +58,8 @@
     "generateVideo": "生成视频",
     "batchGenerateFrames": "批量生成首尾帧",
     "batchGenerateVideos": "批量生成视频",
-    "generationModeKeyframe": "基于首尾帧",
-    "generationModeReference": "基于参考图",
+    "generationModeKeyframe": "首尾帧",
+    "generationModeReference": "参考图",
     "referenceCharactersLabel": "参考角色：{names}（{count} 个）",
     "noReferenceImages": "无可用参考图，请先为角色生成参考图",
     "batchGenerateSceneFrames": "批量生成场景参考帧",
@@ -79,7 +79,7 @@
     "workflowVideoPromptsCount": "{completed}/{total} 已生成",
     "workflowVideosCount": "{completed}/{total} 已生成",
     "videoRatio": "视频尺寸",
-    "autoRun": "一键续跑",
+    "autoRun": "继续生成",
     "autoRunConfirm": "将按顺序补全所有缺失步骤，继续？",
     "downloadAll": "下载素材",
     "assembleVideo": "合成最终视频",
@@ -109,7 +109,7 @@
     "batchGenerateImages": "批量生成四视图",
     "visualHint": "外貌标识（如：白发金瞳）",
     "noCharacters": "还没有角色，点击「角色解析」从剧本中提取角色",
-    "management": "角色管理",
+    "management": "角色",
     "mainSection": "主角",
     "guestSection": "配角",
     "noMain": "还没有主角",
@@ -143,7 +143,7 @@
     "lastFrame": "尾帧",
     "cameraDirection": "镜头方向",
     "rewriteText": "重新生成文本",
-    "aiOptimize": "AI 优化",
+    "aiOptimize": "润色",
     "aiOptimizeInstruction": "优化指令",
     "aiOptimizeOriginal": "原始内容",
     "aiOptimizeConfirm": "开始优化",
@@ -199,7 +199,7 @@
     "noFrame": "暂无画面"
   },
   "episode": {
-    "title": "分集管理",
+    "title": "剧集",
     "count": "集",
     "create": "新建分集",
     "edit": "编辑分集",
@@ -232,7 +232,8 @@
     "mergeError": "合并失败",
     "mergeMinTwo": "请至少选择 2 集",
     "mergeNoVideo": "该分集尚未合成视频",
-    "downloadVideo": "下载视频"
+    "downloadVideo": "下载视频",
+    "name": "分集名称"
   },
   "import": {
     "title": "导入剧本",
@@ -301,7 +302,7 @@
     "videoModels": "视频模型",
     "promptTemplates": "提示词管理",
     "promptTemplatesDesc": "自定义 AI 生成提示词模板",
-    "agents": "Agents",
+    "agents": "智能体",
     "agentPlatform": "平台",
     "agentPlatform_bailian": "百炼",
     "agentPlatform_dify": "Dify",
@@ -309,7 +310,7 @@
     "addAgent": "添加智能体",
     "editAgent": "编辑智能体",
     "agentName": "名称",
-    "agentNamePlaceholder": "例：角色分析大师",
+    "agentNamePlaceholder": "例如：角色分析",
     "agentCategory": "分类",
     "agentCategory_scriptOutline": "故事大纲",
     "agentCategory_scriptGenerate": "剧本生成",
@@ -327,7 +328,7 @@
     "defaultAgent": "默认"
   },
   "promptTemplates": {
-    "title": "提示词管理",
+    "title": "提示词模板",
     "subtitle": "管理 AI 生成流程中的提示词模板",
     "categories": {
       "all": "全部",
@@ -366,11 +367,11 @@
       "shotSplitReferenceAssetsDesc": "基于已有镜头元数据生成参考图的图像提示词"
     },
     "editor": {
-      "slotMode": "插槽",
-      "advancedMode": "高级",
+      "slotMode": "分段编辑",
+      "advancedMode": "完整文本",
       "edit": "编辑",
       "preview": "实时预览",
-      "previewFull": "实时预览 — 最终提示词",
+      "previewFull": "查看完整提示词",
       "save": "保存",
       "resetDefault": "恢复默认",
       "resetAll": "全部恢复默认",
@@ -379,7 +380,7 @@
       "usingGlobal": "使用全局",
       "overridden": "已覆盖",
       "unsavedChanges": "有未保存修改",
-      "locked": "不可编辑",
+      "locked": "只读",
       "protectedWarning": "修改受保护区域可能导致生成失败",
       "structureChanged": "检测到关键结构变更",
       "structureChangedDesc": "您修改了受保护区域的结构定义。这可能导致下游解析失败。",
@@ -387,8 +388,8 @@
       "restoreSection": "恢复此区域",
       "savedSuccess": "提示词已保存",
       "resetSuccess": "已恢复默认",
-      "slots": "插槽",
-      "slotsCount": "{count} 个插槽"
+      "slots": "段落",
+      "slotsCount": "{count} 个段落"
     },
     "editPrompt": "提示词",
     "project": {
@@ -522,18 +523,9 @@
     }
   },
   "workspace": {
-    "mainNavigation": "主导航",
+    "mainNavigation": "导航",
     "projectNavigation": "项目导航",
     "language": "界面语言",
-    "projectsHint": "管理项目，进入剧集继续编辑。",
-    "episodesHint": "按剧集组织剧本、角色和分镜。",
-    "charactersHint": "管理角色资料与参考图，在剧集中复用。",
-    "scriptHint": "整理创作构思、故事大纲与正式剧本。",
-    "storyboardHint": "编辑镜头与画面，生成并检查视频片段。",
-    "previewHint": "检查片段顺序，合成并下载成片。",
-    "importHint": "上传原始文本，确认角色与分集后导入项目。",
-    "settingsHint": "配置模型供应商，并选择文字、图片和视频的默认模型。",
-    "promptsHint": "查看并调整各个生成步骤使用的提示词。",
     "createdDate": "创建日期",
     "projectPlaceholder": "输入项目名称",
     "allProjects": "全部项目",
@@ -554,6 +546,15 @@
     "previousShot": "上一个镜头",
     "nextShot": "下一个镜头",
     "clips": "镜头片段",
-    "noClips": "还没有视频片段，请先在分镜页生成或上传视频。"
+    "noClips": "还没有视频片段，请先在分镜页生成或上传视频。",
+    "copied": "已复制",
+    "otherShots": "其他镜头",
+    "imageHistory": "历史图片",
+    "expand": "展开",
+    "collapse": "收起",
+    "newVersion": "新建版本",
+    "selectModel": "选择模型",
+    "transitionIn": "进入转场",
+    "transitionOut": "结束转场"
   }
 }

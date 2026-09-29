@@ -38,6 +38,7 @@ export function InlineModelPicker({
   onChange,
 }: InlineModelPickerProps) {
   const t = useTranslations("settings");
+  const tw = useTranslations("workspace");
   const providers = useModelStore((s) => s.providers);
   const globalValue = useModelStore((s) => s[GETTERS[capability]]);
   const globalSetter = useModelStore((s) => s[SETTERS[capability]]);
@@ -102,7 +103,7 @@ export function InlineModelPicker({
     >
       {!options.some(
         (option) => `${option.providerId}:${option.modelId}` === currentKey,
-      ) && <option value={currentKey}>—</option>}
+      ) && <option value={currentKey}>{tw("selectModel")}</option>}
       {options.map((option) => (
         <option
           key={`${option.providerId}:${option.modelId}`}

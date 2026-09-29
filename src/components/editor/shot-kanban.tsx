@@ -1,13 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  Loader2,
-  ImageIcon,
-  VideoIcon,
-  Sparkles,
-  CheckCircle2,
-} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { uploadUrl } from "@/lib/utils/upload-url";
 import type { StoryboardGeneration } from "@/hooks/use-storyboard-generation";
@@ -35,7 +29,6 @@ interface KanbanColumn {
   shots: KanbanShot[];
   batchAction?: () => void;
   isGenerating?: boolean;
-  icon: React.ReactNode;
 }
 
 function classifyShot(shot: KanbanShot, mode: "keyframe" | "reference") {
@@ -90,7 +83,6 @@ export function ShotKanban({
       shots: frameShots,
       batchAction: () => workflow.generateFrames(),
       isGenerating: framesGenerating,
-      icon: <ImageIcon className="h-3.5 w-3.5" />,
     },
     {
       key: "prompt",
@@ -98,7 +90,6 @@ export function ShotKanban({
       shots: promptShots,
       batchAction: () => workflow.generateVideoPrompts(),
       isGenerating: generatingVideoPrompts,
-      icon: <Sparkles className="h-3.5 w-3.5" />,
     },
     {
       key: "video",
@@ -106,26 +97,20 @@ export function ShotKanban({
       shots: videoShots,
       batchAction: () => workflow.generateVideos(),
       isGenerating: generatingVideos,
-      icon: <VideoIcon className="h-3.5 w-3.5" />,
     },
     {
       key: "done",
       labelKey: "kanbanDone",
       shots: doneShots,
-      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
     },
   ];
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {columns.map((col) => (
-        <div
-          key={col.key}
-          className="flex flex-col rounded-lg border border-[var(--border-subtle)] bg-white overflow-hidden"
-        >
+        <div key={col.key} className="min-w-0 border-t border-border">
           {/* Column header */}
-          <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-3">
-            <span className="text-muted-foreground">{col.icon}</span>
+          <div className="flex items-center gap-2 border-b border-border py-3">
             <span className="flex-1 text-sm font-medium">
               {t(col.labelKey as Parameters<typeof t>[0])}
             </span>
@@ -144,11 +129,6 @@ export function ShotKanban({
                 onClick={col.batchAction}
                 disabled={anyGenerating}
               >
-                {col.isGenerating ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  col.icon
-                )}
                 {col.isGenerating
                   ? tCommon("generating")
                   : t("kanbanBatchGenerate", {
@@ -159,7 +139,7 @@ export function ShotKanban({
           )}
 
           {/* Shot mini-cards */}
-          <div className="flex-1 space-y-1.5 overflow-y-auto p-2">
+          <div className="flex-1 divide-y divide-border">
             {col.shots.length === 0 ? (
               <div className="flex items-center justify-center py-6 text-xs text-[var(--text-muted)]">
                 —
@@ -173,7 +153,7 @@ export function ShotKanban({
                 return (
                   <div
                     key={shot.id}
-                    className="flex cursor-pointer flex-col gap-3 rounded-md border border-border bg-white p-3 transition-colors hover:border-primary/30 hover:bg-primary/2"
+                    className="flex cursor-pointer flex-col gap-3 py-4 transition-colors hover:bg-muted/50"
                     onClick={() => onOpenDrawer(shot.id)}
                     role="button"
                     tabIndex={0}
@@ -185,7 +165,7 @@ export function ShotKanban({
                     }}
                   >
                     {/* Thumbnail */}
-                    <div className="aspect-video w-full flex-shrink-0 overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--surface)]">
+                    <div className="aspect-video w-full flex-shrink-0 overflow-hidden bg-muted">
                       {thumb ? (
                         <img
                           src={uploadUrl(thumb)}
@@ -194,14 +174,16 @@ export function ShotKanban({
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <ImageIcon className="h-3 w-3 text-[var(--text-muted)]" />
+                          <span className="text-xs text-muted-foreground">
+                            {t("kanbanNeedsFrames")}
+                          </span>
                         </div>
                       )}
                     </div>
                     {/* Text */}
                     <div className="min-w-0 w-full">
                       <div className="text-xs font-mono font-bold text-primary">
-                        #{shot.sequence}
+                        {shot.sequence.toString().padStart(2, "0")}
                       </div>
                       <div className="line-clamp-3 text-sm leading-6 text-muted-foreground">
                         {shot.prompt}

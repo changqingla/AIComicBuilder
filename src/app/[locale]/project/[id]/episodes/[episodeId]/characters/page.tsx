@@ -3,22 +3,22 @@
 import { requestGeneration } from "@/lib/generation/client";
 import { useParams } from "next/navigation";
 
-import { useState } from "react";
 import { useEpisodeEditorStore } from "@/stores/episode-editor-store";
+import { useState } from "react";
 
-import { useModelStore } from "@/stores/model-store";
+import { AgentPicker } from "@/components/agent-picker";
 import { CharacterCard } from "@/components/editor/character-card";
 import { CharacterRelations } from "@/components/editor/character-relations";
-import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
-import { Users, Sparkles, ImageIcon, Loader2 } from "lucide-react";
 import { InlineModelPicker } from "@/components/editor/model-selector";
-import { apiFetch } from "@/lib/api-fetch";
-import { useModelGuard } from "@/hooks/use-model-guard";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
-import { AgentPicker } from "@/components/agent-picker";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/workspace/page-header";
+import { useModelGuard } from "@/hooks/use-model-guard";
+import { apiFetch } from "@/lib/api-fetch";
+import { useModelStore } from "@/stores/model-store";
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 export default function EpisodeCharactersPage() {
   const { episodeId } = useParams<{ episodeId: string }>();
@@ -91,10 +91,7 @@ export default function EpisodeCharactersPage() {
 
   return (
     <div className="animate-page-in space-y-6">
-      <PageHeader
-        title={t("project.characters")}
-        description={t("workspace.charactersHint")}
-      >
+      <PageHeader title={t("project.characters")}>
         <AgentPicker
           projectId={episode.projectId}
           category="character_extract"
@@ -106,11 +103,7 @@ export default function EpisodeCharactersPage() {
           variant="outline"
           size="sm"
         >
-          {extracting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
+          {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {extracting ? t("common.generating") : t("project.extractCharacters")}
         </Button>
         {episode.characters.length > 0 && hasCharactersWithoutImages && (
@@ -124,9 +117,7 @@ export default function EpisodeCharactersPage() {
             >
               {generatingImages ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ImageIcon className="h-3.5 w-3.5" />
-              )}
+              ) : null}
               {generatingImages
                 ? t("common.generating")
                 : t("character.batchGenerateImages")}
@@ -141,9 +132,6 @@ export default function EpisodeCharactersPage() {
 
       {episode.characters.length === 0 ? (
         <div className="empty-state">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
-            <Users className="h-7 w-7 text-primary" />
-          </div>
           <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {t("project.characters")}
           </h3>
@@ -164,7 +152,7 @@ export default function EpisodeCharactersPage() {
               />
             </div>
           )}
-          <div className="grid gap-5 2xl:grid-cols-2">
+          <div className="divide-y divide-border border-t border-border">
             {episode.characters.map((char) => (
               <CharacterCard
                 key={char.id}

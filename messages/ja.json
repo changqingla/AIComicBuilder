@@ -232,7 +232,8 @@
     "mergeError": "結合に失敗しました",
     "mergeMinTwo": "2話以上選択してください",
     "mergeNoVideo": "動画がまだ合成されていません",
-    "downloadVideo": "動画をダウンロード"
+    "downloadVideo": "動画をダウンロード",
+    "name": "エピソード名"
   },
   "import": {
     "title": "脚本インポート",
@@ -525,15 +526,6 @@
     "mainNavigation": "メインナビゲーション",
     "projectNavigation": "プロジェクトナビゲーション",
     "language": "表示言語",
-    "projectsHint": "プロジェクトを管理し、エピソードの編集を続けます。",
-    "episodesHint": "脚本・キャラクター・絵コンテをエピソードごとに管理します。",
-    "charactersHint": "キャラクターの情報と参照画像を管理し、各話で再利用します。",
-    "scriptHint": "アイデア、あらすじ、脚本を整理します。",
-    "storyboardHint": "ショットと画像を編集し、動画を生成・確認します。",
-    "previewHint": "クリップの順序を確認し、動画を合成してダウンロードします。",
-    "importHint": "原文をアップロードし、キャラクターとエピソードを確認して取り込みます。",
-    "settingsHint": "プロバイダーを設定し、テキスト・画像・動画の既定モデルを選択します。",
-    "promptsHint": "各生成ステップで使用するプロンプトを確認・編集します。",
     "createdDate": "作成日",
     "projectPlaceholder": "プロジェクト名を入力",
     "allProjects": "すべてのプロジェクト",
@@ -554,6 +546,15 @@
     "previousShot": "前のショット",
     "nextShot": "次のショット",
     "clips": "ショット動画",
-    "noClips": "動画がありません。絵コンテで動画を生成またはアップロードしてください。"
+    "noClips": "動画がありません。絵コンテで動画を生成またはアップロードしてください。",
+    "copied": "コピーしました",
+    "otherShots": "その他のカット",
+    "imageHistory": "画像の履歴",
+    "expand": "開く",
+    "collapse": "閉じる",
+    "newVersion": "新しいバージョン",
+    "selectModel": "モデルを選択",
+    "transitionIn": "入りのトランジション",
+    "transitionOut": "終わりのトランジション"
   }
 }

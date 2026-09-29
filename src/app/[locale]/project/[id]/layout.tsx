@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, use } from "react";
 import { useProjectStore } from "@/stores/project-store";
+import { use, useEffect } from "react";
 
-import { useTranslations } from "next-intl";
+import { WorkspaceShell } from "@/components/workspace/shell";
 import { Loader2 } from "lucide-react";
-import { WorkspaceHeader } from "@/components/workspace/header";
-import { ProjectSections } from "@/components/workspace/project-sections";
+import { useTranslations } from "next-intl";
 
 export default function ProjectLayout({
   children,
@@ -47,11 +46,5 @@ export default function ProjectLayout({
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <WorkspaceHeader project={project} />
-      <ProjectSections projectId={id} />
-      {children}
-    </div>
-  );
+  return <WorkspaceShell project={project}>{children}</WorkspaceShell>;
 }

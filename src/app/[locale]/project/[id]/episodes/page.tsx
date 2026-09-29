@@ -1,31 +1,23 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import {
-  Layers,
-  Plus,
-  Loader2,
-  Upload,
-  FileUp,
-  Merge,
-  Download,
-} from "lucide-react";
-import { uploadUrl } from "@/lib/utils/upload-url";
-import { toast } from "sonner";
+import { EpisodeCard } from "@/components/editor/episode-card";
+import { EpisodeDialog } from "@/components/editor/episode-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { EpisodeCard } from "@/components/editor/episode-card";
-import { EpisodeDialog } from "@/components/editor/episode-dialog";
-import { useEpisodeStore, type Episode } from "@/stores/episode-store";
-import { apiFetch } from "@/lib/api-fetch";
-import Link from "next/link";
 import { PageHeader } from "@/components/workspace/page-header";
+import { apiFetch } from "@/lib/api-fetch";
+import { uploadUrl } from "@/lib/utils/upload-url";
+import { useEpisodeStore, type Episode } from "@/stores/episode-store";
+import { Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import Link from "next/link";
+import { use, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function EpisodesPage({
   params,
@@ -36,7 +28,6 @@ export default function EpisodesPage({
   const locale = useLocale();
   const t = useTranslations("episode");
   const tc = useTranslations("common");
-  const tw = useTranslations("workspace");
   const {
     episodes,
     loading,
@@ -145,10 +136,7 @@ export default function EpisodesPage({
 
   return (
     <div className="workspace-page">
-      <PageHeader
-        title={t("title")}
-        description={`${tw("episodesHint")} ${episodes.length} ${t("count")}`}
-      >
+      <PageHeader title={t("title")}>
         <Button
           variant="outline"
           onClick={() =>
@@ -156,28 +144,21 @@ export default function EpisodesPage({
           }
           disabled={episodes.filter((e) => e.finalVideoUrl).length < 2}
         >
-          <Merge className="size-4" />
           {selectionMode ? t("mergeCancel") : t("mergeVideos")}
         </Button>
         <Link
           href={`/${locale}/project/${projectId}/import`}
           className="subtle-link"
         >
-          <FileUp className="size-4" />
           {t("uploadScript")}
         </Link>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          {t("create")}
-        </Button>
+        <Button onClick={() => setCreateOpen(true)}>{t("create")}</Button>
       </PageHeader>
 
       {/* Episode grid */}
       {episodes.length === 0 ? (
         <div className="empty-state">
-          <div className="mb-2 text-muted-foreground">
-            <Layers className="size-9" />
-          </div>
+          <div className="mb-2 text-muted-foreground"></div>
           <h3 className="font-sans text-lg font-semibold text-[var(--text-primary)]">
             {t("title")}
           </h3>
@@ -186,19 +167,17 @@ export default function EpisodesPage({
           </p>
           <div className="mt-6 flex items-center gap-3">
             <Button onClick={() => setCreateOpen(true)} className="rounded-xl">
-              <Plus className="mr-1.5 h-4 w-4" />
               {t("create")}
             </Button>
             <Link href={`/${locale}/project/${projectId}/import`}>
               <Button variant="outline" className="rounded-xl">
-                <Upload className="mr-1.5 h-4 w-4" />
                 {t("uploadScript")}
               </Button>
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="border-t border-border">
           {episodes.map((episode) => (
             <EpisodeCard
               key={episode.id}
@@ -301,7 +280,6 @@ export default function EpisodesPage({
                 download
                 className="subtle-link"
               >
-                <Download className="size-4" />
                 {t("downloadVideo")}
               </a>
             </div>
